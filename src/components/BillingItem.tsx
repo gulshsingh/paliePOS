@@ -1,4 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CartItem } from '../types/cart';
 import { theme } from '../theme';
 
@@ -8,51 +9,46 @@ interface Props {
   onRemove: (id: string) => void;
 }
 
-export default function BillingItem({ item, onUpdate, onRemove }: Props) {
+export default function BillingItem({ item }: Props) {
+  const lineTotal = item.price_per_unit * item.qty;
+
+  const decrease = () => {
+    const cartStore = require('../store/cartStore').useCartStore;
+    cartStore.getState().decreaseQty(item.id);
+  };
+
+  const increase = () => {
+    const cartStore = require('../store/cartStore').useCartStore;
+    cartStore.getState().increaseQty(item.id);
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <TouchableOpacity onPress={() => onRemove(item.id)}>
-          <Text style={styles.remove}>✕</Text>
-        </TouchableOpacity>
+      {/* Left: name + price */}
+      <View style={styles.left}>
+        <View style={styles.vegIndicator} />
+        <View style={styles.textBlock}>
+          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.unitPrice}>₹{item.price_per_unit.toLocaleString()} each</Text>
+        </View>
       </View>
-      <View style={styles.row}>
-        <View style={styles.qtyControl}>
-          <TouchableOpacity
-            style={styles.qtyBtn}
-            onPress={() => {
-              const cartStore = require('../store/cartStore').useCartStore;
-              cartStore.getState().decreaseQty(item.id);
-            }}>
-            <Text style={styles.qtyBtnText}>−</Text>
+
+      {/* Right: qty stepper + total */}
+      <View style={styles.right}>
+        <View style={styles.stepper}>
+          <TouchableOpacity style={styles.stepBtn} onPress={decrease} activeOpacity={0.7}>
+            <MaterialCommunityIcons
+              name={item.qty === 1 ? 'trash-can-outline' : 'minus'}
+              size={14}
+              color={item.qty === 1 ? theme.colors.danger : theme.colors.primary}
+            />
           </TouchableOpacity>
           <Text style={styles.qty}>{item.qty}</Text>
-          <TouchableOpacity
-            style={styles.qtyBtn}
-            onPress={() => {
-              const cartStore = require('../store/cartStore').useCartStore;
-              cartStore.getState().increaseQty(item.id);
-            }}>
-            <Text style={styles.qtyBtnText}>+</Text>
+          <TouchableOpacity style={styles.stepBtn} onPress={increase} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="plus" size={14} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
-        <View style={styles.priceInfo}>
-          <TextInput
-            style={styles.input}
-            value={String(item.price_per_unit)}
-            keyboardType="numeric"
-            onChangeText={(v) =>
-              onUpdate(item.id, {
-                price_per_unit: Number(v),
-                price: Number(v) * item.qty,
-              })
-            }
-          />
-          <Text style={styles.totalPrice}>
-            ₹ {(item.price_per_unit * item.qty).toLocaleString()}
-          </Text>
-        </View>
+        <Text style={styles.lineTotal}>₹{lineTotal.toLocaleString()}</Text>
       </View>
     </View>
   );
@@ -60,76 +56,76 @@ export default function BillingItem({ item, onUpdate, onRemove }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.surfaceTertiary,
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 6,
-  },
-  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: theme.radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    ...theme.shadow.sm,
+  },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+    marginRight: 12,
+  },
+  vegIndicator: {
+    width: 14,
+    height: 14,
+    borderRadius: 2,
+    borderWidth: 1.5,
+    borderColor: theme.colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  textBlock: {
+    flex: 1,
   },
   name: {
     color: theme.colors.textPrimary,
     fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
+    fontWeight: '700',
   },
-  remove: {
-    color: theme.colors.danger,
-    fontSize: 18,
-    marginLeft: 8,
+  unitPrice: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
   },
-  qtyControl: {
+  right: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.sm,
+    overflow: 'hidden',
   },
-  qtyBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.surfaceSecondary,
+  stepBtn: {
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  qtyBtnText: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
+    backgroundColor: theme.colors.primaryLight,
   },
   qty: {
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  priceInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  input: {
-    backgroundColor: theme.colors.surfaceSecondary,
-    color: theme.colors.textPrimary,
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    width: 70,
-    textAlign: 'right',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  totalPrice: {
-    color: theme.colors.accent,
+    color: theme.colors.primary,
     fontSize: 14,
-    fontWeight: '700',
-    minWidth: 70,
-    textAlign: 'right',
+    fontWeight: '800',
+    paddingHorizontal: 12,
+  },
+  lineTotal: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

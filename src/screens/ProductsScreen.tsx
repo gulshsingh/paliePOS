@@ -6,20 +6,22 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  StatusBar,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useProducts } from '../hooks/useProducts';
 import { Product } from '../types/product';
 import { theme } from '../theme';
 import Skeleton from '../components/Skeleton';
 
-const EMOJIS = ['🍕', '🍔', '🥤', '🥗', '🍜', '🍣', '🥩', '🍰', '🥐', '🧁', '☕', '🍦', '🍩', '🌮', '🥪', '🍝'];
+const EMOJIS = ['🍕', '🍔', '🥤', '🥗', '🍜', '🍣', '🥩', '🍰', '🥐', '🧁', '☕', '🍦', '🍩', '🌮', '🥪', '🍝', '🍛', '🥟'];
+const TILE_COLORS = ['#FFF3E8', '#FFF0F1', '#F0FFF4', '#F0F4FF', '#FFFBF0', '#F5F0FF', '#F0FAFF', '#FFF0F8'];
 
 export default function ProductsScreen() {
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
   const { data, isLoading } = useProducts();
- 
 
   const allProducts =
     data?.pages.flatMap((p) => {
@@ -28,69 +30,90 @@ export default function ProductsScreen() {
     }) ?? [];
 
   const filtered = search
-    ? allProducts.filter((p: Product) =>
-        p.name.toLowerCase().includes(search.toLowerCase()),
-      )
+    ? allProducts.filter((p: Product) => p.name.toLowerCase().includes(search.toLowerCase()))
     : allProducts;
 
   const renderItem = useCallback(({ item }: { item: Product }) => {
-    const emoji = EMOJIS[item.name.length % EMOJIS.length];
+    const emoji   = EMOJIS[item.name.length % EMOJIS.length];
+    const tileBg  = TILE_COLORS[item.name.length % TILE_COLORS.length];
     return (
       <TouchableOpacity
         style={styles.card}
-        activeOpacity={0.7}
-        onPress={() =>
-          navigation.navigate('ProductForm', { product: item })
-        }>
-        
-        <Text style={styles.emoji}>{emoji}</Text>
-        <Text style={styles.name} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.price}>
-          ₹ {Number(item.price_per_unit).toLocaleString()}
-        </Text>
+        activeOpacity={0.88}
+        onPress={() => navigation.navigate('ProductForm', { product: item })}>
+
+        <View style={[styles.emojiTile, { backgroundColor: tileBg }]}>
+          <Text style={styles.emoji}>{emoji}</Text>
+        </View>
+
+        <View style={styles.cardBody}>
+          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.price}>₹{Number(item.price_per_unit).toLocaleString()}</Text>
+        </View>
+
+        <View style={styles.editIcon}>
+          <MaterialCommunityIcons name="pencil-outline" size={13} color={theme.colors.primary} />
+        </View>
       </TouchableOpacity>
     );
   }, [navigation]);
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>🍽️ Products</Text>
-          <Text style={styles.count}>{allProducts.length} Products</Text>
+          <Text style={styles.headerSub}>Menu</Text>
+          <Text style={styles.headerTitle}>
+            Products
+           
+          </Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => navigation.navigate('ProductForm', {})}>
-          <Text style={styles.addBtnText}>+ Add Product</Text>
+          onPress={() => navigation.navigate('ProductForm', {})}
+          activeOpacity={0.85}>
+          <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+          <Text style={styles.addBtnText}>Add Item</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.searchRow}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.search}
-          placeholder="Search products..."
-          placeholderTextColor="#94A3B8"
-          value={search}
-          onChangeText={setSearch}
-        />
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBar}>
+          <MaterialCommunityIcons name="magnify" size={18} color={theme.colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search products..."
+            placeholderTextColor={theme.colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
+    
+
+      {/* Grid */}
       {isLoading ? (
         <FlatList
-          data={[1,2,3,4,5,6]}
+          data={[1, 2, 3, 4, 5, 6]}
           keyExtractor={(i) => String(i)}
           numColumns={3}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.list}
           renderItem={() => (
-            <View style={[styles.card, { paddingVertical: 20 }]}>
-              <Skeleton width={32} height={32} borderRadius={16} style={{ marginBottom: 8 }} />
-              <Skeleton width="70%" height={12} borderRadius={6} style={{ marginBottom: 4 }} />
-              <Skeleton width="40%" height={12} borderRadius={6} />
+            <View style={styles.skeletonCard}>
+              <Skeleton width="100%" height={72} borderRadius={12} style={{ marginBottom: 8 }} />
+              <Skeleton width="70%" height={11} borderRadius={6} style={{ marginBottom: 4 }} />
+              <Skeleton width="45%" height={11} borderRadius={6} />
             </View>
           )}
           removeClippedSubviews={true}
@@ -108,9 +131,10 @@ export default function ProductsScreen() {
           showsVerticalScrollIndicator={false}
           renderItem={renderItem}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyIcon}>📦</Text>
-              <Text style={styles.emptyText}>No products found</Text>
+            <View style={styles.empty}>
+              <MaterialCommunityIcons name="food-off-outline" size={48} color={theme.colors.textMuted} />
+              <Text style={styles.emptyTitle}>No products found</Text>
+              <Text style={styles.emptySub}>{search ? 'Try a different keyword' : 'Add your first product'}</Text>
             </View>
           }
           removeClippedSubviews={true}
@@ -126,142 +150,159 @@ export default function ProductsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingTop: 54,
+    backgroundColor: theme.colors.surfaceSecondary,
+    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  greeting: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#0F172A',
+  headerSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  count: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 2,
-    fontWeight: '500',
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: theme.colors.textPrimary,
+    marginTop: 1,
+  },
+  headerCount: {
+    color: theme.colors.textMuted,
+    fontWeight: '600',
+    fontSize: 16,
   },
   addBtn: {
-    backgroundColor: theme.colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#E04556',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderRadius: theme.radius.full,
+    ...theme.shadow.lg,
   },
   addBtnText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  searchRow: {
+  searchWrap: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginHorizontal: 16,
-    marginBottom: 12,
+    gap: 8,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
     paddingHorizontal: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
   },
-  searchIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  search: {
+  searchInput: {
     flex: 1,
-    color: '#0F172A',
+    color: theme.colors.textPrimary,
     fontSize: 14,
     paddingVertical: 10,
   },
+  resultsRow: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  resultsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
   list: {
     paddingHorizontal: 10,
-    paddingBottom: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
   row: {
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   card: {
     width: '31%',
     backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    position: 'relative',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    borderRadius: theme.radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    ...theme.shadow.sm,
   },
-  deleteBadge: {
+  emojiTile: {
+    height: 72,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emoji: {
+    fontSize: 34,
+  },
+  cardBody: {
+    paddingHorizontal: 8,
+    paddingTop: 7,
+    paddingBottom: 10,
+  },
+  name: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  price: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  editIcon: {
     position: 'absolute',
     top: 6,
     right: 6,
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
   },
-  deleteBadgeText: {
-    color: theme.colors.danger,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 16,
+  skeletonCard: {
+    width: '31%',
+    backgroundColor: '#fff',
+    borderRadius: theme.radius.lg,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
   },
-  emoji: {
-    fontSize: 32,
-    marginBottom: 6,
-  },
-  name: {
-    color: '#0F172A',
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  price: {
-    color: '#E04556',
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
+  empty: {
     alignItems: 'center',
     paddingTop: 60,
+    gap: 8,
   },
-  loadingText: {
-    color: '#94A3B8',
-    fontSize: 14,
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    marginTop: 8,
   },
-  emptyIcon: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontWeight: '600',
+  emptySub: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
   },
 });

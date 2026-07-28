@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Order } from '../types/order';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import OrderCard from '../components/OrderCard';
 import Skeleton from '../components/Skeleton';
 import { useOrders } from '../hooks/useOrders';
@@ -10,10 +11,17 @@ import { ORDER_TABS, OrderTab } from '../types/order-status';
 import { theme } from '../theme';
 
 const TAB_ITEM_STATUS: Record<OrderTab, string> = {
-  PENDING: 'pending',
-  KITCHEN: 'preparing',
-  SERVING: 'ready',
-  SERVED: 'served',
+  PENDING:  'pending',
+  KITCHEN:  'preparing',
+  SERVING:  'ready',
+  SERVED:   'served',
+};
+
+const TAB_META: Record<OrderTab, { icon: string; color: string; bg: string }> = {
+  PENDING:  { icon: 'clock-outline',         color: theme.colors.warning,   bg: theme.colors.warningLight },
+  KITCHEN:  { icon: 'fire',                  color: theme.colors.info,      bg: theme.colors.infoLight },
+  SERVING:  { icon: 'check-circle-outline',  color: theme.colors.success,   bg: theme.colors.successLight },
+  SERVED:   { icon: 'silverware',            color: theme.colors.textMuted, bg: theme.colors.surfaceTertiary },
 };
 
 export default function OrdersPanel({ onBillToCart }: { onBillToCart?: () => void }) {
@@ -62,53 +70,78 @@ export default function OrdersPanel({ onBillToCart }: { onBillToCart?: () => voi
 
   return (
     <View style={styles.container}>
-      <View style={styles.tabs}>
-        {ORDER_TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}>
-            <Text
+      {/* Tab bar */}
+      <View style={styles.tabScroll}>
+        {ORDER_TABS.map((tab) => {
+          const isActive = activeTab === tab;
+          const meta = TAB_META[tab];
+          return (
+            <TouchableOpacity
+              key={tab}
               style={[
-                styles.tabText,
-                activeTab === tab && styles.activeTabText,
-              ]}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+                styles.tab,
+                isActive && { backgroundColor: meta.bg, borderColor: meta.color },
+              ]}
+              onPress={() => setActiveTab(tab)}
+              activeOpacity={0.8}>
+              <MaterialCommunityIcons
+                name={meta.icon}
+                size={14}
+                color={isActive ? meta.color : theme.colors.textMuted}
+              />
+              <Text style={[styles.tabText, isActive && { color: meta.color }]}>
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
+      {/* Order list */}
       {isLoading ? (
         <FlatList
-          data={[1,2,3]}
+          data={[1, 2, 3]}
           keyExtractor={(i) => String(i)}
           renderItem={() => (
-            <View style={styles.orderSkeleton}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Skeleton width={100} height={18} borderRadius={6} />
-                <Skeleton width={80} height={18} borderRadius={6} />
+            <View style={styles.skeletonCard}>
+              <View style={styles.skeletonRow}>
+                <Skeleton width={70} height={32} borderRadius={8} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Skeleton width="60%" height={14} borderRadius={6} />
+                  <Skeleton width="35%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
+                </View>
+                <Skeleton width={60} height={20} borderRadius={6} />
               </View>
-              <Skeleton width="40%" height={14} borderRadius={6} style={{ marginTop: 8 }} />
-              <Skeleton width="30%" height={14} borderRadius={6} style={{ marginTop: 4 }} />
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: 16 }}
+          contentContainerStyle={styles.listContent}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           windowSize={5}
           initialNumToRender={6}
         />
       ) : orders.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>No {activeTab} orders</Text>
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons
+            name={TAB_META[activeTab].icon}
+            size={52}
+            color={theme.colors.textMuted}
+          />
+          <Text style={styles.emptyTitle}>No {activeTab.toLowerCase()} orders</Text>
+          <Text style={styles.emptySubtitle}>
+            {activeTab === 'PENDING' ? 'New orders will appear here' :
+             activeTab === 'KITCHEN' ? 'Orders being prepared will show here' :
+             activeTab === 'SERVING' ? 'Ready-to-serve orders will appear here' :
+             'Completed orders will appear here'}
+          </Text>
         </View>
       ) : (
         <FlatList
           data={orders}
           keyExtractor={(item) => item.id}
           renderItem={renderOrder}
-          contentContainerStyle={{ paddingBottom: 16 }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           windowSize={5}
@@ -122,48 +155,70 @@ export default function OrdersPanel({ onBillToCart }: { onBillToCart?: () => voi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
-  tabs: {
+  tabScroll: {
     flexDirection: 'row',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: theme.colors.surfaceSecondary,
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  activeTab: {
-    backgroundColor: theme.colors.accent,
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderRadius: theme.radius.full,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   tabText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  activeTabText: {
-    color: '#fff',
+  listContent: {
+    paddingTop: 8,
+    paddingBottom: 20,
   },
-  center: {
+  skeletonCard: {
+    backgroundColor: '#fff',
+    borderRadius: theme.radius.lg,
+    marginHorizontal: 12,
+    marginVertical: 5,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingBottom: 60,
+    gap: 8,
   },
-  emptyText: {
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    marginTop: 8,
+    textTransform: 'capitalize',
+  },
+  emptySubtitle: {
+    fontSize: 13,
     color: theme.colors.textMuted,
-    fontSize: 14,
-  },
-  orderSkeleton: {
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 12,
-    marginHorizontal: 12,
-    marginVertical: 4,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });

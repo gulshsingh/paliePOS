@@ -1,5 +1,7 @@
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Product } from '../types/product';
+import { theme } from '../theme';
 
 interface Props {
   product: Product;
@@ -8,21 +10,41 @@ interface Props {
 
 const EMOJIS = ['🍕', '🍔', '🥤', '🥗', '🍜', '🍣', '🥩', '🍰', '🥐', '🧁', '☕', '🍦', '🍩', '🌮', '🥪', '🍝', '🍛', '🥟', '🧆', '🥨'];
 
+// Soft background colors for the emoji tile
+const TILE_COLORS = [
+  '#FFF3E8', '#FFF0F0', '#F0FFF4', '#F0F4FF',
+  '#FFFBF0', '#F5F0FF', '#F0FAFF', '#FFF0F8',
+];
+
 export default function ProductCard({ product, onPress }: Props) {
   const emoji = EMOJIS[product.name.length % EMOJIS.length];
+  const tileBg = TILE_COLORS[product.name.length % TILE_COLORS.length];
 
   return (
     <TouchableOpacity
-      activeOpacity={0.7}
+      activeOpacity={0.88}
       style={styles.card}
       onPress={() => onPress(product)}>
-      <Text style={styles.emoji}>{emoji}</Text>
-      <Text style={styles.name} numberOfLines={1}>
-        {product.name}
-      </Text>
-      <Text style={styles.price}>
-        ₹ {Number(product.price_per_unit).toLocaleString()}
-      </Text>
+
+      {/* Emoji tile */}
+      <View style={[styles.emojiTile, { backgroundColor: tileBg }]}>
+        <Text style={styles.emoji}>{emoji}</Text>
+      </View>
+
+      {/* Info */}
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={2}>
+          {product.name}
+        </Text>
+        <Text style={styles.price}>
+          ₹{Number(product.price_per_unit).toLocaleString()}
+        </Text>
+      </View>
+
+      {/* Add button */}
+      <View style={styles.addBtn}>
+        <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -30,28 +52,49 @@ export default function ProductCard({ product, onPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    margin: 6,
-    width: '46%',
-    alignItems: 'center',
+    borderRadius: theme.radius.lg,
+    margin: 5,
+    width: '46.5%',
+    overflow: 'hidden',
+    ...theme.shadow.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.borderLight,
+  },
+  emojiTile: {
+    height: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emoji: {
-    fontSize: 40,
-    marginBottom: 8,
+    fontSize: 44,
+  },
+  info: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   name: {
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+    color: theme.colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginBottom: 4,
   },
   price: {
-    color: '#E04556',
+    color: theme.colors.primary,
     fontSize: 14,
-    fontWeight: '700',
-    marginTop: 4,
+    fontWeight: '800',
+  },
+  addBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadow.sm,
   },
 });

@@ -8,13 +8,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { theme } from '../theme';
 
 const UNITS = ['pcs', 'kg', 'g', 'l', 'ml', 'box', 'packet'];
+
+const EMOJIS = ['🍕', '🍔', '🥤', '🥗', '🍜', '🍣', '🥩', '🍰', '🥐', '🧁', '☕', '🍦', '🍩', '🌮', '🥪', '🍝', '🍛', '🥟'];
+const TILE_COLORS = ['#FFF3E8', '#FFF0F1', '#F0FFF4', '#F0F4FF', '#FFFBF0', '#F5F0FF'];
 
 export default function ProductFormScreen() {
   const route = useRoute<any>();
@@ -28,12 +34,17 @@ export default function ProductFormScreen() {
   const [tax, setTax] = useState(String(product?.tax_percentage ?? '0'));
   const [categoryId, setCategoryId] = useState(product?.category_id ?? '');
   const [unit, setUnit] = useState(product?.unit ?? '');
+  const [focused, setFocused] = useState<string | null>(null);
 
   const { data: categoriesData } = useCategories();
   const categories = (categoriesData as any)?.data ?? [];
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const isPending = createProduct.isPending || updateProduct.isPending;
+
+  const emoji = name ? EMOJIS[name.length % EMOJIS.length] : '🍽️';
+  const tileBg = name ? TILE_COLORS[name.length % TILE_COLORS.length] : theme.colors.surfaceSecondary;
 
   const handleSave = async () => {
     const data = {
@@ -56,90 +67,119 @@ export default function ProductFormScreen() {
     }
   };
 
+  const field = (
+    id: string,
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    props: any = {},
+  ) => (
+    <View style={styles.fieldWrap}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, focused === id && styles.inputFocused, props.multiline && styles.inputMulti]}
+        value={value}
+        onChangeText={onChange}
+        placeholderTextColor={theme.colors.textMuted}
+        onFocus={() => setFocused(id)}
+        onBlur={() => setFocused(null)}
+        {...props}
+      />
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>{isEdit ? 'Edit' : 'New'} Product</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="arrow-left" size={20} color={theme.colors.textSecondary} />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>{isEdit ? 'Edit' : 'New'} Product</Text>
+          <Text style={styles.headerSub}>{isEdit ? 'Update product details' : 'Add to your menu'}</Text>
+        </View>
+        {isEdit ? (
+          <TouchableOpacity
+            style={styles.deleteIconBtn}
+            onPress={() => { deleteProduct.mutate(product.id); navigation.goBack(); }}>
+            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.colors.danger} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
       <ScrollView
-        style={styles.form}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingBottom: 20 }}>
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Product Details</Text>
+        keyboardDismissMode="on-drag">
 
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g. Veg Pizza"
-            placeholderTextColor="#94A3B8"
-          />
-
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Product description"
-            placeholderTextColor="#94A3B8"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
+        {/* Emoji preview */}
+        <View style={[styles.emojiPreview, { backgroundColor: tileBg }]}>
+          <Text style={styles.emojiLarge}>{emoji}</Text>
+          {name ? <Text style={styles.emojiName}>{name}</Text> : <Text style={styles.emojiPlaceholder}>Product preview</Text>}
+          {price ? <Text style={styles.emojiPrice}>₹{Number(price).toLocaleString()}</Text> : null}
         </View>
 
+        {/* Card 1 — details */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Pricing</Text>
-
-          <Text style={styles.label}>Price (per unit)</Text>
-          <TextInput
-            style={styles.input}
-            value={price}
-            onChangeText={setPrice}
-            placeholder="0"
-            placeholderTextColor="#94A3B8"
-            keyboardType="numeric"
-          />
-
-          <Text style={styles.label}>Tax %</Text>
-          <TextInput
-            style={styles.input}
-            value={tax}
-            onChangeText={setTax}
-            placeholder="0"
-            placeholderTextColor="#94A3B8"
-            keyboardType="numeric"
-          />
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="food-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.cardTitle}>Product Details</Text>
+          </View>
+          {field('name', 'Product Name', name, setName, { placeholder: 'e.g. Veg Pizza' })}
+          {field('desc', 'Description', description, setDescription, {
+            placeholder: 'Short description...',
+            multiline: true,
+            numberOfLines: 3,
+            textAlignVertical: 'top',
+          })}
         </View>
 
+        {/* Card 2 — pricing */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Category & Unit</Text>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="tag-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.cardTitle}>Pricing</Text>
+          </View>
+          <View style={styles.priceRow}>
+            <View style={{ flex: 1 }}>
+              {field('price', 'Price (₹)', price, setPrice, { placeholder: '0', keyboardType: 'numeric' })}
+            </View>
+            <View style={{ flex: 1 }}>
+              {field('tax', 'Tax %', tax, setTax, { placeholder: '0', keyboardType: 'numeric' })}
+            </View>
+          </View>
+        </View>
+
+        {/* Card 3 — category & unit */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <MaterialCommunityIcons name="shape-outline" size={16} color={theme.colors.primary} />
+            <Text style={styles.cardTitle}>Category & Unit</Text>
+          </View>
 
           <Text style={styles.label}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={{ marginBottom: 4 }}>
             <View style={styles.chipRow}>
               <TouchableOpacity
-                style={[styles.chip, !categoryId && styles.activeChip]}
+                style={[styles.chip, !categoryId && styles.chipActive]}
                 onPress={() => setCategoryId('')}>
-                <Text style={[styles.chipText, !categoryId && styles.activeChipText]}>
-                  None
-                </Text>
+                <Text style={[styles.chipText, !categoryId && styles.chipTextActive]}>None</Text>
               </TouchableOpacity>
               {categories.map((c: any) => (
                 <TouchableOpacity
                   key={c.id}
-                  style={[styles.chip, categoryId === c.id && styles.activeChip]}
+                  style={[styles.chip, categoryId === c.id && styles.chipActive]}
                   onPress={() => setCategoryId(c.id)}>
-                  <Text
-                    style={[styles.chipText, categoryId === c.id && styles.activeChipText]}>
+                  <Text style={[styles.chipText, categoryId === c.id && styles.chipTextActive]}>
                     {c.name}
                   </Text>
                 </TouchableOpacity>
@@ -147,42 +187,38 @@ export default function ProductFormScreen() {
             </View>
           </ScrollView>
 
-          <Text style={styles.label}>Unit</Text>
+          <Text style={[styles.label, { marginTop: 12 }]}>Unit</Text>
           <View style={styles.chipRow}>
             {UNITS.map((u) => (
               <TouchableOpacity
                 key={u}
-                style={[styles.chip, unit === u && styles.activeChip]}
+                style={[styles.chip, unit === u && styles.chipActive]}
                 onPress={() => setUnit(unit === u ? '' : u)}>
-                <Text style={[styles.chipText, unit === u && styles.activeChipText]}>
-                  {u}
-                </Text>
+                <Text style={[styles.chipText, unit === u && styles.chipTextActive]}>{u}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
       </ScrollView>
 
+      {/* Footer */}
       <View style={styles.footer}>
-        {isEdit && (
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => {
-              deleteProduct.mutate(product.id);
-              navigation.goBack();
-            }}>
-            <Text style={styles.deleteBtnText}>Delete</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>
-            {isEdit ? 'Update' : 'Create'}
-          </Text>
+        <TouchableOpacity
+          style={[styles.saveBtn, isPending && { opacity: 0.7 }]}
+          onPress={handleSave}
+          disabled={isPending}
+          activeOpacity={0.85}>
+          {isPending ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name={isEdit ? 'content-save-outline' : 'plus-circle-outline'} size={18} color="#fff" />
+              <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Add to Menu'}</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -192,136 +228,190 @@ export default function ProductFormScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingTop: 54,
+    backgroundColor: theme.colors.surfaceSecondary,
+    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  title: {
-    color: '#0F172A',
-    fontSize: 20,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  headerSub: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 1,
+  },
+  deleteIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.dangerLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+    gap: 12,
+  },
+  emojiPreview: {
+    borderRadius: theme.radius.xl,
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 4,
+  },
+  emojiLarge: { fontSize: 52 },
+  emojiName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    marginTop: 4,
+  },
+  emojiPlaceholder: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    marginTop: 4,
+  },
+  emojiPrice: {
+    fontSize: 15,
     fontWeight: '700',
-  },
-  form: {
-    flex: 1,
-    paddingHorizontal: 20,
+    color: theme.colors.primary,
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    borderRadius: theme.radius.xl,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    ...theme.shadow.sm,
   },
-  sectionTitle: {
-    color: '#0F172A',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
   },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fieldWrap: { marginBottom: 4 },
   label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
     marginBottom: 6,
-    marginTop: 12,
+    letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: '#F8FAFC',
-    color: '#0F172A',
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    backgroundColor: theme.colors.surfaceSecondary,
+    color: theme.colors.textPrimary,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    marginBottom: 8,
   },
-  textArea: {
-    height: 90,
+  inputFocused: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  inputMulti: {
+    height: 80,
     textAlignVertical: 'top',
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
+    marginBottom: 4,
   },
   chip: {
-    backgroundColor: '#F8FAFC',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingVertical: 7,
+    borderRadius: theme.radius.full,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
-  activeChip: {
-    backgroundColor: '#fff',
-    borderColor: theme.colors.accent,
-    borderWidth: 2,
+  chipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
   },
   chipText: {
-    color: '#64748B',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  activeChipText: {
-    color: theme.colors.accent,
+    fontSize: 12,
     fontWeight: '700',
+    color: theme.colors.textMuted,
   },
-  deleteBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-  },
-  deleteBtnText: {
-    color: theme.colors.danger,
-    fontSize: 14,
-    fontWeight: '600',
+  chipTextActive: {
+    color: theme.colors.primary,
   },
   footer: {
     flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
   },
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: theme.radius.md,
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surfaceTertiary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   cancelBtnText: {
-    color: '#475569',
-    fontSize: 15,
-    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
   },
   saveBtn: {
-    flex: 1,
+    flex: 2,
+    flexDirection: 'row',
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: theme.radius.md,
     alignItems: 'center',
-    backgroundColor: theme.colors.accent,
-    elevation: 2,
-    shadowColor: theme.colors.accent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.primary,
+    ...theme.shadow.lg,
   },
   saveBtnText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

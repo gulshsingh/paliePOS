@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
-import { View, AppState } from 'react-native';
+import { View, AppState, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -55,6 +55,22 @@ function useIdleTimer(onIdle: () => void) {
   return resetTimer;
 }
 
+// Shared slide-up + fade animation for all modal-style stack screens
+const modalScreenOptions = {
+  headerShown: false,
+  animation: 'slide_from_bottom' as const,
+  contentStyle: { backgroundColor: theme.colors.surfaceSecondary },
+  gestureEnabled: true,
+  gestureDirection: 'vertical' as const,
+};
+
+// Standard push animation for detail screens
+const pushScreenOptions = {
+  headerShown: false,
+  animation: 'slide_from_right' as const,
+  contentStyle: { backgroundColor: theme.colors.surfaceSecondary },
+};
+
 export default function AppNavigator() {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +100,7 @@ export default function AppNavigator() {
   return (
     <AuthContext.Provider value={{ signIn, signOut }}>
       <View
-        style={{ flex: 1 }}
+        style={styles.root}
         onStartShouldSetResponder={() => true}
         onResponderGrant={resetIdle}
         onResponderMove={resetIdle}>
@@ -96,15 +112,43 @@ export default function AppNavigator() {
             }}>
             {token ? (
               <>
-                <Stack.Screen name="Main" component={MainTabNavigator} />
-                <Stack.Screen name="ProceedPayment" component={ProceedPaymentScreen} />
-                <Stack.Screen name="CustomerForm" component={CustomerFormScreen} />
-                <Stack.Screen name="ProductForm" component={ProductFormScreen} />
-                <Stack.Screen name="TableForm" component={TableFormScreen} />
-                <Stack.Screen name="RunningOrders" component={RunningOrdersScreen} />
+                <Stack.Screen
+                  name="Main"
+                  component={MainTabNavigator}
+                  options={{ animation: 'fade' }}
+                />
+                <Stack.Screen
+                  name="ProceedPayment"
+                  component={ProceedPaymentScreen}
+                  options={modalScreenOptions}
+                />
+                <Stack.Screen
+                  name="CustomerForm"
+                  component={CustomerFormScreen}
+                  options={modalScreenOptions}
+                />
+                <Stack.Screen
+                  name="ProductForm"
+                  component={ProductFormScreen}
+                  options={modalScreenOptions}
+                />
+                <Stack.Screen
+                  name="TableForm"
+                  component={TableFormScreen}
+                  options={modalScreenOptions}
+                />
+                <Stack.Screen
+                  name="RunningOrders"
+                  component={RunningOrdersScreen}
+                  options={pushScreenOptions}
+                />
               </>
             ) : (
-              <Stack.Screen name="Auth" component={AuthNavigator} />
+              <Stack.Screen
+                name="Auth"
+                component={AuthNavigator}
+                options={{ animation: 'fade' }}
+              />
             )}
           </Stack.Navigator>
         </NavigationContainer>
@@ -112,3 +156,9 @@ export default function AppNavigator() {
     </AuthContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

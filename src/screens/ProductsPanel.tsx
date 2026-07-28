@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet } from 'react-native';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ProductCard from '../components/ProductCard';
 import SkeletonCard from '../components/SkeletonCard';
 import { useProducts } from '../hooks/useProducts';
@@ -11,7 +12,10 @@ export default function ProductsPanel() {
   const [search, setSearch] = useState('');
   const { data, isLoading } = useProducts();
   const addToCart = useCartStore((s) => s.addToCart);
-  const cartCount = useCartStore((s) => s.cart.length);
+  const cart = useCartStore((s) => s.cart);
+
+  const cartTotal = cart.reduce((sum, i) => sum + i.price_per_unit * i.qty, 0);
+  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
 
   const allProducts =
     data?.pages.flatMap((p) => {
@@ -33,38 +37,52 @@ export default function ProductsPanel() {
   };
 
   const renderItem = ({ item }: { item: Product }) => (
-    <ProductCard
-      product={item}
-      onPress={handleAdd}
-    />
+    <ProductCard product={item} onPress={handleAdd} />
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
-        <View style={styles.searchRow}>
-          <Text style={styles.searchIcon}>🔍</Text>
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBar}>
+          <MaterialCommunityIcons
+            name="magnify"
+            size={20}
+            color={theme.colors.textMuted}
+            style={styles.searchIcon}
+          />
           <TextInput
-            style={styles.search}
-            placeholder="Search products..."
-            placeholderTextColor="#94A3B8"
+            style={styles.searchInput}
+            placeholder="Search dishes..."
+            placeholderTextColor={theme.colors.textMuted}
             value={search}
             onChangeText={setSearch}
           />
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount}</Text>
-            </View>
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearBtn}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
           )}
         </View>
       </View>
 
+      {/* Results count */}
+      {!isLoading && (
+        <View style={styles.resultsRow}>
+          <Text style={styles.resultsText}>
+            {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+            {search ? ` for "${search}"` : ' on menu'}
+          </Text>
+        </View>
+      )}
+
+      {/* Product grid */}
       {isLoading ? (
         <FlatList
-          data={[1,2,3,4]}
+          data={[1, 2, 3, 4, 5, 6]}
           keyExtractor={(i) => String(i)}
           numColumns={2}
-          columnWrapperStyle={styles.grid}
+          columnWrapperStyle={styles.row}
           renderItem={() => <SkeletonCard />}
           contentContainerStyle={styles.list}
           removeClippedSubviews={true}
@@ -77,15 +95,16 @@ export default function ProductsPanel() {
           data={filtered}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          columnWrapperStyle={styles.grid}
+          columnWrapperStyle={styles.row}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, cartCount > 0 && { paddingBottom: 80 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyIcon}>📦</Text>
-              <Text style={styles.emptyText}>No products found</Text>
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyTitle}>No dishes found</Text>
+              <Text style={styles.emptySubtitle}>Try a different search term</Text>
             </View>
           }
           removeClippedSubviews={true}
@@ -94,6 +113,19 @@ export default function ProductsPanel() {
           initialNumToRender={6}
         />
       )}
+
+      {/* Floating cart summary bar */}
+      {cartCount > 0 && (
+        <View style={styles.cartBar}>
+          <View style={styles.cartBarLeft}>
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartCount}</Text>
+            </View>
+            <Text style={styles.cartBarLabel}>items added</Text>
+          </View>
+          <Text style={styles.cartBarTotal}>₹{cartTotal.toLocaleString()}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -101,76 +133,113 @@ export default function ProductsPanel() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surfaceSecondary,
   },
-  topBar: {
+  searchWrap: {
+    backgroundColor: '#fff',
     paddingHorizontal: 12,
-    paddingTop: 6,
-    paddingBottom: 2,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  searchRow: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     paddingHorizontal: 10,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
   },
   searchIcon: {
-    fontSize: 14,
-    marginRight: 6,
+    marginRight: 8,
   },
-  search: {
+  searchInput: {
     flex: 1,
-    color: '#0F172A',
+    color: theme.colors.textPrimary,
     fontSize: 14,
     paddingVertical: 10,
   },
+  clearBtn: {
+    padding: 4,
+  },
+  resultsRow: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  resultsText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  list: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  row: {
+    justifyContent: 'space-between',
+  },
+  empty: {
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    marginTop: 4,
+  },
+  cartBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    ...theme.shadow.lg,
+  },
+  cartBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   cartBadge: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: theme.radius.full,
+    minWidth: 24,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
   },
   cartBadgeText: {
     color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
-  grid: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 6,
-  },
-  list: {
-    paddingBottom: 16,
-    paddingTop: 2,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingText: {
-    color: '#94A3B8',
-    fontSize: 14,
-  },
-  emptyIcon: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: '#94A3B8',
+  cartBarLabel: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  cartBarTotal: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
   },
 });

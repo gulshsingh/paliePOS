@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import BillingItem from '../components/BillingItem';
 import CustomerModal from '../components/CustomerModal';
@@ -37,9 +38,7 @@ export default function BillingPanel() {
 
   const [customerModal, setCustomerModal] = useState(false);
   const [tableModal, setTableModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const { data: customersData } = useCustomers();
   const { data: tablesData } = useTables();
@@ -100,79 +99,122 @@ export default function BillingPanel() {
   };
 
   const renderItem = useCallback(({ item }: { item: CartItem }) => (
-    <BillingItem
-      item={item}
-      onUpdate={updateItem}
-      onRemove={removeItem}
-    />
+    <BillingItem item={item} onUpdate={updateItem} onRemove={removeItem} />
   ), [updateItem, removeItem]);
 
   return (
     <View style={styles.container}>
+
+      {/* Selector chips */}
       <View style={styles.selectionRow}>
         <TouchableOpacity
-          style={styles.selectBtn}
-          onPress={() => setCustomerModal(true)}>
-          <Text style={styles.selectBtnText}>
-            {selectedCustomer ? selectedCustomer.name : 'Customer'}
+          style={[styles.chip, selectedCustomer && styles.chipActive]}
+          onPress={() => setCustomerModal(true)}
+          activeOpacity={0.8}>
+          <MaterialCommunityIcons
+            name="account-outline"
+            size={15}
+            color={selectedCustomer ? theme.colors.primary : theme.colors.textMuted}
+          />
+          <Text style={[styles.chipText, selectedCustomer && styles.chipTextActive]} numberOfLines={1}>
+            {selectedCustomer ? selectedCustomer.name : 'Add Customer'}
           </Text>
+          {selectedCustomer && (
+            <MaterialCommunityIcons name="check-circle" size={14} color={theme.colors.primary} />
+          )}
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={styles.selectBtn}
-          onPress={() => setTableModal(true)}>
-          <Text style={styles.selectBtnText}>
-            {selectedTable ? selectedTable.name : 'Table'}
+          style={[styles.chip, selectedTable && styles.chipActive]}
+          onPress={() => setTableModal(true)}
+          activeOpacity={0.8}>
+          <MaterialCommunityIcons
+            name="table-furniture"
+            size={15}
+            color={selectedTable ? theme.colors.primary : theme.colors.textMuted}
+          />
+          <Text style={[styles.chipText, selectedTable && styles.chipTextActive]} numberOfLines={1}>
+            {selectedTable ? selectedTable.name : 'Select Table'}
           </Text>
+          {selectedTable && (
+            <MaterialCommunityIcons name="check-circle" size={14} color={theme.colors.primary} />
+          )}
         </TouchableOpacity>
       </View>
 
+      {/* Empty state */}
       {cart.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>No items in cart</Text>
-          <Text style={styles.mutedText}>
-            Tap a product to add it here
-          </Text>
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconWrap}>
+            <MaterialCommunityIcons name="cart-outline" size={48} color={theme.colors.textMuted} />
+          </View>
+          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <Text style={styles.emptySubtitle}>Add items from the Menu tab</Text>
         </View>
       ) : (
         <>
+          {/* Items header */}
+          <View style={styles.itemsHeader}>
+            <Text style={styles.itemsHeaderText}>
+              {cart.length} {cart.length === 1 ? 'item' : 'items'} in cart
+            </Text>
+            <TouchableOpacity onPress={clearCart}>
+              <Text style={styles.clearText}>Clear all</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Cart list */}
           <FlatList
             data={cart}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             style={styles.list}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
             removeClippedSubviews={true}
             maxToRenderPerBatch={10}
             windowSize={5}
             initialNumToRender={6}
           />
 
-          <View style={styles.totals}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>₹ {subtotal.toLocaleString()}</Text>
+          {/* Bill summary */}
+          <View style={styles.summary}>
+            <Text style={styles.summaryTitle}>Bill Summary</Text>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Item Total</Text>
+              <Text style={styles.summaryValue}>₹{subtotal.toLocaleString()}</Text>
             </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Tax</Text>
-              <Text style={styles.totalValue}>₹ {taxTotal.toLocaleString()}</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Taxes & Charges</Text>
+              <Text style={styles.summaryValue}>₹{taxTotal.toLocaleString()}</Text>
             </View>
-            <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>Grand Total</Text>
-              <Text style={styles.grandTotalValue}>
-                ₹ {grandTotal.toLocaleString()}
-              </Text>
+            <View style={styles.divider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.grandLabel}>To Pay</Text>
+              <Text style={styles.grandValue}>₹{grandTotal.toLocaleString()}</Text>
             </View>
           </View>
 
+          {/* Action buttons */}
           <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.kitchenBtn}
-              onPress={handleSendToKitchen}>
-              <Text style={styles.kitchenBtnText}>Send to Kitchen</Text>
+              style={[styles.actionBtn, styles.kitchenBtn]}
+              onPress={handleSendToKitchen}
+              disabled={createOrder.isPending}
+              activeOpacity={0.85}>
+              <MaterialCommunityIcons name="chef-hat" size={18} color={theme.colors.primary} />
+              <Text style={styles.kitchenBtnText}>
+                {createOrder.isPending ? 'Sending...' : 'Send to Kitchen'}
+              </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.paymentBtn}
-              onPress={handlePayment}>
-              <Text style={styles.paymentBtnText}>Payment</Text>
+              style={[styles.actionBtn, styles.payBtn]}
+              onPress={handlePayment}
+              activeOpacity={0.85}>
+              <MaterialCommunityIcons name="cash-register" size={18} color="#fff" />
+              <Text style={styles.payBtnText}>Proceed to Pay</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -197,111 +239,169 @@ export default function BillingPanel() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   selectionRow: {
     flexDirection: 'row',
     gap: 8,
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  selectBtn: {
+  chip: {
     flex: 1,
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderRadius: theme.radius.full,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  selectBtnText: {
-    color: theme.colors.textPrimary,
-    fontSize: 13,
+  chipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  chipText: {
+    flex: 1,
+    color: theme.colors.textMuted,
+    fontSize: 12,
     fontWeight: '600',
   },
-  list: {
-    flex: 1,
-    paddingHorizontal: 8,
+  chipTextActive: {
+    color: theme.colors.primary,
   },
-  center: {
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingBottom: 60,
   },
-  emptyText: {
+  emptyIconWrap: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: theme.colors.surfaceTertiary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  emptySubtitle: {
     color: theme.colors.textMuted,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 13,
+    marginTop: 6,
   },
-  mutedText: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  totals: {
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    padding: 12,
-  },
-  totalRow: {
+  itemsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  totalLabel: {
+  itemsHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: theme.colors.textSecondary,
-    fontSize: 13,
   },
-  totalValue: {
+  clearText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.danger,
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  summary: {
+    backgroundColor: '#fff',
+    marginHorizontal: 12,
+    borderRadius: theme.radius.lg,
+    padding: 16,
+    marginBottom: 10,
+    ...theme.shadow.sm,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
     color: theme.colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
+    marginBottom: 12,
   },
-  grandTotalRow: {
+  summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    marginTop: 4,
+    marginBottom: 8,
   },
-  grandTotalLabel: {
+  summaryLabel: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  summaryValue: {
+    fontSize: 13,
     color: theme.colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  grandTotalValue: {
-    color: theme.colors.accent,
-    fontSize: 16,
-    fontWeight: '700',
+  divider: {
+    height: 1,
+    backgroundColor: theme.colors.borderLight,
+    marginVertical: 8,
+    borderStyle: 'dashed',
+  },
+  grandLabel: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+  },
+  grandValue: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: theme.colors.primary,
   },
   actions: {
     flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    padding: 8,
+    paddingVertical: 14,
+    borderRadius: theme.radius.md,
   },
   kitchenBtn: {
-    flex: 1,
-    backgroundColor: theme.colors.surfaceTertiary,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
+    backgroundColor: theme.colors.primaryLight,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
   },
   kitchenBtnText: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
+    color: theme.colors.primary,
+    fontSize: 13,
+    fontWeight: '800',
   },
-  paymentBtn: {
-    flex: 1,
-    backgroundColor: theme.colors.success,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
+  payBtn: {
+    backgroundColor: theme.colors.primary,
+    ...theme.shadow.lg,
   },
-  paymentBtnText: {
+  payBtnText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

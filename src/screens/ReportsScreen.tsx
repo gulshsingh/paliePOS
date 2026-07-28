@@ -1,123 +1,174 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDashboard, useStockSummary, useLowStock } from '../hooks/useInventory';
 import { theme } from '../theme';
 
 type ReportTab = 'dashboard' | 'stock' | 'lowstock';
 
+const TABS: { key: ReportTab; label: string; icon: string }[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' },
+  { key: 'stock',     label: 'Stock',     icon: 'package-variant-closed' },
+  { key: 'lowstock',  label: 'Low Stock', icon: 'alert-circle-outline' },
+];
+
 export default function ReportsScreen() {
   const [tab, setTab] = useState<ReportTab>('dashboard');
   const { data: dashboardData } = useDashboard();
-  const { data: stockData } = useStockSummary();
-  const { data: lowStockData } = useLowStock();
+  const { data: stockData }     = useStockSummary();
+  const { data: lowStockData }  = useLowStock();
 
   const dashboard = (dashboardData as any)?.data?.data?.data;
-  const stock = (stockData as any)?.data?.data?.data;
-  const lowStock = (lowStockData as any)?.data?.data?.data ?? [];
+  const stock     = (stockData as any)?.data?.data?.data;
+  const lowStock  = (lowStockData as any)?.data?.data?.data ?? [];
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Reports</Text>
+        <View>
+          <Text style={styles.headerSub}>Analytics</Text>
+          <Text style={styles.headerTitle}>Reports</Text>
+        </View>
+        <View style={styles.headerBadge}>
+          <MaterialCommunityIcons name="chart-line" size={18} color={theme.colors.primary} />
+        </View>
       </View>
 
-      <View style={styles.tabs}>
-        {(['dashboard', 'stock', 'lowstock'] as ReportTab[]).map((t) => (
+      {/* Tab pills */}
+      <View style={styles.tabRow}>
+        {TABS.map((t) => (
           <TouchableOpacity
-            key={t}
-            style={[styles.tab, tab === t && styles.activeTab]}
-            onPress={() => setTab(t)}>
-            <Text style={[styles.tabText, tab === t && styles.activeTabText]}>
-              {t === 'dashboard'
-                ? 'Dashboard'
-                : t === 'stock'
-                  ? 'Stock'
-                  : 'Low Stock'}
+            key={t.key}
+            style={[styles.tabPill, tab === t.key && styles.tabPillActive]}
+            onPress={() => setTab(t.key)}
+            activeOpacity={0.8}>
+            <MaterialCommunityIcons
+              name={t.icon}
+              size={14}
+              color={tab === t.key ? theme.colors.primary : theme.colors.textMuted}
+            />
+            <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>
+              {t.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+
+        {/* ── Dashboard ── */}
         {tab === 'dashboard' && dashboard && (
-          <View>
-            <View style={styles.cardRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {dashboard.total_orders_today}
-                </Text>
-                <Text style={styles.statLabel}>Orders Today</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  ₹ {dashboard.total_revenue_today?.toLocaleString()}
-                </Text>
-                <Text style={styles.statLabel}>Revenue Today</Text>
-              </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Today's Performance</Text>
+            <View style={styles.kpiRow}>
+              <KPICard
+                icon="receipt"
+                iconBg={theme.colors.primaryLight}
+                iconColor={theme.colors.primary}
+                value={String(dashboard.total_orders_today ?? 0)}
+                label="Orders Today"
+              />
+              <KPICard
+                icon="cash-multiple"
+                iconBg={theme.colors.successLight}
+                iconColor={theme.colors.success}
+                value={`₹${(dashboard.total_revenue_today ?? 0).toLocaleString()}`}
+                label="Revenue Today"
+              />
             </View>
-            <View style={styles.cardRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {dashboard.total_customers}
-                </Text>
-                <Text style={styles.statLabel}>Customers</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {dashboard.total_products}
-                </Text>
-                <Text style={styles.statLabel}>Products</Text>
-              </View>
+            <View style={styles.kpiRow}>
+              <KPICard
+                icon="account-group-outline"
+                iconBg={theme.colors.infoLight}
+                iconColor={theme.colors.info}
+                value={String(dashboard.total_customers ?? 0)}
+                label="Total Customers"
+              />
+              <KPICard
+                icon="food-variant"
+                iconBg={theme.colors.warningLight}
+                iconColor={theme.colors.warning}
+                value={String(dashboard.total_products ?? 0)}
+                label="Menu Items"
+              />
             </View>
           </View>
         )}
+        {tab === 'dashboard' && !dashboard && (
+          <EmptyState icon="chart-bar" title="No data yet" sub="Sales data will appear here once you start taking orders." />
+        )}
 
+        {/* ── Stock ── */}
         {tab === 'stock' && stock && (
-          <View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{stock.total_products}</Text>
-              <Text style={styles.statLabel}>Total Products</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Inventory Overview</Text>
+            <View style={styles.kpiRow}>
+              <KPICard
+                icon="package-variant-closed"
+                iconBg={theme.colors.primaryLight}
+                iconColor={theme.colors.primary}
+                value={String(stock.total_products ?? 0)}
+                label="Total Products"
+              />
+              <KPICard
+                icon="currency-inr"
+                iconBg={theme.colors.successLight}
+                iconColor={theme.colors.success}
+                value={`₹${(stock.total_stock_value ?? 0).toLocaleString()}`}
+                label="Stock Value"
+              />
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                ₹ {stock.total_stock_value?.toLocaleString()}
-              </Text>
-              <Text style={styles.statLabel}>Stock Value</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {stock.low_stock_count}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.warning }]}>
-                Low Stock Items
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {stock.out_of_stock_count}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.danger }]}>
-                Out of Stock
-              </Text>
+            <View style={styles.kpiRow}>
+              <KPICard
+                icon="alert-outline"
+                iconBg={theme.colors.warningLight}
+                iconColor={theme.colors.warning}
+                value={String(stock.low_stock_count ?? 0)}
+                label="Low Stock"
+              />
+              <KPICard
+                icon="close-circle-outline"
+                iconBg={theme.colors.dangerLight}
+                iconColor={theme.colors.danger}
+                value={String(stock.out_of_stock_count ?? 0)}
+                label="Out of Stock"
+              />
             </View>
           </View>
         )}
+        {tab === 'stock' && !stock && (
+          <EmptyState icon="package-variant-closed" title="No stock data" sub="Stock summary will appear here." />
+        )}
 
+        {/* ── Low Stock ── */}
         {tab === 'lowstock' && (
-          <View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {lowStock.length} item{lowStock.length !== 1 ? 's' : ''} need attention
+            </Text>
             {lowStock.length === 0 ? (
-              <View style={styles.center}>
-                <Text style={styles.emptyText}>
-                  No low stock items
-                </Text>
-              </View>
+              <EmptyState icon="check-circle-outline" title="All stocked up!" sub="No items are running low right now." />
             ) : (
               lowStock.map((item: any) => (
-                <View key={item.id} style={styles.lowStockItem}>
-                  <Text style={styles.itemName}>{item.product_name}</Text>
-                  <Text style={styles.itemQty}>
-                    {item.quantity} {item.unit} / Min: {item.min_stock_level}
-                  </Text>
+                <View key={item.id} style={styles.lowStockRow}>
+                  <View style={styles.lowStockLeft}>
+                    <View style={styles.lowStockDot} />
+                    <View>
+                      <Text style={styles.lowStockName}>{item.product_name}</Text>
+                      <Text style={styles.lowStockQty}>
+                        {item.quantity} {item.unit} remaining · Min: {item.min_stock_level}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.lowStockBadge}>
+                    <Text style={styles.lowStockBadgeText}>Low</Text>
+                  </View>
                 </View>
               ))
             )}
@@ -128,100 +179,217 @@ export default function ReportsScreen() {
   );
 }
 
+// ── Sub-components ────────────────────────────────────────
+function KPICard({ icon, iconBg, iconColor, value, label }: {
+  icon: string; iconBg: string; iconColor: string; value: string; label: string;
+}) {
+  return (
+    <View style={kpiStyles.card}>
+      <View style={[kpiStyles.iconWrap, { backgroundColor: iconBg }]}>
+        <MaterialCommunityIcons name={icon} size={22} color={iconColor} />
+      </View>
+      <Text style={kpiStyles.value}>{value}</Text>
+      <Text style={kpiStyles.label}>{label}</Text>
+    </View>
+  );
+}
+
+function EmptyState({ icon, title, sub }: { icon: string; title: string; sub: string }) {
+  return (
+    <View style={emptyStyles.wrap}>
+      <MaterialCommunityIcons name={icon} size={52} color={theme.colors.textMuted} />
+      <Text style={emptyStyles.title}>{title}</Text>
+      <Text style={emptyStyles.sub}>{sub}</Text>
+    </View>
+  );
+}
+
+const kpiStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: theme.radius.xl,
+    padding: 16,
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    ...theme.shadow.sm,
+  },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  value: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: theme.colors.textPrimary,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    marginTop: 3,
+  },
+});
+
+const emptyStyles = StyleSheet.create({
+  wrap: {
+    alignItems: 'center',
+    paddingTop: 0,
+    paddingHorizontal: 32,
+    gap: 8,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    marginTop: 8,
+  },
+  sub: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+});
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
-    paddingTop: 44,
+    backgroundColor: theme.colors.surfaceSecondary,
+    paddingTop: 0,
   },
   header: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
     paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  title: {
-    color: theme.colors.textPrimary,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 6,
-    backgroundColor: theme.colors.surfaceSecondary,
-    alignItems: 'center',
-  },
-  activeTab: {
-    backgroundColor: theme.colors.accent,
-  },
-  tabText: {
-    color: theme.colors.textSecondary,
-    fontSize: 13,
+  headerSub: {
+    fontSize: 11,
     fontWeight: '600',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  statValue: {
-    color: theme.colors.textPrimary,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  statLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  lowStockItem: {
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.warning,
-  },
-  itemName: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  itemQty: {
     color: theme.colors.textMuted,
-    fontSize: 12,
-    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  center: {
-    flex: 1,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: theme.colors.textPrimary,
+    marginTop: 1,
+  },
+  headerBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
   },
-  emptyText: {
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  tabPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    borderRadius: theme.radius.full,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceSecondary,
+  },
+  tabPillActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: theme.colors.textMuted,
+  },
+  tabTextActive: {
+    color: theme.colors.primary,
+  },
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 32,
+  },
+  section: { gap: 10 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  lowStockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: theme.radius.lg,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.warning,
+    ...theme.shadow.sm,
+  },
+  lowStockLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  lowStockDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.warning,
+  },
+  lowStockName: {
     fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  lowStockQty: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  lowStockBadge: {
+    backgroundColor: theme.colors.warningLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.full,
+  },
+  lowStockBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: theme.colors.warning,
   },
 });

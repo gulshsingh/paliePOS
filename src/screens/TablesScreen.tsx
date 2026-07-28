@@ -1,5 +1,14 @@
 import { useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  StatusBar,
+} from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useTables } from '../hooks/useTables';
 import { theme } from '../theme';
@@ -7,103 +16,101 @@ import SkeletonCard from '../components/SkeletonCard';
 import { RestaurantTable } from '../types/table';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
+const CARD_WIDTH = (width - 52) / 2;
+
+const STATUS_MAP: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
+  available: {
+    label: 'Available',
+    icon:  'check-circle-outline',
+    color: theme.colors.success,
+    bg:    theme.colors.successLight,
+    border: theme.colors.success,
+  },
+  occupied: {
+    label: 'Occupied',
+    icon:  'silverware-fork-knife',
+    color: theme.colors.primary,
+    bg:    theme.colors.primaryLight,
+    border: theme.colors.primary,
+  },
+};
 
 export default function TablesScreen() {
   const navigation = useNavigation<any>();
   const { data, isLoading } = useTables();
   const tables: RestaurantTable[] = (data as any)?.data?.data?.data ?? [];
-  const total = tables.length;
+  const total     = tables.length;
   const available = tables.filter((t) => t.status === 'available').length;
-  const occupied = tables.filter((t) => t.status === 'occupied').length;
-
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'available':
-        return {
-          dot: '●',
-          dotColor: theme.colors.success,
-          bgColor: '#ECFDF5',
-          textColor: '#065F46',
-          label: 'Available',
-        };
-      case 'occupied':
-        return {
-          dot: '●',
-          dotColor: theme.colors.danger,
-          bgColor: '#FEF2F2',
-          textColor: '#991B1B',
-          label: 'Occupied',
-        };
-      default:
-        return {
-          dot: '●',
-          dotColor: theme.colors.textMuted,
-          bgColor: '#F8FAFC',
-          textColor: '#475569',
-          label: 'Unknown',
-        };
-    }
-  };
+  const occupied  = tables.filter((t) => t.status === 'occupied').length;
 
   const renderCard = useCallback(({ item }: { item: RestaurantTable }) => {
-    const statusStyle = getStatusStyle(item.status);
+    const st = STATUS_MAP[item.status] ?? STATUS_MAP.available;
     return (
       <TouchableOpacity
-        activeOpacity={0.7}
-        style={[styles.card, { borderLeftColor: statusStyle.dotColor }]}
+        activeOpacity={0.88}
+        style={[styles.card, { borderTopColor: st.border }]}
         onPress={() => navigation.navigate('TableForm', { table: item })}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        <View style={styles.cardInfoRow}>
-          <Text style={styles.cardIcon}>👥</Text>
-          <Text style={styles.cardInfo}>{item.capacity} guests</Text>
+
+        {/* Table icon */}
+        <View style={[styles.tableIconWrap, { backgroundColor: st.bg }]}>
+          <MaterialCommunityIcons name="table-furniture" size={28} color={st.color} />
         </View>
-        <View style={[styles.badge, { backgroundColor: statusStyle.bgColor }]}>
-          <Text style={[styles.dot, { color: statusStyle.dotColor }]}>
-            {statusStyle.dot}
-          </Text>
-          <Text style={[styles.badgeText, { color: statusStyle.textColor }]}>
-            {statusStyle.label}
-          </Text>
+
+        <Text style={styles.tableName} numberOfLines={1}>{item.name}</Text>
+
+        <View style={styles.capacityRow}>
+          <MaterialCommunityIcons name="account-multiple-outline" size={13} color={theme.colors.textMuted} />
+          <Text style={styles.capacityText}>{item.capacity} seats</Text>
         </View>
-       
+
+        <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+          <MaterialCommunityIcons name={st.icon} size={11} color={st.color} />
+          <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
+        </View>
       </TouchableOpacity>
     );
   }, [navigation]);
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Restaurant</Text>
-          <Text style={styles.title}>Tables</Text>
+          <Text style={styles.headerSub}>Floor Plan</Text>
+          <Text style={styles.headerTitle}>Tables</Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => navigation.navigate('TableForm', {})}>
-          <Text style={styles.addBtnText}>+ Add Table</Text>
+          onPress={() => navigation.navigate('TableForm', {})}
+          activeOpacity={0.85}>
+          <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+          <Text style={styles.addBtnText}>Add Table</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Stats row */}
       <View style={styles.statsRow}>
-        <View style={[styles.statCard, { backgroundColor: '#EEF2FF' }]}>
-          <Text style={styles.statNumber}>{total}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+        <View style={styles.statCard}>
+          <Text style={styles.statNum}>{total}</Text>
+          <Text style={styles.statLbl}>Total</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#ECFDF5' }]}>
-          <Text style={[styles.statNumber, { color: theme.colors.success }]}>{available}</Text>
-          <Text style={[styles.statLabel, { color: '#065F46' }]}>Available</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.successLight }]}>
+          <Text style={[styles.statNum, { color: theme.colors.success }]}>{available}</Text>
+          <Text style={[styles.statLbl, { color: theme.colors.success }]}>Free</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#FEF2F2' }]}>
-          <Text style={[styles.statNumber, { color: theme.colors.danger }]}>{occupied}</Text>
-          <Text style={[styles.statLabel, { color: '#991B1B' }]}>Occupied</Text>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight }]}>
+          <Text style={[styles.statNum, { color: theme.colors.primary }]}>{occupied}</Text>
+          <Text style={[styles.statLbl, { color: theme.colors.primary }]}>Busy</Text>
         </View>
+       
       </View>
 
+      {/* Grid */}
       {isLoading ? (
         <FlatList
-          data={[1,2,3,4]}
+          data={[1, 2, 3, 4]}
           keyExtractor={(i) => String(i)}
           numColumns={2}
           contentContainerStyle={styles.list}
@@ -124,10 +131,12 @@ export default function TablesScreen() {
           renderItem={renderCard}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyIcon}>🍽️</Text>
-              <Text style={styles.emptyText}>No tables yet</Text>
-              <Text style={styles.emptySubtext}>Tap + Add Table to get started</Text>
+            <View style={styles.empty}>
+              <View style={styles.emptyIconWrap}>
+                <MaterialCommunityIcons name="table-furniture" size={48} color={theme.colors.textMuted} />
+              </View>
+              <Text style={styles.emptyTitle}>No tables yet</Text>
+              <Text style={styles.emptySub}>Add your first table to get started</Text>
             </View>
           }
           removeClippedSubviews={true}
@@ -143,168 +152,158 @@ export default function TablesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingTop: 54,
+    backgroundColor: theme.colors.surfaceSecondary,
+    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  greeting: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontWeight: '500',
+  headerSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  title: {
-    color: '#0F172A',
-    fontSize: 26,
-    fontWeight: '800',
-    marginTop: 2,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: theme.colors.textPrimary,
+    marginTop: 1,
   },
   addBtn: {
-    backgroundColor: theme.colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#E04556',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderRadius: theme.radius.full,
+    ...theme.shadow.lg,
   },
   addBtnText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '700',
-  },
-  statsRow: {
-  flexDirection: 'row',
-  marginHorizontal: 16,
-  marginBottom: 16,
-  gap: 8,
-},
-statCard: {
-  flex: 1,
-  height: 78,
-  borderRadius: 18,
-  justifyContent: 'center',
-  alignItems: 'center',
-  overflow: 'hidden',
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-},
-  statNumber: {
-    color: '#0F172A',
-    fontSize: 22,
     fontWeight: '800',
   },
-  statLabel: {
-    color: '#64748B',
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  statNum: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: theme.colors.textPrimary,
+  },
+  statLbl: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: theme.colors.textMuted,
     marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   list: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   row: {
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
- card: {
-  width: CARD_WIDTH,
-  backgroundColor: '#F8FAFC',
-  borderRadius: 20,
-  borderLeftWidth: 4,
-  padding: 16,
-  borderWidth: 1,
-  borderColor: '#E2E8F0',
-  elevation: 0,
-  shadowOpacity: 0,
-},
-  cardTitle: {
-    color: '#0F172A',
-    fontSize: 17,
-    fontWeight: '700',
+  card: {
+    width: CARD_WIDTH,
+    backgroundColor: '#fff',
+    borderRadius: theme.radius.xl,
+    padding: 16,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    ...theme.shadow.sm,
   },
-  cardInfoRow: {
+  tableIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  tableName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+  },
+  capacityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 6,
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 8,
   },
-  cardIcon: {
-    fontSize: 14,
-  },
-  cardInfo: {
-    color: '#64748B',
-    fontSize: 13,
+  capacityText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
     fontWeight: '500',
   },
-  badge: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginTop: 8,
     gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: theme.radius.full,
   },
-  dot: {
-    fontSize: 10,
-  },
-  badgeText: {
+  statusText: {
     fontSize: 11,
-    fontWeight: '600',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 8,
-  },
-  editBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editBtnText: {
-    color: '#475569',
-    fontSize: 14,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  loadingText: {
-    color: '#94A3B8',
-    fontSize: 15,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 12,
-  },
-  emptyText: {
-    color: '#0F172A',
-    fontSize: 18,
     fontWeight: '700',
   },
-  emptySubtext: {
-    color: '#94A3B8',
+  empty: {
+    alignItems: 'center',
+    paddingTop: 60,
+    gap: 8,
+  },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: theme.colors.surfaceTertiary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+  },
+  emptySub: {
     fontSize: 13,
-    marginTop: 4,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
   },
 });
