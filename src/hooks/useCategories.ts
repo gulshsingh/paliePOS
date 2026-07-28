@@ -1,0 +1,34 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/services/categories';
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: () => getCategories(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  });
+}
+
+export function useUpdateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<any> }) => updateCategory(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  });
+}
+
+export function useDeleteCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  });
+}

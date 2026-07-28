@@ -1,0 +1,114 @@
+import { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
+import { View, AppState } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AuthNavigator from './AuthNavigator';
+import MainTabNavigator from './MainTabNavigator';
+import ProceedPaymentScreen from '../screens/ProceedPaymentScreen';
+import CustomerFormScreen from '../screens/CustomerFormScreen';
+import ProductFormScreen from '../screens/ProductFormScreen';
+import TableFormScreen from '../screens/TableFormScreen';
+import RunningOrdersScreen from '../screens/RunningOrdersScreen';
+import Loader from '../components/Loader';
+import { theme } from '../theme';
+
+const IDLE_TIMEOUT = 30 * 60 * 1000;
+
+interface AuthContextType {
+  signIn: (token: string) => void;
+  signOut: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+export const useAuth = () => useContext(AuthContext)!;
+
+const Stack = createNativeStackNavigator();
+
+function useIdleTimer(onIdle: () => void) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appStateRef = useRef(AppState.currentState);
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(onIdle, IDLE_TIMEOUT);
+  }, [onIdle]);
+
+  useEffect(() => {
+    resetTimer();
+
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appStateRef.current === 'active' && next !== 'active') {
+        if (timerRef.current) clearTimeout(timerRef.current);
+      } else if (next === 'active') {
+        resetTimer();
+      }
+      appStateRef.current = next;
+    });
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      sub.remove();
+    };
+  }, [resetTimer]);
+
+  return resetTimer;
+}
+
+export default function AppNavigator() {
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem('token').then((t) => {
+      setToken(t);
+      setLoading(false);
+    });
+  }, []);
+
+  const signIn = useCallback(async (newToken: string) => {
+    if (!newToken) return;
+    await AsyncStorage.setItem('token', newToken);
+    setToken(newToken);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await AsyncStorage.clear();
+    setToken(null);
+  }, []);
+
+  const resetIdle = useIdleTimer(signOut);
+
+  if (loading) return <Loader />;
+
+  return (
+    <AuthContext.Provider value={{ signIn, signOut }}>
+      <View
+        style={{ flex: 1 }}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={resetIdle}
+        onResponderMove={resetIdle}>
+        <NavigationContainer>
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.surface },
+            }}>
+            {token ? (
+              <>
+                <Stack.Screen name="Main" component={MainTabNavigator} />
+                <Stack.Screen name="ProceedPayment" component={ProceedPaymentScreen} />
+                <Stack.Screen name="CustomerForm" component={CustomerFormScreen} />
+                <Stack.Screen name="ProductForm" component={ProductFormScreen} />
+                <Stack.Screen name="TableForm" component={TableFormScreen} />
+                <Stack.Screen name="RunningOrders" component={RunningOrdersScreen} />
+              </>
+            ) : (
+              <Stack.Screen name="Auth" component={AuthNavigator} />
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </View>
+    </AuthContext.Provider>
+  );
+}
