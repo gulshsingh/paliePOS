@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -26,6 +27,7 @@ const SECTIONS: { key: Section; label: string; icon: string }[] = [
 ];
 
 export default function ConfigurationScreen() {
+  const insets = useSafeAreaInsets();
   // ── All useState first — never interleave with other hooks ──
   const [activeSection, setActiveSection] = useState<Section>('company');
   const [name, setName]       = useState('');
@@ -101,7 +103,7 @@ export default function ConfigurationScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

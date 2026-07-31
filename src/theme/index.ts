@@ -1,48 +1,48 @@
 export const theme = {
   colors: {
-    // Primary brand — Zomato red
-    primary: '#E23744',
-    primaryDark: '#C0202E',
-    primaryLight: '#FFF0F1',
+    // Primary brand — softer, warmer red (halka kiya gaya)
+    primary: '#F0555F',
+    primaryDark: '#E23744',   // pehle wala bold red — hover/press states ke liye
+    primaryLight: '#FFF4F5',
 
-    // Secondary — deep charcoal
-    secondary: '#1C1C1C',
+    // Secondary — soft charcoal (pure black ki jagah)
+    secondary: '#3A3A3A',
 
     // Surfaces
     surface: '#FFFFFF',
-    surfaceSecondary: '#F7F7F7',
-    surfaceTertiary: '#EFEFEF',
+    surfaceSecondary: '#FAFAFA',
+    surfaceTertiary: '#F4F4F4',
     surfaceElevated: '#FFFFFF',
 
-    // Borders
-    border: '#E8E8E8',
-    borderLight: '#F2F2F2',
+    // Borders — aur bhi subtle
+    border: '#EFEFEF',
+    borderLight: '#F6F6F6',
 
-    // Text
-    textPrimary: '#1C1C1C',
-    textSecondary: '#696969',
-    textMuted: '#A9A9A9',
+    // Text — soft, less harsh
+    textPrimary: '#3A3A3A',
+    textSecondary: '#8A8A8A',
+    textMuted: '#BFBFBF',
     textInverse: '#FFFFFF',
-    textAccent: '#E23744',
+    textAccent: '#F0555F',
 
-    // Status
-    success: '#3AB757',
-    successLight: '#EAF7EE',
-    warning: '#F5A623',
-    warningLight: '#FEF8EC',
-    danger: '#E23744',
-    dangerLight: '#FFF0F1',
-    info: '#2B7BE9',
-    infoLight: '#EBF3FD',
+    // Status — light, muted tones
+    success: '#5FC77A',
+    successLight: '#F0FAF3',
+    warning: '#F7B84D',
+    warningLight: '#FEFAF0',
+    danger: '#F0555F',
+    dangerLight: '#FFF4F5',
+    info: '#5D9BEE',
+    infoLight: '#F0F6FE',
 
     // Accent (backwards-compat alias)
-    accent: '#E23744',
+    accent: '#F0555F',
 
-    // Kitchen status colors
-    pending:   '#F5A623',
-    preparing: '#2B7BE9',
-    ready:     '#3AB757',
-    served:    '#A9A9A9',
+    // Kitchen status colors — clear but soft
+    pending:   '#F7B84D',
+    preparing: '#5D9BEE',
+    ready:     '#5FC77A',
+    served:    '#3FA968',   // green (gray se badla — "complete" clearly dikhe)
   },
 
   radius: {
@@ -59,21 +59,21 @@ export const theme = {
     sm: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
+      shadowOpacity: 0.04,
       shadowRadius: 3,
       elevation: 2,
     },
     md: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.1,
+      shadowOpacity: 0.06,
       shadowRadius: 8,
       elevation: 4,
     },
     lg: {
-      shadowColor: '#E23744',
+      shadowColor: '#F0555F',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.28,
+      shadowOpacity: 0.16,
       shadowRadius: 12,
       elevation: 6,
     },

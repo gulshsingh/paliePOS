@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDashboard, useStockSummary, useLowStock } from '../hooks/useInventory';
@@ -13,6 +14,7 @@ const TABS: { key: ReportTab; label: string; icon: string }[] = [
 ];
 
 export default function ReportsScreen() {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<ReportTab>('dashboard');
   const { data: dashboardData } = useDashboard();
   const { data: stockData }     = useStockSummary();
@@ -23,7 +25,7 @@ export default function ReportsScreen() {
   const lowStock  = (lowStockData as any)?.data?.data?.data ?? [];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

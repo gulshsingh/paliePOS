@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import BillingKeypad from '../components/BillingKeypad';
@@ -18,6 +19,7 @@ import { createPayment } from '../api/services/payments';
 import { theme } from '../theme';
 
 export default function ProceedPaymentScreen() {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const cart = useCartStore((s) => s.cart);
@@ -109,7 +111,7 @@ export default function ProceedPaymentScreen() {
   // ── Receipt view ──────────────────────────────────────────
   if (showReceipt && result) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         {/* Success header */}
         <View style={styles.successHeader}>
@@ -138,7 +140,7 @@ export default function ProceedPaymentScreen() {
 
   // ── Payment view ──────────────────────────────────────────
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

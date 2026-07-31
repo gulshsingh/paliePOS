@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -21,39 +22,40 @@ const CARD_WIDTH = (width - 52) / 2;
 const STATUS_MAP: Record<string, { label: string; icon: string; color: string; bg: string; border: string }> = {
   available: {
     label: 'Available',
-    icon:  'check-circle-outline',
+    icon: 'check-circle-outline',
     color: theme.colors.success,
-    bg:    theme.colors.successLight,
+    bg: theme.colors.successLight,
     border: theme.colors.success,
   },
   occupied: {
     label: 'Occupied',
-    icon:  'silverware-fork-knife',
+    icon: 'silverware-fork-knife',
     color: theme.colors.primary,
-    bg:    theme.colors.primaryLight,
+    bg: theme.colors.primaryLight,
     border: theme.colors.primary,
   },
 };
 
 export default function TablesScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { data, isLoading } = useTables();
   const tables: RestaurantTable[] = (data as any)?.data?.data?.data ?? [];
-  const total     = tables.length;
+  const total = tables.length;
   const available = tables.filter((t) => t.status === 'available').length;
-  const occupied  = tables.filter((t) => t.status === 'occupied').length;
+  const occupied = tables.filter((t) => t.status === 'occupied').length;
 
   const renderCard = useCallback(({ item }: { item: RestaurantTable }) => {
     const st = STATUS_MAP[item.status] ?? STATUS_MAP.available;
     return (
       <TouchableOpacity
-        activeOpacity={0.88}
+        activeOpacity={0.9}
         style={[styles.card, { borderTopColor: st.border }]}
         onPress={() => navigation.navigate('TableForm', { table: item })}>
 
         {/* Table icon */}
         <View style={[styles.tableIconWrap, { backgroundColor: st.bg }]}>
-          <MaterialCommunityIcons name="table-furniture" size={28} color={st.color} />
+          <MaterialCommunityIcons name="table-furniture" size={26} color={st.color} />
         </View>
 
         <Text style={styles.tableName} numberOfLines={1}>{item.name}</Text>
@@ -72,21 +74,21 @@ export default function TablesScreen() {
   }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.surface} />
 
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerSub}>Floor Plan</Text>
+          <Text style={styles.headerSub}>Floor plan</Text>
           <Text style={styles.headerTitle}>Tables</Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => navigation.navigate('TableForm', {})}
-          activeOpacity={0.85}>
-          <MaterialCommunityIcons name="plus" size={16} color="#fff" />
-          <Text style={styles.addBtnText}>Add Table</Text>
+          activeOpacity={0.88}>
+          <MaterialCommunityIcons name="plus" size={16} color={theme.colors.textInverse} />
+          <Text style={styles.addBtnText}>Add table</Text>
         </TouchableOpacity>
       </View>
 
@@ -96,15 +98,14 @@ export default function TablesScreen() {
           <Text style={styles.statNum}>{total}</Text>
           <Text style={styles.statLbl}>Total</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: theme.colors.successLight }]}>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.successLight, borderColor: theme.colors.successLight }]}>
           <Text style={[styles.statNum, { color: theme.colors.success }]}>{available}</Text>
           <Text style={[styles.statLbl, { color: theme.colors.success }]}>Free</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight }]}>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primaryLight }]}>
           <Text style={[styles.statNum, { color: theme.colors.primary }]}>{occupied}</Text>
           <Text style={[styles.statLbl, { color: theme.colors.primary }]}>Busy</Text>
         </View>
-       
       </View>
 
       {/* Grid */}
@@ -133,7 +134,7 @@ export default function TablesScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={styles.emptyIconWrap}>
-                <MaterialCommunityIcons name="table-furniture" size={48} color={theme.colors.textMuted} />
+                <MaterialCommunityIcons name="table-furniture" size={44} color={theme.colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>No tables yet</Text>
               <Text style={styles.emptySub}>Add your first table to get started</Text>
@@ -153,15 +154,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surfaceSecondary,
-    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    paddingVertical: 14,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
@@ -174,9 +174,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     color: theme.colors.textPrimary,
-    marginTop: 1,
+    marginTop: 2,
   },
   addBtn: {
     flexDirection: 'row',
@@ -186,19 +186,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: theme.radius.full,
-    ...theme.shadow.lg,
+    ...theme.shadow.sm,
   },
   addBtnText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderLight,
   },
@@ -206,20 +206,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: theme.colors.borderLight,
   },
   statNum: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 19,
+    fontWeight: '700',
     color: theme.colors.textPrimary,
   },
   statLbl: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
     color: theme.colors.textMuted,
     marginTop: 2,
     textTransform: 'uppercase',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.xl,
     padding: 16,
     borderTopWidth: 3,
@@ -245,16 +245,16 @@ const styles = StyleSheet.create({
     ...theme.shadow.sm,
   },
   tableIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 50,
+    height: 50,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
   tableName: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
     color: theme.colors.textPrimary,
   },
   capacityRow: {
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   empty: {
     alignItems: 'center',
@@ -288,17 +288,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     backgroundColor: theme.colors.surfaceTertiary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
     color: theme.colors.textPrimary,
   },
   emptySub: {

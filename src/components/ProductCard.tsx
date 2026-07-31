@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Product } from '../types/product';
@@ -16,7 +17,7 @@ const TILE_COLORS = [
   '#FFFBF0', '#F5F0FF', '#F0FAFF', '#FFF0F8',
 ];
 
-export default function ProductCard({ product, onPress }: Props) {
+function ProductCard({ product, onPress }: Props) {
   const emoji = EMOJIS[product.name.length % EMOJIS.length];
   const tileBg = TILE_COLORS[product.name.length % TILE_COLORS.length];
 
@@ -48,6 +49,8 @@ export default function ProductCard({ product, onPress }: Props) {
     </TouchableOpacity>
   );
 }
+
+export default memo(ProductCard);
 
 const styles = StyleSheet.create({
   card: {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -23,6 +24,7 @@ const EMOJIS = ['🍕', '🍔', '🥤', '🥗', '🍜', '🍣', '🥩', '🍰', 
 const TILE_COLORS = ['#FFF3E8', '#FFF0F1', '#F0FFF4', '#F0F4FF', '#FFFBF0', '#F5F0FF'];
 
 export default function ProductFormScreen() {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const product = route.params?.product;
@@ -90,7 +92,7 @@ export default function ProductFormScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -18,6 +19,7 @@ import { useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from '../hook
 import { theme } from '../theme';
 
 export default function CustomerFormScreen(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const customer = route.params?.customer;
@@ -106,7 +108,7 @@ export default function CustomerFormScreen(): React.JSX.Element {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 

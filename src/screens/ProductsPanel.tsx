@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ProductCard from '../components/ProductCard';
@@ -14,14 +14,23 @@ export default function ProductsPanel() {
   const addToCart = useCartStore((s) => s.addToCart);
   const cart = useCartStore((s) => s.cart);
 
-  const cartTotal = cart.reduce((sum, i) => sum + i.price_per_unit * i.qty, 0);
-  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
+  const cartTotal = useMemo(
+    () => cart.reduce((sum, i) => sum + i.price_per_unit * i.qty, 0),
+    [cart],
+  );
+  const cartCount = useMemo(
+    () => cart.reduce((sum, i) => sum + i.qty, 0),
+    [cart],
+  );
 
-  const allProducts =
-    data?.pages.flatMap((p) => {
-      const d = (p.data as any);
-      return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-    }) ?? [];
+  const allProducts = useMemo(
+    () =>
+      data?.pages.flatMap((p) => {
+        const d = (p.data as any);
+        return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
+      }) ?? [],
+    [data],
+  );
 
   const filtered = useMemo(() => {
     if (search) {
@@ -32,13 +41,13 @@ export default function ProductsPanel() {
     return allProducts;
   }, [allProducts, search]);
 
-  const handleAdd = (product: Product) => {
+  const handleAdd = useCallback((product: Product) => {
     addToCart(product);
-  };
+  }, [addToCart]);
 
-  const renderItem = ({ item }: { item: Product }) => (
+  const renderItem = useCallback(({ item }: { item: Product }) => (
     <ProductCard product={item} onPress={handleAdd} />
-  );
+  ), [handleAdd]);
 
   return (
     <View style={styles.container}>

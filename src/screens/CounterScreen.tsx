@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import OrdersPanel from './OrdersPanel';
 import ProductsPanel from './ProductsPanel';
@@ -16,11 +17,12 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 ];
 
 export default function CounterScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('products');
   const cartCount = useCartStore((s) => s.cart.length);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

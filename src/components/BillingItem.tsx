@@ -1,26 +1,19 @@
+import { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CartItem } from '../types/cart';
+import { useCartStore } from '../store/cartStore';
 import { theme } from '../theme';
 
 interface Props {
   item: CartItem;
-  onUpdate: (id: string, data: Partial<CartItem>) => void;
-  onRemove: (id: string) => void;
 }
 
-export default function BillingItem({ item }: Props) {
+function BillingItem({ item }: Props) {
+  const increaseQty = useCartStore((s) => s.increaseQty);
+  const decreaseQty = useCartStore((s) => s.decreaseQty);
+
   const lineTotal = item.price_per_unit * item.qty;
-
-  const decrease = () => {
-    const cartStore = require('../store/cartStore').useCartStore;
-    cartStore.getState().decreaseQty(item.id);
-  };
-
-  const increase = () => {
-    const cartStore = require('../store/cartStore').useCartStore;
-    cartStore.getState().increaseQty(item.id);
-  };
 
   return (
     <View style={styles.container}>
@@ -36,7 +29,10 @@ export default function BillingItem({ item }: Props) {
       {/* Right: qty stepper + total */}
       <View style={styles.right}>
         <View style={styles.stepper}>
-          <TouchableOpacity style={styles.stepBtn} onPress={decrease} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.stepBtn}
+            onPress={() => decreaseQty(item.id)}
+            activeOpacity={0.7}>
             <MaterialCommunityIcons
               name={item.qty === 1 ? 'trash-can-outline' : 'minus'}
               size={14}
@@ -44,7 +40,10 @@ export default function BillingItem({ item }: Props) {
             />
           </TouchableOpacity>
           <Text style={styles.qty}>{item.qty}</Text>
-          <TouchableOpacity style={styles.stepBtn} onPress={increase} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.stepBtn}
+            onPress={() => increaseQty(item.id)}
+            activeOpacity={0.7}>
             <MaterialCommunityIcons name="plus" size={14} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
@@ -53,6 +52,8 @@ export default function BillingItem({ item }: Props) {
     </View>
   );
 }
+
+export default memo(BillingItem);
 
 const styles = StyleSheet.create({
   container: {

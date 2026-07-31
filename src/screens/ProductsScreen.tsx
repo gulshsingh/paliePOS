@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -19,6 +20,7 @@ const EMOJIS = ['🍕', '🍔', '🥤', '🥗', '🍜', '🍣', '🥩', '🍰', 
 const TILE_COLORS = ['#FFF3E8', '#FFF0F1', '#F0FFF4', '#F0F4FF', '#FFFBF0', '#F5F0FF', '#F0FAFF', '#FFF0F8'];
 
 export default function ProductsScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
   const { data, isLoading } = useProducts();
@@ -59,7 +61,7 @@ export default function ProductsScreen() {
   }, [navigation]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

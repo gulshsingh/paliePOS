@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -28,6 +29,7 @@ function avatarText(name: string) {
 }
 
 export default function CustomersScreen(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState<string>('');
   const { data, isLoading, isError } = useCustomers(search);
@@ -67,7 +69,7 @@ export default function CustomersScreen(): React.JSX.Element {
   ), [navigation]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

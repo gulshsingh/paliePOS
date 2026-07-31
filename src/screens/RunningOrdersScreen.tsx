@@ -1,4 +1,5 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useOrderStore } from '../store/orderStore';
@@ -14,6 +15,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function RunningOrdersScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const orders = useOrderStore((s) => s.orders);
   const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
@@ -72,7 +74,7 @@ export default function RunningOrdersScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}

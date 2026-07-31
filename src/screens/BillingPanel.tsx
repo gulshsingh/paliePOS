@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { CartItem } from '../types/cart';
 import {
   View,
@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,28 +19,23 @@ import { useCustomers } from '../hooks/useCustomers';
 import { useTables } from '../hooks/useTables';
 import { useCreateOrder } from '../hooks/useOrders';
 import { Customer } from '../types/customer';
-import { RestaurantTable } from '../types/table';
 import { Order } from '../types/order';
 import { theme } from '../theme';
 
 export default function BillingPanel() {
   const navigation = useNavigation<any>();
-  const cart = useCartStore((s) => s.cart);
-  const updateItem = useCartStore((s) => s.updateItem);
-  const removeItem = useCartStore((s) => s.removeItem);
-  const clearCart = useCartStore((s) => s.clearCart);
-  const getTotals = useCartStore((s) => s.getTotals);
-  const addOrder = useOrderStore((s) => s.addOrder);
-  const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
-  const selectedTable = useTableStore((s) => s.selectedTable);
+  const cart       = useCartStore((s) => s.cart);
+  const clearCart  = useCartStore((s) => s.clearCart);
+  const addOrder   = useOrderStore((s) => s.addOrder);
+  const selectedTable   = useTableStore((s) => s.selectedTable);
   const setSelectedTable = useTableStore((s) => s.setSelectedTable);
 
   const [customerModal, setCustomerModal] = useState(false);
-  const [tableModal, setTableModal] = useState(false);
+  const [tableModal,    setTableModal]    = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const { data: customersData } = useCustomers();
-  const { data: tablesData } = useTables();
+  const { data: tablesData }    = useTables();
   const createOrder = useCreateOrder();
 
   const customers = customersData?.pages?.flatMap((p) => {
@@ -49,37 +43,41 @@ export default function BillingPanel() {
     return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
   }) ?? [];
   const tables = (tablesData as any)?.data?.data?.data ?? [];
-  const { subtotal, taxTotal, grandTotal } = getTotals();
+  const { subtotal, taxTotal, grandTotal } = useMemo(() => {
+    const sub = cart.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
+    const tax = cart.reduce((s, i) => s + (i.price_per_unit * i.qty * i.tax) / 100, 0);
+    return { subtotal: sub, taxTotal: tax, grandTotal: sub + tax };
+  }, [cart]);
 
   const handleSendToKitchen = async () => {
     if (cart.length === 0) return;
     try {
       const res = await createOrder.mutateAsync({
-        table_id: selectedTable?.id ?? null,
-        account_id: selectedCustomer?.id ?? null,
-        total_amount: grandTotal,
-        tax_amount: taxTotal,
+        table_id:        selectedTable?.id ?? null,
+        account_id:      selectedCustomer?.id ?? null,
+        total_amount:    grandTotal,
+        tax_amount:      taxTotal,
         discount_amount: 0,
-        grand_total: grandTotal,
+        grand_total:     grandTotal,
         items: cart.map((i) => ({
           product_id: i.id,
-          quantity: i.qty,
-          price: i.price_per_unit,
-          total: i.price_per_unit * i.qty,
+          quantity:   i.qty,
+          price:      i.price_per_unit,
+          total:      i.price_per_unit * i.qty,
         })),
       });
 
       const newOrder: Order = {
-        id: (res.data as any).data.data.id,
+        id:           (res.data as any).data.data.id,
         order_number: (res.data as any).data.data.order_number,
-        items: cart.map((i) => ({ ...i, status: 'pending' as const })),
-        total: grandTotal,
-        status: 'PENDING',
-        paymentStatus: 'UNPAID',
-        table_id: selectedTable?.id ?? null,
-        account_id: selectedCustomer?.id ?? null,
-        table_name: selectedTable?.name,
-        customer_name: selectedCustomer?.name,
+        items:        cart.map((i) => ({ ...i, status: 'pending' as const })),
+        total:        grandTotal,
+        status:       'PENDING',
+        paymentStatus:'UNPAID',
+        table_id:     selectedTable?.id ?? null,
+        account_id:   selectedCustomer?.id ?? null,
+        table_name:   selectedTable?.name,
+        customer_name:selectedCustomer?.name,
       };
 
       addOrder(newOrder);
@@ -94,18 +92,50 @@ export default function BillingPanel() {
   const handlePayment = () => {
     navigation.navigate('ProceedPayment', {
       customer: selectedCustomer,
-      table: selectedTable,
+      table:    selectedTable,
     });
   };
 
+  // ── ALL hooks must be declared before any conditional return ──
+
   const renderItem = useCallback(({ item }: { item: CartItem }) => (
-    <BillingItem item={item} onUpdate={updateItem} onRemove={removeItem} />
-  ), [updateItem, removeItem]);
+    <BillingItem item={item} />
+  ), []);
+
+  const renderFooter = useCallback(() => (
+    <View style={styles.summary}>
+      <Text style={styles.summaryTitle}>Bill Summary</Text>
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryLabel}>Item Total</Text>
+        <Text style={styles.summaryValue}>₹{subtotal.toLocaleString()}</Text>
+      </View>
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryLabel}>Taxes & Charges</Text>
+        <Text style={styles.summaryValue}>₹{taxTotal.toLocaleString()}</Text>
+      </View>
+      <View style={styles.divider} />
+      <View style={styles.summaryRow}>
+        <Text style={styles.grandLabel}>To Pay</Text>
+        <Text style={styles.grandValue}>₹{grandTotal.toLocaleString()}</Text>
+      </View>
+    </View>
+  ), [subtotal, taxTotal, grandTotal]);
+
+  const renderHeader = useCallback(() => (
+    <View style={styles.itemsHeader}>
+      <Text style={styles.itemsHeaderText}>
+        {cart.length} {cart.length === 1 ? 'item' : 'items'} in cart
+      </Text>
+      <TouchableOpacity onPress={clearCart}>
+        <Text style={styles.clearText}>Clear all</Text>
+      </TouchableOpacity>
+    </View>
+  ), [cart.length, clearCart]);
 
   return (
     <View style={styles.container}>
 
-      {/* Selector chips */}
+      {/* ── Fixed top: Customer / Table chips ── */}
       <View style={styles.selectionRow}>
         <TouchableOpacity
           style={[styles.chip, selectedCustomer && styles.chipActive]}
@@ -116,7 +146,9 @@ export default function BillingPanel() {
             size={15}
             color={selectedCustomer ? theme.colors.primary : theme.colors.textMuted}
           />
-          <Text style={[styles.chipText, selectedCustomer && styles.chipTextActive]} numberOfLines={1}>
+          <Text
+            style={[styles.chipText, selectedCustomer && styles.chipTextActive]}
+            numberOfLines={1}>
             {selectedCustomer ? selectedCustomer.name : 'Add Customer'}
           </Text>
           {selectedCustomer && (
@@ -133,7 +165,9 @@ export default function BillingPanel() {
             size={15}
             color={selectedTable ? theme.colors.primary : theme.colors.textMuted}
           />
-          <Text style={[styles.chipText, selectedTable && styles.chipTextActive]} numberOfLines={1}>
+          <Text
+            style={[styles.chipText, selectedTable && styles.chipTextActive]}
+            numberOfLines={1}>
             {selectedTable ? selectedTable.name : 'Select Table'}
           </Text>
           {selectedTable && (
@@ -142,7 +176,7 @@ export default function BillingPanel() {
         </TouchableOpacity>
       </View>
 
-      {/* Empty state */}
+      {/* ── Empty state ── */}
       {cart.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconWrap}>
@@ -153,50 +187,23 @@ export default function BillingPanel() {
         </View>
       ) : (
         <>
-          {/* Items header */}
-          <View style={styles.itemsHeader}>
-            <Text style={styles.itemsHeaderText}>
-              {cart.length} {cart.length === 1 ? 'item' : 'items'} in cart
-            </Text>
-            <TouchableOpacity onPress={clearCart}>
-              <Text style={styles.clearText}>Clear all</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Cart list */}
+          {/* ── FlatList: items + Bill Summary footer ── */}
           <FlatList
             data={cart}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            style={styles.list}
+            ListHeaderComponent={renderHeader}
+            ListFooterComponent={renderFooter}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             removeClippedSubviews={true}
-            maxToRenderPerBatch={10}
-            windowSize={5}
             initialNumToRender={6}
+            maxToRenderPerBatch={6}
+            windowSize={7}
           />
 
-          {/* Bill summary */}
-          <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>Bill Summary</Text>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Item Total</Text>
-              <Text style={styles.summaryValue}>₹{subtotal.toLocaleString()}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Taxes & Charges</Text>
-              <Text style={styles.summaryValue}>₹{taxTotal.toLocaleString()}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.summaryRow}>
-              <Text style={styles.grandLabel}>To Pay</Text>
-              <Text style={styles.grandValue}>₹{grandTotal.toLocaleString()}</Text>
-            </View>
-          </View>
-
-          {/* Action buttons */}
+          {/* ── Fixed bottom: action buttons ── */}
           <View style={styles.actions}>
             <TouchableOpacity
               style={[styles.actionBtn, styles.kitchenBtn]}
@@ -241,6 +248,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.surfaceSecondary,
   },
+
+  // ── Fixed top chips ───────────────────────────────────
   selectionRow: {
     flexDirection: 'row',
     gap: 8,
@@ -275,6 +284,8 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: theme.colors.primary,
   },
+
+  // ── Empty state ───────────────────────────────────────
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -300,13 +311,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
   },
+
+  // ── FlatList ──────────────────────────────────────────
+  listContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+
+  // ── ListHeader ────────────────────────────────────────
   itemsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
     paddingTop: 12,
-    paddingBottom: 4,
+    paddingBottom: 6,
   },
   itemsHeaderText: {
     fontSize: 13,
@@ -318,20 +336,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.danger,
   },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
+
+  // ── Bill Summary (ListFooter) ─────────────────────────
   summary: {
     backgroundColor: '#fff',
-    marginHorizontal: 12,
     borderRadius: theme.radius.lg,
     padding: 16,
-    marginBottom: 10,
+    marginTop: 10,
     ...theme.shadow.sm,
   },
   summaryTitle: {
@@ -358,7 +369,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: theme.colors.borderLight,
     marginVertical: 8,
-    borderStyle: 'dashed',
   },
   grandLabel: {
     fontSize: 15,
@@ -370,11 +380,16 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: theme.colors.primary,
   },
+
+  // ── Fixed bottom buttons ──────────────────────────────
   actions: {
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.borderLight,
   },
   actionBtn: {
     flex: 1,

@@ -101,9 +101,9 @@ export default function AppNavigator() {
     <AuthContext.Provider value={{ signIn, signOut }}>
       <View
         style={styles.root}
-        onStartShouldSetResponder={() => true}
-        onResponderGrant={resetIdle}
-        onResponderMove={resetIdle}>
+        onTouchStart={resetIdle}
+        onTouchMove={resetIdle}
+        onTouchEnd={resetIdle}>
         <NavigationContainer>
           <Stack.Navigator
             screenOptions={{
