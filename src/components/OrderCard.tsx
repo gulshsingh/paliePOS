@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 const NEXT_STATUS: Record<string, { action: string; next: ApiOrderItemStatus }> = {
   pending:   { action: 'Send to Kitchen', next: 'preparing' },
   preparing: { action: 'Mark Ready',      next: 'ready' },
-  ready:     { action: 'Mark Served',     next: 'served' },
+  ready:     { action: 'Serve Now',       next: 'served' },
 };
 
 export default function OrderCard({ order, onBillOrder, onUpdateStatus }: Props) {

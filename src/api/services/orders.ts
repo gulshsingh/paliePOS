@@ -18,8 +18,8 @@ export const getOrder = (id: string) =>
 export const createOrder = (data: CreateOrderPayload) =>
   api.post<ApiResponse<ApiOrder>>('/orders', data);
 
-export const updateItemStatus = (data: UpdateItemStatusPayload) =>
-  api.put<ApiResponse<void>>('/orders/item-status', data);
+export const updateItemStatus = ({ item_id, status }: UpdateItemStatusPayload) =>
+  api.patch<ApiResponse<void>>(`/orders/items/${item_id}/`, { status });
 
 export const updateOrderStatus = (orderId: string, status: string) =>
   api.put<ApiResponse<void>>(`/orders/${orderId}/status`, { status });

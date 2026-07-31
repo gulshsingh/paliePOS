@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { CartItem } from '../types/cart';
 import {
   View,
@@ -19,6 +19,7 @@ import { useCustomers } from '../hooks/useCustomers';
 import { useTables } from '../hooks/useTables';
 import { useCreateOrder } from '../hooks/useOrders';
 import { Customer } from '../types/customer';
+import { RestaurantTable } from '../types/table';
 import { Order } from '../types/order';
 import { theme } from '../theme';
 
@@ -27,6 +28,9 @@ export default function BillingPanel() {
   const cart       = useCartStore((s) => s.cart);
   const clearCart  = useCartStore((s) => s.clearCart);
   const addOrder   = useOrderStore((s) => s.addOrder);
+  const activeOrderId  = useOrderStore((s) => s.activeOrderId);
+  const orders         = useOrderStore((s) => s.orders);
+  const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
   const selectedTable   = useTableStore((s) => s.selectedTable);
   const setSelectedTable = useTableStore((s) => s.setSelectedTable);
 
@@ -38,11 +42,43 @@ export default function BillingPanel() {
   const { data: tablesData }    = useTables();
   const createOrder = useCreateOrder();
 
-  const customers = customersData?.pages?.flatMap((p) => {
-    const d = (p.data as any);
-    return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-  }) ?? [];
-  const tables = (tablesData as any)?.data?.data?.data ?? [];
+  const customers = useMemo(
+    () => customersData?.pages?.flatMap((p) => {
+      const d = (p.data as any);
+      return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
+    }) ?? [],
+    [customersData],
+  );
+  const tables: RestaurantTable[] = useMemo(
+    () => (tablesData as any)?.data?.data?.data
+      ?? (tablesData as any)?.data?.data
+      ?? (tablesData as any)?.data
+      ?? [],
+    [tablesData],
+  );
+
+  const existingOrder = useMemo(
+    () => orders.find((o) => o.id === activeOrderId) ?? null,
+    [orders, activeOrderId],
+  );
+
+  // ── Auto-fill customer & table from the order being billed ──
+  const [autofilledFor, setAutofilledFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!existingOrder) return;
+    if (autofilledFor === existingOrder.id) return;
+
+    if (existingOrder.account_id) {
+      const c = customers.find((cc) => cc.id === existingOrder.account_id);
+      setSelectedCustomer(c ?? null);
+    }
+    if (existingOrder.table_id) {
+      const t = tables.find((tt) => tt.id === existingOrder.table_id);
+      setSelectedTable(t ?? null);
+    }
+    setAutofilledFor(existingOrder.id);
+  }, [existingOrder, customers, tables, autofilledFor, setSelectedCustomer, setSelectedTable]);
+
   const { subtotal, taxTotal, grandTotal } = useMemo(() => {
     const sub = cart.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
     const tax = cart.reduce((s, i) => s + (i.price_per_unit * i.qty * i.tax) / 100, 0);
@@ -50,12 +86,12 @@ export default function BillingPanel() {
   }, [cart]);
 
   const handleSendToKitchen = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || activeOrderId) return;
     try {
       const res = await createOrder.mutateAsync({
-        table_id:        selectedTable?.id ?? null,
-        account_id:      selectedCustomer?.id ?? null,
-        total_amount:    grandTotal,
+        table_id:        selectedTable?.id ?? existingOrder?.table_id ?? null,
+        account_id:      selectedCustomer?.id ?? existingOrder?.account_id ?? null,
+        total_amount:    subtotal,
         tax_amount:      taxTotal,
         discount_amount: 0,
         grand_total:     grandTotal,
@@ -67,9 +103,12 @@ export default function BillingPanel() {
         })),
       });
 
+      const created = (res.data as any)?.data;
+      const o = created?.data ?? created;
+
       const newOrder: Order = {
-        id:           (res.data as any).data.data.id,
-        order_number: (res.data as any).data.data.order_number,
+        id:           o?.id,
+        order_number: o?.order_number,
         items:        cart.map((i) => ({ ...i, status: 'pending' as const })),
         total:        grandTotal,
         status:       'PENDING',
@@ -82,6 +121,7 @@ export default function BillingPanel() {
 
       addOrder(newOrder);
       clearCart();
+      setActiveOrder(null);
       setSelectedTable(null);
       setSelectedCustomer(null);
     } catch (e) {
@@ -132,6 +172,9 @@ export default function BillingPanel() {
     </View>
   ), [cart.length, clearCart]);
 
+  const isBillingExisting = activeOrderId != null;
+  const isPaid = existingOrder?.paymentStatus === 'PAID';
+
   return (
     <View style={styles.container}>
 
@@ -176,6 +219,32 @@ export default function BillingPanel() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Billing existing order info ── */}
+      {existingOrder && (
+        <View style={styles.orderInfoRow}>
+          <View style={styles.orderInfoLeft}>
+            <MaterialCommunityIcons name="receipt" size={13} color={theme.colors.primary} />
+            <Text style={styles.orderInfoText}>ORDER #{existingOrder.order_number}</Text>
+          </View>
+          <View
+            style={[
+              styles.payStatusChip,
+              {
+                backgroundColor:
+                  isPaid ? theme.colors.successLight : theme.colors.warningLight,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.payStatusText,
+                { color: isPaid ? theme.colors.success : theme.colors.warning },
+              ]}>
+              {isPaid ? 'PAID' : existingOrder.paymentStatus ?? 'UNPAID'}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* ── Empty state ── */}
       {cart.length === 0 ? (
         <View style={styles.emptyState}>
@@ -208,20 +277,37 @@ export default function BillingPanel() {
             <TouchableOpacity
               style={[styles.actionBtn, styles.kitchenBtn]}
               onPress={handleSendToKitchen}
-              disabled={createOrder.isPending}
+              disabled={createOrder.isPending || isBillingExisting || isPaid}
               activeOpacity={0.85}>
-              <MaterialCommunityIcons name="chef-hat" size={18} color={theme.colors.primary} />
+              <MaterialCommunityIcons
+                name="chef-hat"
+                size={18}
+                color={isBillingExisting || isPaid ? theme.colors.textMuted : theme.colors.primary}
+              />
               <Text style={styles.kitchenBtnText}>
-                {createOrder.isPending ? 'Sending...' : 'Send to Kitchen'}
+                {isPaid
+                  ? 'Order Paid'
+                  : isBillingExisting
+                  ? 'Existing Order'
+                  : createOrder.isPending
+                  ? 'Sending...'
+                  : 'Send to Kitchen'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionBtn, styles.payBtn]}
+              style={[styles.actionBtn, styles.payBtn, isPaid && styles.payBtnDisabled]}
               onPress={handlePayment}
+              disabled={isPaid}
               activeOpacity={0.85}>
-              <MaterialCommunityIcons name="cash-register" size={18} color="#fff" />
-              <Text style={styles.payBtnText}>Proceed to Pay</Text>
+              <MaterialCommunityIcons
+                name={isPaid ? 'check-circle-outline' : 'cash-register'}
+                size={18}
+                color="#fff"
+              />
+              <Text style={styles.payBtnText}>
+                {isPaid ? 'Invoice Paid' : 'Proceed to Pay'}
+              </Text>
             </TouchableOpacity>
           </View>
         </>
@@ -283,6 +369,38 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: theme.colors.primary,
+  },
+
+  // ── Billing existing order info ────────────────────────
+  orderInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  orderInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  orderInfoText: {
+    color: theme.colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  payStatusChip: {
+    borderRadius: theme.radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  payStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
 
   // ── Empty state ───────────────────────────────────────
@@ -413,6 +531,11 @@ const styles = StyleSheet.create({
   payBtn: {
     backgroundColor: theme.colors.primary,
     ...theme.shadow.lg,
+  },
+  payBtnDisabled: {
+    backgroundColor: theme.colors.success,
+    shadowColor: 'transparent',
+    elevation: 0,
   },
   payBtnText: {
     color: '#fff',

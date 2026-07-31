@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,6 +17,9 @@ import { useCartStore } from '../store/cartStore';
 import { useOrderStore } from '../store/orderStore';
 import { useCreateOrder } from '../hooks/useOrders';
 import { createPayment } from '../api/services/payments';
+import { generateInvoice } from '../api/services/invoices';
+import { updateTable } from '../api/services/tables';
+import { PaymentStatus } from '../types/order';
 import { theme } from '../theme';
 
 export default function ProceedPaymentScreen() {
@@ -26,7 +30,9 @@ export default function ProceedPaymentScreen() {
   const clearCart = useCartStore((s) => s.clearCart);
   const getTotals = useCartStore((s) => s.getTotals);
   const activeOrderId = useOrderStore((s) => s.activeOrderId);
+  const orders = useOrderStore((s) => s.orders);
   const addOrder = useOrderStore((s) => s.addOrder);
+  const updateOrder = useOrderStore((s) => s.updateOrder);
   const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
   const createOrder = useCreateOrder();
 
@@ -35,10 +41,11 @@ export default function ProceedPaymentScreen() {
   const { subtotal, taxTotal, grandTotal } = getTotals();
 
   const [paidAmount, setPaidAmount] = useState('');
-  const [discount, setDiscount] = useState('0');
-  const [alreadyPaid, setAlreadyPaid] = useState('0');
+  const discount = '0';
+  const alreadyPaid = '0';
   const [showReceipt, setShowReceipt] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalPayable = grandTotal - Number(discount || 0) - Number(alreadyPaid || 0);
   const amountPaid = Number(paidAmount || 0);
@@ -50,15 +57,18 @@ export default function ProceedPaymentScreen() {
   const handleClear = () => setPaidAmount('');
 
   const handleCompleteOrder = async () => {
-    if (!canPay) return;
+    if (!canPay || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       let orderId: string | null = activeOrderId;
+      let orderNumber = activeOrderId ? 'N/A' : 'NEW';
 
+      // ② Create order first if this is a brand-new order (no Bill This Order)
       if (!orderId) {
         const res = await createOrder.mutateAsync({
           table_id: table?.id ?? null,
           account_id: customer?.id ?? null,
-          total_amount: grandTotal,
+          total_amount: subtotal,
           tax_amount: taxTotal,
           discount_amount: Number(discount || 0),
           grand_total: grandTotal,
@@ -69,35 +79,91 @@ export default function ProceedPaymentScreen() {
             total: i.price_per_unit * i.qty,
           })),
         });
-        orderId = (res.data as any).data.data.id;
+        const created = (res.data as any)?.data;
+        const o = created?.data ?? created;
+        orderId = o?.id ?? null;
+        orderNumber = o?.order_number ?? 'N/A';
+      } else {
+        const existing = orders.find((o) => o.id === orderId);
+        if (existing?.order_number) orderNumber = existing.order_number;
+      }
+
+      if (!orderId) {
+        Alert.alert('Payment failed', 'Order could not be created. Check the console error.');
+        return;
+      }
+
+      // ④ Create invoice for the order
+      const invoiceRes = await generateInvoice(orderId);
+      const invData = (invoiceRes.data as any)?.data;
+      const invoice = invData?.data ?? invData;
+      const invoiceId = invoice?.id;
+      const invoiceNumber = invoice?.invoice_number ?? orderNumber;
+
+      if (!invoiceId) {
+        Alert.alert('Payment failed', 'Invoice was not created. Check the console error.');
+        return;
+      }
+
+      // ⑤ Create payment linked to the invoice
+      const totalPaid = amountPaid + Number(alreadyPaid || 0);
+      const payable = grandTotal - Number(discount || 0);
+      const balance = Math.max(payable - totalPaid, 0);
+      await createPayment({
+        invoice_id: invoiceId,
+        paid_amount: totalPaid,
+        change_amount: change >= 0 ? change : 0,
+        payment_method: 'cash',
+      });
+
+      // ⑥ Free the table
+      if (table?.id) {
+        try {
+          await updateTable(table.id, { status: 'available' });
+        } catch (e) {
+          console.warn('Failed to free table', e);
+        }
+      }
+
+      // ③ Update order locally (zustand)
+      const paidStatus: PaymentStatus =
+        totalPaid >= payable ? 'PAID' : 'PARTIALLY_PAID';
+      if (activeOrderId) {
+        updateOrder(activeOrderId, {
+          paymentStatus: paidStatus,
+          invoice: true,
+          invoice_number: invoiceNumber,
+          amountPaid: totalPaid,
+          balance,
+        });
+      } else {
         addOrder({
           id: orderId!,
-          order_number: (res.data as any).data.data.order_number,
+          order_number: orderNumber,
           items: cart.map((i) => ({ ...i, status: 'served' as const })),
           total: grandTotal,
           status: 'COMPLETED',
-          paymentStatus: 'PAID',
+          paymentStatus: paidStatus,
+          invoice: true,
+          invoice_number: invoiceNumber,
+          amountPaid: totalPaid,
+          balance,
           table_id: table?.id ?? null,
           account_id: customer?.id ?? null,
+          table_name: table?.name,
+          customer_name: customer?.name,
         });
       }
 
-      await createPayment({
-        order_id: orderId!,
-        amount_paid: amountPaid,
-        payment_method: 'cash',
-        discount_amount: Number(discount || 0),
-        already_paid: Number(alreadyPaid || 0),
-      });
-
       setResult({
-        orderNumber: activeOrderId ? 'N/A' : 'NEW',
+        orderNumber,
+        invoiceNumber,
         items: cart,
         subtotal,
         taxTotal,
         discount: Number(discount || 0),
         grandTotal,
-        amountPaid,
+        amountPaid: totalPaid,
         change,
       });
       setShowReceipt(true);
@@ -105,6 +171,14 @@ export default function ProceedPaymentScreen() {
       setActiveOrder(null);
     } catch (e) {
       console.error('Payment failed', e);
+      const msg =
+        (e as any)?.response?.data?.message ||
+        (e as any)?.response?.data?.error ||
+        (e as any)?.message ||
+        'Payment failed. Try again.';
+      Alert.alert('Payment failed', msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -222,7 +296,7 @@ export default function ProceedPaymentScreen() {
       <TouchableOpacity
         style={[styles.completeBtn, !canPay && styles.completeBtnDisabled]}
         onPress={handleCompleteOrder}
-        disabled={!canPay}
+        disabled={!canPay || isSubmitting}
         activeOpacity={0.85}>
         <MaterialCommunityIcons
           name={canPay ? 'check-circle-outline' : 'cash'}
@@ -230,7 +304,9 @@ export default function ProceedPaymentScreen() {
           color="#fff"
         />
         <Text style={styles.completeBtnText}>
-          {!paidAmount
+          {isSubmitting
+            ? 'Processing...'
+            : !paidAmount
             ? 'Enter amount to pay'
             : !canPay
             ? `Need ₹${(totalPayable - amountPaid).toLocaleString()} more`

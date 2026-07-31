@@ -9,9 +9,14 @@ export function useCart() {
   const activeOrderId = useOrderStore((s) => s.activeOrderId);
   const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
   const orders = useOrderStore((s) => s.orders);
+  const addOrder = useOrderStore((s) => s.addOrder);
 
   const onBillOrder = (order: Order) => {
     const fullOrder = orders.find((o) => o.id === order.id);
+    if (!fullOrder) {
+      addOrder(order);
+    }
+    clearCart();
     setCart(fullOrder?.items ?? order.items);
     setActiveOrder(order.id);
   };
