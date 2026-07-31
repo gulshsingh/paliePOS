@@ -55,11 +55,10 @@ export interface UpdateItemStatusPayload {
 }
 
 export interface CreatePaymentPayload {
-  order_id: string;
-  amount_paid: number;
+  invoice_id: string;
+  paid_amount: number;
+  change_amount: number;
   payment_method: string;
-  discount_amount: number;
-  already_paid: number;
 }
 
 export interface DashboardData {

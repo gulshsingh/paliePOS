@@ -4,6 +4,7 @@ import { theme } from '../theme';
 
 interface Props {
   orderNumber: string;
+  invoiceNumber?: string;
   items: CartItem[];
   subtotal: number;
   taxTotal: number;
@@ -15,6 +16,7 @@ interface Props {
 
 export default function Receipt({
   orderNumber,
+  invoiceNumber,
   items,
   subtotal,
   taxTotal,
@@ -29,6 +31,9 @@ export default function Receipt({
         <Text style={styles.title}>PALIE POS</Text>
         <Text style={styles.subtitle}>Receipt</Text>
         <Text style={styles.orderNumber}>Order #{orderNumber}</Text>
+        {invoiceNumber && (
+          <Text style={styles.invoiceNumber}>Invoice #{invoiceNumber}</Text>
+        )}
       </View>
 
       <View style={styles.divider} />
@@ -116,6 +121,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginTop: 4,
+  },
+  invoiceNumber: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
   },
   divider: {
     height: 1,

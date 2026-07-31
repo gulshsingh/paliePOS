@@ -15,6 +15,10 @@ export interface Order {
   account_id?: string | null;
   table_name?: string;
   customer_name?: string;
+  invoice?: boolean;
+  invoice_number?: string;
+  amountPaid?: number;
+  balance?: number;
   created_at?: string;
   updated_at?: string;
 }

@@ -4,7 +4,8 @@ import { CreatePaymentPayload } from '../../types/api';
 
 export interface Payment {
   id: string;
-  order_id: string;
+  invoice_id: string;
+  order_id?: string;
   amount: number;
   method: string;
   status: string;

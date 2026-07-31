@@ -10,8 +10,11 @@ export function useUpdateOrderStatus() {
   const updateItemStatusLocally = (itemId: string, status: ApiOrderItemStatus) => {
     const { orders, updateItemStatus } = useOrderStore.getState();
     const order = orders.find((o) => o.items.some((i) => i.id === itemId));
-    if (!order) return;
-    updateItemStatus(order.id, itemId, status);
+    // Sync local zustand copy if the order is known (created in this session)
+    if (order) {
+      updateItemStatus(order.id, itemId, status);
+    }
+    // Always push to the server — server-loaded orders are not in zustand
     updateItemRemote.mutate({ item_id: itemId, status });
   };
 

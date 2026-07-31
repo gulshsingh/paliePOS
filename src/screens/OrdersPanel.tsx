@@ -44,29 +44,36 @@ export default function OrdersPanel({ onBillToCart }: { onBillToCart?: () => voi
   ), [handleBillOrder, updateItemStatusLocally]);
 
   const orders = useMemo(() => {
+    const tabStatus = TAB_ITEM_STATUS[activeTab];
     const allOrders = data?.pages.flatMap((p) => {
       const d = (p.data as any);
       return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
     }) ?? [];
-    return allOrders.map((o: any) => ({
-      id: o.id,
-      order_number: o.order_number,
-      items: (o.items ?? []).map((i: any) => ({
-        id: i.id,
-        name: i.product?.name ?? i.product_name ?? '',
-        price: Number(i.total),
-        price_per_unit: Number(i.price),
-        qty: Number(i.quantity),
-        tax: 0,
-        status: i.status,
-      })),
-      total: Number(o.grand_total),
-      status: o.status,
-      paymentStatus: o.payment_status,
-      table_name: o.table?.name,
-      customer_name: o.account?.name,
-    }));
-  }, [data]);
+    return allOrders
+      .map((o: any) => ({
+        id: o.id,
+        order_number: o.order_number,
+        items: (o.items ?? [])
+          .filter((i: any) => i.status === tabStatus)
+          .map((i: any) => ({
+            id: i.id,
+            name: i.product?.name ?? i.product_name ?? '',
+            price: Number(i.total),
+            price_per_unit: Number(i.price),
+            qty: Number(i.quantity),
+            tax: 0,
+            status: i.status,
+          })),
+        total: Number(o.grand_total),
+        status: o.status,
+        paymentStatus: o.payment_status,
+        table_id: o.table_id,
+        account_id: o.account_id,
+        table_name: o.table?.name,
+        customer_name: o.account?.name,
+      }))
+      .filter((o: any) => o.items.length > 0);
+  }, [data, activeTab]);
 
   return (
     <View style={styles.container}>
