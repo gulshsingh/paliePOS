@@ -5,12 +5,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
-import ProceedPaymentScreen from '../screens/ProceedPaymentScreen';
-import CustomerFormScreen from '../screens/CustomerFormScreen';
-import ProductFormScreen from '../screens/ProductFormScreen';
-import TableFormScreen from '../screens/TableFormScreen';
-import RunningOrdersScreen from '../screens/RunningOrdersScreen';
-import Loader from '../components/Loader';
+import { setUnauthorizedHandler } from '../api/client';
+import ProceedPaymentScreen from '../screens/counter/ProceedPaymentScreen';
+import CustomerFormScreen from '../screens/customers/CustomerFormScreen';
+import ProductFormScreen from '../screens/products/ProductFormScreen';
+import TableFormScreen from '../screens/tables/TableFormScreen';
+import RunningOrdersScreen from '../screens/orders/RunningOrdersScreen';
+import Loader from '../components/common/Loader';
 import { theme } from '../theme';
 
 const IDLE_TIMEOUT = 30 * 60 * 1000;
@@ -91,6 +92,13 @@ export default function AppNavigator() {
   const signOut = useCallback(async () => {
     await AsyncStorage.clear();
     setToken(null);
+  }, []);
+
+  // Register logout handler for API interceptor
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setToken(null);
+    });
   }, []);
 
   const resetIdle = useIdleTimer(signOut);

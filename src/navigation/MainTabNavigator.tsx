@@ -9,24 +9,24 @@ import {
 } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import CounterScreen from '../screens/CounterScreen';
-import CustomersScreen from '../screens/CustomersScreen';
-import ProductsScreen from '../screens/ProductsScreen';
-import TablesScreen from '../screens/TablesScreen';
-import ReportsScreen from '../screens/ReportsScreen';
-import ConfigurationScreen from '../screens/ConfigurationScreen';
+import CounterScreen from '../screens/counter/CounterScreen';
+import CustomersScreen from '../screens/customers/CustomersScreen';
+import ProductsScreen from '../screens/products/ProductsScreen';
+import TablesScreen from '../screens/tables/TablesScreen';
+import ReportsScreen from '../screens/reports/ReportsScreen';
+import ConfigurationScreen from '../screens/settings/ConfigurationScreen';
 import { theme } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
 
 const TAB_CONFIG = [
-  { name: 'Counter',       label: 'POS',       icon: 'point-of-sale',         iconActive: 'point-of-sale' },
-  { name: 'Customers',     label: 'Customers', icon: 'account-group-outline', iconActive: 'account-group' },
-  { name: 'Products',      label: 'Menu',      icon: 'food-outline',          iconActive: 'food' },
-  { name: 'Tables',        label: 'Tables',    icon: 'table-furniture',       iconActive: 'table-furniture' },
-  { name: 'Reports',       label: 'Reports',   icon: 'chart-bar-stacked',     iconActive: 'chart-bar' },
-  { name: 'Settings',      label: 'Settings',  icon: 'cog-outline',           iconActive: 'cog' },
+  { name: 'Counter',       label: 'POS',       icon: 'point-of-sale',         iconActive: 'point-of-sale',       component: CounterScreen },
+  { name: 'Customers',     label: 'Customers', icon: 'account-group-outline', iconActive: 'account-group',       component: CustomersScreen },
+  { name: 'Products',      label: 'Menu',      icon: 'food-outline',          iconActive: 'food',                component: ProductsScreen },
+  { name: 'Tables',        label: 'Tables',    icon: 'table-furniture',       iconActive: 'table-furniture',     component: TablesScreen },
+  { name: 'Reports',       label: 'Reports',   icon: 'chart-bar-stacked',     iconActive: 'chart-bar',           component: ReportsScreen },
+  { name: 'Settings',      label: 'Settings',  icon: 'cog-outline',           iconActive: 'cog',                 component: ConfigurationScreen },
 ];
 
 // ── Animated tab item ─────────────────────────────────────
@@ -120,14 +120,11 @@ function CustomTabBar({ state,  navigation }: BottomTabBarProps) {
 export default function MainTabNavigator() {
   return (
     <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={CustomTabBar}
       screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Counter"   component={CounterScreen} />
-      <Tab.Screen name="Customers" component={CustomersScreen} />
-      <Tab.Screen name="Products"  component={ProductsScreen} />
-      <Tab.Screen name="Tables"    component={TablesScreen} />
-      <Tab.Screen name="Reports"   component={ReportsScreen} />
-      <Tab.Screen name="Settings"  component={ConfigurationScreen} />
+      {TAB_CONFIG.map(({ name, component }) => (
+        <Tab.Screen key={name} name={name} component={component} />
+      ))}
     </Tab.Navigator>
   );
 }

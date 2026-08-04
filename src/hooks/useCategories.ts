@@ -20,7 +20,7 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<any> }) => updateCategory(id, data),
+    mutationFn: ({ id, data }: { id: string; data: { name: string } }) => updateCategory(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
   });
 }

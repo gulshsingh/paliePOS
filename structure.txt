@@ -1,0 +1,85 @@
+Folder PATH listing for volume Windows
+Volume serial number is 0000022E 66C5:B39B
+C:\USERS\BEMAD\PALIEPOS\SRC
++---api
+|   |   client.ts
+|   |   
+|   \---services
+|           auth.ts
+|           categories.ts
+|           companies.ts
+|           customers.ts
+|           inventory.ts
+|           invoices.ts
+|           orders.ts
+|           payments.ts
+|           products.ts
+|           tables.ts
+|           units.ts
+|           
++---components
+|       BillingItem.tsx
+|       BillingKeypad.tsx
+|       CustomerModal.tsx
+|       Loader.tsx
+|       OrderCard.tsx
+|       ProductCard.tsx
+|       Receipt.tsx
+|       Skeleton.tsx
+|       SkeletonCard.tsx
+|       SkeletonListItem.tsx
+|       TableModal.tsx
+|       
++---hooks
+|       useCart.ts
+|       useCategories.ts
+|       useCustomers.ts
+|       useInventory.ts
+|       useOrders.ts
+|       useProducts.ts
+|       useTables.ts
+|       useUnits.ts
+|       useUpdateOrderStatus.ts
+|       
++---navigation
+|       AppNavigator.tsx
+|       AuthNavigator.tsx
+|       MainTabNavigator.tsx
+|       
++---screens
+|       BillingPanel.tsx
+|       ConfigurationScreen.tsx
+|       CounterScreen.tsx
+|       CustomerFormScreen.tsx
+|       CustomersScreen.tsx
+|       LoginScreen.tsx
+|       OrdersPanel.tsx
+|       ProceedPaymentScreen.tsx
+|       ProductFormScreen.tsx
+|       ProductsPanel.tsx
+|       ProductsScreen.tsx
+|       ReportsScreen.tsx
+|       RunningOrdersScreen.tsx
+|       TableFormScreen.tsx
+|       TablesScreen.tsx
+|       
++---store
+|       cartStore.ts
+|       orderStore.ts
+|       tableStore.ts
+|       
++---theme
+|       index.ts
+|       
+\---types
+        api.ts
+        cart.ts
+        category.ts
+        customer.ts
+        inventory.ts
+        order-status.ts
+        order.ts
+        product.ts
+        table.ts
+        unit.ts
+        
