@@ -1,8 +1,8 @@
-import { api } from '../client';
-import { ApiResponse, LoginPayload, LoginResponse } from '../../types/api';
+import type { ApiResponse, LoginPayload, LoginResponse } from "../../types/api";
+import { api } from "../client";
 
 export const login = (payload: LoginPayload) =>
-  api.post<ApiResponse<LoginResponse>>('/auth/login', payload);
+	api.post<ApiResponse<LoginResponse>>("/auth/login", payload);
 
 export const getProfile = () =>
-  api.get<ApiResponse<LoginResponse['user']>>('/auth/profile');
+	api.get<ApiResponse<LoginResponse["user"]>>("/auth/profile");
