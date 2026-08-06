@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
 	FlatList,
+	Modal,
 	StyleSheet,
 	Text,
 	TextInput,
@@ -14,12 +15,21 @@ import { useProducts } from "../../hooks/useProducts";
 import { useCartStore } from "../../store/cartStore";
 import { theme } from "../../theme";
 import type { Product } from "../../types/product";
+import BillingPanel from "../counter/BillingPanel";
 
 export default function ProductsPanel() {
 	const [search, setSearch] = useState("");
+	const [cartOpen, setCartOpen] = useState(false);
 	const { data, isLoading } = useProducts();
 	const addToCart = useCartStore((s) => s.addToCart);
 	const cart = useCartStore((s) => s.cart);
+
+	const decreaseQty = useCartStore((s) => s.decreaseQty);
+
+	const cartMap = useMemo(
+		() => new Map(cart.map((i) => [i.id, i.qty])),
+		[cart],
+	);
 
 	const cartTotal = useMemo(
 		() => cart.reduce((sum, i) => sum + i.price_per_unit * i.qty, 0),
@@ -55,11 +65,24 @@ export default function ProductsPanel() {
 		[addToCart],
 	);
 
+	const handleDecrease = useCallback(
+		(product: Product) => {
+			decreaseQty(product.id);
+		},
+		[decreaseQty],
+	);
+
 	const renderItem = useCallback(
 		({ item }: { item: Product }) => (
-			<ProductCard product={item} onPress={handleAdd} />
+			<ProductCard
+				product={item}
+				qty={cartMap.get(item.id) ?? 0}
+				onPress={handleAdd}
+				onIncrease={handleAdd}
+				onDecrease={handleDecrease}
+			/>
 		),
-		[handleAdd],
+		[cartMap, handleAdd, handleDecrease],
 	);
 
 	return (
@@ -150,16 +173,52 @@ export default function ProductsPanel() {
 
 			{/* Floating cart summary bar */}
 			{cartCount > 0 && (
-				<View style={styles.cartBar}>
+				<TouchableOpacity
+					style={styles.cartBar}
+					activeOpacity={0.9}
+					onPress={() => setCartOpen(true)}
+				>
 					<View style={styles.cartBarLeft}>
 						<View style={styles.cartBadge}>
 							<Text style={styles.cartBadgeText}>{cartCount}</Text>
 						</View>
 						<Text style={styles.cartBarLabel}>items added</Text>
 					</View>
-					<Text style={styles.cartBarTotal}>₹{cartTotal.toLocaleString()}</Text>
-				</View>
+					<View style={styles.cartBarRight}>
+						<Text style={styles.cartBarTotal}>
+							₹{cartTotal.toLocaleString()}
+						</Text>
+						<MaterialCommunityIcons name="chevron-up" size={20} color="#fff" />
+					</View>
+				</TouchableOpacity>
 			)}
+
+			{/* Cart bottom sheet — BillingPanel directly inside Modal */}
+			<Modal
+				visible={cartOpen}
+				animationType="slide"
+				transparent
+				onRequestClose={() => setCartOpen(false)}
+			>
+				<View style={styles.modalOverlay}>
+					<View style={styles.modalSheet}>
+						{/* Handle + close */}
+						<View style={styles.sheetHandle} />
+						<TouchableOpacity
+							style={styles.sheetClose}
+							onPress={() => setCartOpen(false)}
+						>
+							<MaterialCommunityIcons
+								name="close"
+								size={18}
+								color={theme.colors.textSecondary}
+							/>
+						</TouchableOpacity>
+						{/* BillingPanel — exact same component, exact same smooth scroll */}
+						<BillingPanel onRequestClose={() => setCartOpen(false)} />
+					</View>
+				</View>
+			</Modal>
 		</View>
 	);
 }
@@ -255,6 +314,11 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		gap: 10,
 	},
+	cartBarRight: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+	},
 	cartBadge: {
 		backgroundColor: "rgba(255,255,255,0.25)",
 		borderRadius: theme.radius.full,
@@ -278,5 +342,39 @@ const styles = StyleSheet.create({
 		color: "#fff",
 		fontSize: 16,
 		fontWeight: "900",
+	},
+	// ── Cart bottom sheet modal ───────────────────────────
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: "rgba(0,0,0,0.5)",
+		justifyContent: "flex-end",
+	},
+	modalSheet: {
+		backgroundColor: theme.colors.surfaceSecondary,
+		borderTopLeftRadius: 24,
+		borderTopRightRadius: 24,
+		height: "85%",
+		overflow: "hidden",
+	},
+	sheetHandle: {
+		width: 40,
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: theme.colors.border,
+		alignSelf: "center",
+		marginTop: 10,
+		marginBottom: 4,
+	},
+	sheetClose: {
+		position: "absolute",
+		top: 10,
+		right: 16,
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		backgroundColor: theme.colors.surfaceSecondary,
+		justifyContent: "center",
+		alignItems: "center",
+		zIndex: 10,
 	},
 });

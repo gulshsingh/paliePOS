@@ -6,7 +6,10 @@ import type { Product } from "../../types/product";
 
 interface Props {
 	product: Product;
+	qty: number;
 	onPress: (product: Product) => void;
+	onIncrease: (product: Product) => void;
+	onDecrease: (product: Product) => void;
 }
 
 const EMOJIS = [
@@ -44,7 +47,7 @@ const TILE_COLORS = [
 	"#FFF0F8",
 ];
 
-function ProductCard({ product, onPress }: Props) {
+function ProductCard({ product, qty, onPress, onIncrease, onDecrease }: Props) {
 	const emoji = EMOJIS[product.name.length % EMOJIS.length];
 	const tileBg = TILE_COLORS[product.name.length % TILE_COLORS.length];
 
@@ -69,10 +72,28 @@ function ProductCard({ product, onPress }: Props) {
 				</Text>
 			</View>
 
-			{/* Add button */}
-			<View style={styles.addBtn}>
-				<MaterialCommunityIcons name="plus" size={18} color="#fff" />
-			</View>
+			{/* Add / qty stepper */}
+			{qty > 0 ? (
+				<View style={styles.stepper}>
+					<TouchableOpacity
+						style={styles.stepperBtn}
+						onPress={() => onDecrease(product)}
+					>
+						<MaterialCommunityIcons name="minus" size={16} color="#fff" />
+					</TouchableOpacity>
+					<Text style={styles.qtyText}>{qty}</Text>
+					<TouchableOpacity
+						style={styles.stepperBtn}
+						onPress={() => onIncrease(product)}
+					>
+						<MaterialCommunityIcons name="plus" size={16} color="#fff" />
+					</TouchableOpacity>
+				</View>
+			) : (
+				<View style={styles.addBtn}>
+					<MaterialCommunityIcons name="plus" size={18} color="#fff" />
+				</View>
+			)}
 		</TouchableOpacity>
 	);
 }
@@ -126,5 +147,30 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 		alignItems: "center",
 		...theme.shadow.sm,
+	},
+	stepper: {
+		position: "absolute",
+		bottom: 8,
+		right: 8,
+		flexDirection: "row",
+		alignItems: "center",
+		backgroundColor: theme.colors.primary,
+		borderRadius: theme.radius.full,
+		paddingHorizontal: 4,
+		...theme.shadow.sm,
+	},
+	stepperBtn: {
+		width: 26,
+		height: 26,
+		borderRadius: 13,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	qtyText: {
+		color: "#fff",
+		fontSize: 14,
+		fontWeight: "800",
+		minWidth: 24,
+		textAlign: "center",
 	},
 });

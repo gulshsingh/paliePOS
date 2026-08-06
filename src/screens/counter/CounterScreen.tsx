@@ -8,24 +8,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useCartStore } from "../../store/cartStore";
 import { theme } from "../../theme";
 import ProductsPanel from "../products/ProductsPanel";
-import BillingPanel from "./BillingPanel";
 import OrdersPanel from "./OrdersPanel";
 
-type Tab = "orders" | "products" | "billing";
+type Tab = "orders" | "products";
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: "orders", label: "Orders", icon: "clipboard-list-outline" },
 	{ key: "products", label: "Menu", icon: "food-outline" },
-	{ key: "billing", label: "Cart", icon: "cart-outline" },
 ];
 
 export default function CounterScreen() {
 	const insets = useSafeAreaInsets();
 	const [activeTab, setActiveTab] = useState<Tab>("products");
-	const cartCount = useCartStore((s) => s.cart.length);
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -42,7 +38,7 @@ export default function CounterScreen() {
 						/>
 					</View>
 					<View>
-						<Text style={styles.title}>PALIE POS</Text>
+						<Text style={styles.title}>PALIE</Text>
 						<Text style={styles.subtitle}>Point of Sale</Text>
 					</View>
 				</View>
@@ -58,7 +54,6 @@ export default function CounterScreen() {
 			<View style={styles.tabBar}>
 				{TABS.map((t) => {
 					const isActive = activeTab === t.key;
-					const showBadge = t.key === "billing" && cartCount > 0;
 					return (
 						<TouchableOpacity
 							key={t.key}
@@ -79,11 +74,6 @@ export default function CounterScreen() {
 								>
 									{t.label}
 								</Text>
-								{showBadge && (
-									<View style={styles.badge}>
-										<Text style={styles.badgeText}>{cartCount}</Text>
-									</View>
-								)}
 							</View>
 							{isActive && <View style={styles.activeIndicator} />}
 						</TouchableOpacity>
@@ -93,10 +83,9 @@ export default function CounterScreen() {
 
 			<View style={styles.content}>
 				{activeTab === "orders" && (
-					<OrdersPanel onBillToCart={() => setActiveTab("billing")} />
+					<OrdersPanel onBillToCart={() => setActiveTab("products")} />
 				)}
 				{activeTab === "products" && <ProductsPanel />}
-				{activeTab === "billing" && <BillingPanel />}
 			</View>
 		</View>
 	);
@@ -204,20 +193,6 @@ const styles = StyleSheet.create({
 		borderTopLeftRadius: 3,
 		borderTopRightRadius: 3,
 		backgroundColor: theme.colors.primary,
-	},
-	badge: {
-		backgroundColor: theme.colors.primary,
-		borderRadius: theme.radius.full,
-		minWidth: 18,
-		height: 18,
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: 4,
-	},
-	badgeText: {
-		color: "#fff",
-		fontSize: 10,
-		fontWeight: "800",
 	},
 	content: {
 		flex: 1,

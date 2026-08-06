@@ -15,15 +15,19 @@ import { useCustomers } from "../../hooks/useCustomers";
 import { useCreateOrder } from "../../hooks/useOrders";
 import { useTables } from "../../hooks/useTables";
 import { useCartStore } from "../../store/cartStore";
+import { useCustomerStore } from "../../store/customerStore";
 import { useOrderStore } from "../../store/orderStore";
 import { useTableStore } from "../../store/tableStore";
 import { theme } from "../../theme";
 import type { CartItem } from "../../types/cart";
-import type { Customer } from "../../types/customer";
 import type { Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
 
-export default function BillingPanel() {
+interface Props {
+	onRequestClose?: () => void;
+}
+
+export default function BillingPanel({ onRequestClose }: Props) {
 	const navigation = useNavigation<any>();
 	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
@@ -36,9 +40,8 @@ export default function BillingPanel() {
 
 	const [customerModal, setCustomerModal] = useState(false);
 	const [tableModal, setTableModal] = useState(false);
-	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-		null,
-	);
+	const selectedCustomer = useCustomerStore((s) => s.selectedCustomer);
+	const setSelectedCustomer = useCustomerStore((s) => s.setSelectedCustomer);
 
 	const { data: customersData } = useCustomers();
 	const { data: tablesData } = useTables();
@@ -78,7 +81,14 @@ export default function BillingPanel() {
 			setSelectedTable(t ?? null);
 		}
 		setAutofilledFor(existingOrder.id);
-	}, [existingOrder, customers, tables, autofilledFor, setSelectedTable]);
+	}, [
+		existingOrder,
+		customers,
+		tables,
+		autofilledFor,
+		setSelectedTable,
+		setSelectedCustomer,
+	]);
 
 	const { subtotal, taxTotal, grandTotal } = useMemo(() => {
 		const sub = cart.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
@@ -88,6 +98,12 @@ export default function BillingPanel() {
 		);
 		return { subtotal: sub, taxTotal: tax, grandTotal: sub + tax };
 	}, [cart]);
+
+	const handleClearAll = useCallback(() => {
+		clearCart();
+		setSelectedCustomer(null);
+		setSelectedTable(null);
+	}, [clearCart, setSelectedCustomer, setSelectedTable]);
 
 	const handleSendToKitchen = async () => {
 		if (cart.length === 0 || activeOrderId) return;
@@ -128,12 +144,14 @@ export default function BillingPanel() {
 			setActiveOrder(null);
 			setSelectedTable(null);
 			setSelectedCustomer(null);
+			onRequestClose?.();
 		} catch (e) {
 			console.error("Failed to create order", e);
 		}
 	};
 
 	const handlePayment = () => {
+		onRequestClose?.();
 		navigation.navigate("ProceedPayment", {
 			customer: selectedCustomer,
 			table: selectedTable,
@@ -175,12 +193,12 @@ export default function BillingPanel() {
 				<Text style={styles.itemsHeaderText}>
 					{cart.length} {cart.length === 1 ? "item" : "items"} in cart
 				</Text>
-				<TouchableOpacity onPress={clearCart}>
+				<TouchableOpacity onPress={handleClearAll}>
 					<Text style={styles.clearText}>Clear all</Text>
 				</TouchableOpacity>
 			</View>
 		),
-		[cart.length, clearCart],
+		[cart.length, handleClearAll],
 	);
 
 	const isBillingExisting = activeOrderId != null;
