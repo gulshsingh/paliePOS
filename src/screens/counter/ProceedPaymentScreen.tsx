@@ -147,7 +147,12 @@ export default function ProceedPaymentScreen() {
 				addOrder({
 					id: orderId!,
 					order_number: orderNumber,
-					items: cart.map((i) => ({ ...i, status: "served" as const })),
+					items: cart.map((i) => ({
+						...i,
+						status: "served" as const,
+						sentToKitchen: true,
+						kotNo: 1,
+					})),
 					total: grandTotal,
 					status: "COMPLETED",
 					paymentStatus: paidStatus,
@@ -159,6 +164,19 @@ export default function ProceedPaymentScreen() {
 					account_id: customer?.id ?? null,
 					table_name: table?.name,
 					customer_name: customer?.name,
+					kots: [
+						{
+							kotNo: 1,
+							items: cart.map(({ id, name, qty, price_per_unit }) => ({
+								id,
+								name,
+								qty,
+								price_per_unit,
+							})),
+							createdAt: new Date().toISOString(),
+						},
+					],
+					nextKotNo: 2,
 				});
 			}
 

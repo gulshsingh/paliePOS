@@ -14,6 +14,26 @@ interface Props {
 	change: number;
 }
 
+// Merge duplicate lines (e.g. Roti x2 + Roti x1 from different KOTs) into a
+// single clean bill line keyed by product_id.
+function mergeLines(items: CartItem[]): CartItem[] {
+	const map = new Map<string, CartItem>();
+	for (const item of items) {
+		const key = item.product_id ?? item.id;
+		const existing = map.get(key);
+		if (existing) {
+			map.set(key, {
+				...existing,
+				qty: existing.qty + item.qty,
+				price: existing.price_per_unit * (existing.qty + item.qty),
+			});
+		} else {
+			map.set(key, { ...item });
+		}
+	}
+	return [...map.values()];
+}
+
 export default function Receipt({
 	orderNumber,
 	invoiceNumber,
@@ -25,6 +45,8 @@ export default function Receipt({
 	amountPaid,
 	change,
 }: Props) {
+	const merged = mergeLines(items);
+
 	return (
 		<ScrollView style={styles.container}>
 			<View style={styles.header}>
@@ -38,7 +60,7 @@ export default function Receipt({
 
 			<View style={styles.divider} />
 
-			{items.map((item) => (
+			{merged.map((item) => (
 				<View key={item.id} style={styles.itemRow}>
 					<Text style={styles.itemName}>
 						{item.name} × {item.qty}

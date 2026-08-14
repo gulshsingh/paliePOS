@@ -7,23 +7,43 @@ import type { CartItem } from "../../types/cart";
 
 interface Props {
 	item: CartItem;
+	locked?: boolean;
 }
 
-function BillingItem({ item }: Props) {
+function BillingItem({ item, locked }: Props) {
 	const increaseQty = useCartStore((s) => s.increaseQty);
 	const decreaseQty = useCartStore((s) => s.decreaseQty);
 
 	const lineTotal = item.price_per_unit * item.qty;
 
 	return (
-		<View style={styles.container}>
+		<View style={[styles.container, locked && styles.containerLocked]}>
 			{/* Left: name + price */}
 			<View style={styles.left}>
-				<View style={styles.vegIndicator} />
+				{locked ? (
+					<View style={styles.lockIndicator}>
+						<MaterialCommunityIcons
+							name="check-bold"
+							size={10}
+							color={theme.colors.success}
+						/>
+					</View>
+				) : (
+					<View style={styles.vegIndicator} />
+				)}
 				<View style={styles.textBlock}>
-					<Text style={styles.name} numberOfLines={1}>
-						{item.name}
-					</Text>
+					<View style={styles.nameRow}>
+						<Text style={styles.name} numberOfLines={1}>
+							{item.name}
+						</Text>
+						{locked && (
+							<MaterialCommunityIcons
+								name="lock-outline"
+								size={12}
+								color={theme.colors.textMuted}
+							/>
+						)}
+					</View>
 					<Text style={styles.unitPrice}>
 						₹{item.price_per_unit.toLocaleString()} each
 					</Text>
@@ -32,33 +52,41 @@ function BillingItem({ item }: Props) {
 
 			{/* Right: qty stepper + total */}
 			<View style={styles.right}>
-				<View style={styles.stepper}>
-					<TouchableOpacity
-						style={styles.stepBtn}
-						onPress={() => decreaseQty(item.id)}
-						activeOpacity={0.7}
-					>
-						<MaterialCommunityIcons
-							name={item.qty === 1 ? "trash-can-outline" : "minus"}
-							size={14}
-							color={
-								item.qty === 1 ? theme.colors.danger : theme.colors.primary
-							}
-						/>
-					</TouchableOpacity>
-					<Text style={styles.qty}>{item.qty}</Text>
-					<TouchableOpacity
-						style={styles.stepBtn}
-						onPress={() => increaseQty(item.id)}
-						activeOpacity={0.7}
-					>
-						<MaterialCommunityIcons
-							name="plus"
-							size={14}
-							color={theme.colors.primary}
-						/>
-					</TouchableOpacity>
-				</View>
+				{locked ? (
+					<View style={styles.lockedQty}>
+						<Text style={styles.lockedQtyText}>×{item.qty}</Text>
+					</View>
+				) : (
+					<View style={styles.stepper}>
+						<TouchableOpacity
+							style={styles.stepBtn}
+							onPress={() => decreaseQty(item.id)}
+							activeOpacity={0.7}
+						>
+							<MaterialCommunityIcons
+								name={item.qty === 1 ? "trash-can-outline" : "minus"}
+								size={14}
+								color={
+									item.qty === 1
+										? theme.colors.danger
+										: theme.colors.primary
+								}
+							/>
+						</TouchableOpacity>
+						<Text style={styles.qty}>{item.qty}</Text>
+						<TouchableOpacity
+							style={styles.stepBtn}
+							onPress={() => increaseQty(item.id)}
+							activeOpacity={0.7}
+						>
+							<MaterialCommunityIcons
+								name="plus"
+								size={14}
+								color={theme.colors.primary}
+							/>
+						</TouchableOpacity>
+					</View>
+				)}
 				<Text style={styles.lineTotal}>₹{lineTotal.toLocaleString()}</Text>
 			</View>
 		</View>
@@ -81,6 +109,12 @@ const styles = StyleSheet.create({
 		borderColor: theme.colors.borderLight,
 		...theme.shadow.sm,
 	},
+	containerLocked: {
+		backgroundColor: theme.colors.surfaceTertiary,
+		borderColor: theme.colors.border,
+		shadowColor: "transparent",
+		elevation: 0,
+	},
 	left: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -98,8 +132,22 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		flexShrink: 0,
 	},
+	lockIndicator: {
+		width: 14,
+		height: 14,
+		borderRadius: 2,
+		backgroundColor: theme.colors.successLight,
+		justifyContent: "center",
+		alignItems: "center",
+		flexShrink: 0,
+	},
 	textBlock: {
 		flex: 1,
+	},
+	nameRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 5,
 	},
 	name: {
 		color: theme.colors.textPrimary,
@@ -135,6 +183,19 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: "800",
 		paddingHorizontal: 12,
+	},
+	lockedQty: {
+		backgroundColor: "#fff",
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+		borderRadius: theme.radius.sm,
+		paddingHorizontal: 10,
+		paddingVertical: 5,
+	},
+	lockedQtyText: {
+		color: theme.colors.textSecondary,
+		fontSize: 13,
+		fontWeight: "800",
 	},
 	lineTotal: {
 		color: theme.colors.textPrimary,

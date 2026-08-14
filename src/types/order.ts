@@ -15,6 +15,19 @@ export type ApiOrderItemStatus =
 	| "served"
 	| "cancelled";
 
+export interface KotItem {
+	id: string;
+	name: string;
+	qty: number;
+	price_per_unit: number;
+}
+
+export interface KitchenKot {
+	kotNo: number;
+	items: KotItem[];
+	createdAt?: string;
+}
+
 export interface Order {
 	id: string;
 	order_number: string;
@@ -30,6 +43,8 @@ export interface Order {
 	invoice_number?: string;
 	amountPaid?: number;
 	balance?: number;
+	kots?: KitchenKot[];
+	nextKotNo?: number;
 	created_at?: string;
 	updated_at?: string;
 }

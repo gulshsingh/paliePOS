@@ -13,6 +13,9 @@ import SkeletonCard from "../../components/common/SkeletonCard";
 import ProductCard from "../../components/product/ProductCard";
 import { useProducts } from "../../hooks/useProducts";
 import { useCartStore } from "../../store/cartStore";
+import { useCustomerStore } from "../../store/customerStore";
+import { useFlowStore } from "../../store/flowStore";
+import { useTableStore } from "../../store/tableStore";
 import { theme } from "../../theme";
 import type { Product } from "../../types/product";
 import BillingPanel from "../counter/BillingPanel";
@@ -23,6 +26,13 @@ export default function ProductsPanel() {
 	const { data, isLoading } = useProducts();
 	const addToCart = useCartStore((s) => s.addToCart);
 	const cart = useCartStore((s) => s.cart);
+	const clearCart = useCartStore((s) => s.clearCart);
+	const saveDraft = useFlowStore((s) => s.saveDraft);
+	const setActiveDraftId = useFlowStore((s) => s.setActiveDraftId);
+	const setSelectedCustomer = useCustomerStore((s) => s.setSelectedCustomer);
+	const selectedCustomer = useCustomerStore((s) => s.selectedCustomer);
+	const setSelectedTable = useTableStore((s) => s.setSelectedTable);
+	const selectedTable = useTableStore((s) => s.selectedTable);
 
 	const decreaseQty = useCartStore((s) => s.decreaseQty);
 
@@ -71,6 +81,33 @@ export default function ProductsPanel() {
 		},
 		[decreaseQty],
 	);
+
+	// Saves the current unfinished cart to Flow (localStorage), then starts fresh.
+	const handleNewOrder = useCallback(() => {
+		if (cart.length > 0) {
+			saveDraft({
+				items: cart,
+				table_id: selectedTable?.id ?? null,
+				table_name: selectedTable?.name ?? null,
+				customer_id: selectedCustomer?.id ?? null,
+				customer_name: selectedCustomer?.name ?? null,
+			});
+		}
+		clearCart();
+		setSelectedCustomer(null);
+		setSelectedTable(null);
+		setActiveDraftId(null);
+		setCartOpen(false);
+	}, [
+		cart,
+		selectedTable,
+		selectedCustomer,
+		saveDraft,
+		clearCart,
+		setSelectedCustomer,
+		setSelectedTable,
+		setActiveDraftId,
+	]);
 
 	const renderItem = useCallback(
 		({ item }: { item: Product }) => (
@@ -125,6 +162,18 @@ export default function ProductsPanel() {
 						{filtered.length} {filtered.length === 1 ? "item" : "items"}
 						{search ? ` for "${search}"` : " on menu"}
 					</Text>
+					<TouchableOpacity
+						style={styles.newOrderBtn}
+						onPress={handleNewOrder}
+						activeOpacity={0.8}
+					>
+						<MaterialCommunityIcons
+							name="plus"
+							size={14}
+							color={theme.colors.primary}
+						/>
+						<Text style={styles.newOrderText}>New Order</Text>
+					</TouchableOpacity>
 				</View>
 			)}
 
@@ -257,9 +306,28 @@ const styles = StyleSheet.create({
 		padding: 4,
 	},
 	resultsRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
 		paddingHorizontal: 14,
 		paddingTop: 10,
 		paddingBottom: 2,
+	},
+	newOrderBtn: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+		backgroundColor: theme.colors.primaryLight,
+		borderWidth: 1.5,
+		borderColor: theme.colors.primary,
+		borderRadius: theme.radius.full,
+		paddingHorizontal: 10,
+		paddingVertical: 5,
+	},
+	newOrderText: {
+		fontSize: 12,
+		fontWeight: "800",
+		color: theme.colors.primary,
 	},
 	resultsText: {
 		fontSize: 12,
