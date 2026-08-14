@@ -8,15 +8,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import FlowPanel from "../../components/flow/FlowPanel";
 import { theme } from "../../theme";
 import ProductsPanel from "../products/ProductsPanel";
 import OrdersPanel from "./OrdersPanel";
 
-type Tab = "orders" | "products";
+type Tab = "orders" | "products" | "flow";
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: "orders", label: "Orders", icon: "clipboard-list-outline" },
 	{ key: "products", label: "Menu", icon: "food-outline" },
+	{ key: "flow", label: "Flor", icon: "format-list-bulleted" },
 ];
 
 export default function CounterScreen() {
@@ -86,6 +88,9 @@ export default function CounterScreen() {
 					<OrdersPanel onBillToCart={() => setActiveTab("products")} />
 				)}
 				{activeTab === "products" && <ProductsPanel />}
+				{activeTab === "flow" && (
+					<FlowPanel onResume={() => setActiveTab("products")} />
+				)}
 			</View>
 		</View>
 	);

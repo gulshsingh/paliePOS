@@ -1,44 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { theme } from "../../theme";
+import type { CartItem } from "../../types/cart";
 import type { ApiOrderItemStatus, Order } from "../../types/order";
 
 interface Props {
 	order: Order;
 	onBillOrder: (order: Order) => void;
+	onAddItems: (order: Order) => void;
 	onUpdateStatus: (itemId: string, status: ApiOrderItemStatus) => void;
 }
-
-const STATUS_CONFIG: Record<
-	string,
-	{ label: string; color: string; bg: string; icon: string }
-> = {
-	pending: {
-		label: "Pending",
-		color: theme.colors.warning,
-		bg: theme.colors.warningLight,
-		icon: "clock-outline",
-	},
-	preparing: {
-		label: "Preparing",
-		color: theme.colors.info,
-		bg: theme.colors.infoLight,
-		icon: "fire",
-	},
-	ready: {
-		label: "Ready",
-		color: theme.colors.success,
-		bg: theme.colors.successLight,
-		icon: "check-circle-outline",
-	},
-	served: {
-		label: "Served",
-		color: theme.colors.textMuted,
-		bg: theme.colors.surfaceTertiary,
-		icon: "silverware",
-	},
-};
 
 const NEXT_STATUS: Record<
 	string,
@@ -52,11 +24,26 @@ const NEXT_STATUS: Record<
 export default function OrderCard({
 	order,
 	onBillOrder,
+	onAddItems,
 	onUpdateStatus,
 }: Props) {
 	const [expanded, setExpanded] = useState(false);
 
 	const allServed = order.items.every((i) => i.status === "served");
+	const isPaid = order.paymentStatus === "PAID";
+	const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
+
+	// Group lines by their kitchen ticket (KOT). Lines without a KOT number
+	// are treated as the original KOT #1.
+	const groups = useMemo(() => {
+		const map = new Map<number, CartItem[]>();
+		for (const it of order.items) {
+			const key = it.kotNo ?? 1;
+			if (!map.has(key)) map.set(key, []);
+			map.get(key)!.push(it);
+		}
+		return [...map.entries()].sort((a, b) => a[0] - b[0]);
+	}, [order.items]);
 
 	return (
 		<TouchableOpacity
@@ -69,31 +56,39 @@ export default function OrderCard({
 				<View style={styles.headerLeft}>
 					<View style={styles.orderNumBadge}>
 						<Text style={styles.orderNum}>#{order.order_number}</Text>
+						{order.customer_name && (
+							<Text style={styles.custChipText} numberOfLines={1}>
+								{order.customer_name}
+							</Text>
+						)}
 					</View>
 					<View>
 						<View style={styles.metaRow}>
-							{order.table_name && (
-								<View style={styles.metaChip}>
+							{order.table_name ? (
+								<View style={styles.tableChip}>
 									<MaterialCommunityIcons
 										name="table-furniture"
-										size={11}
-										color={theme.colors.textSecondary}
+										size={12}
+										color={theme.colors.primary}
 									/>
-									<Text style={styles.metaText}>{order.table_name}</Text>
+									<Text style={styles.tableChipText} numberOfLines={1}>
+										{order.table_name}
+									</Text>
 								</View>
-							)}
-							{order.customer_name && (
-								<View style={styles.metaChip}>
+							) : (
+								<View style={styles.walkinChip}>
 									<MaterialCommunityIcons
 										name="account-outline"
-										size={11}
-										color={theme.colors.textSecondary}
+										size={12}
+										color={theme.colors.textMuted}
 									/>
-									<Text style={styles.metaText}>{order.customer_name}</Text>
+									<Text style={styles.walkinChipText}>Walk-in</Text>
 								</View>
 							)}
 						</View>
-						<Text style={styles.itemCount}>{order.items.length} items</Text>
+						<Text style={styles.itemCount}>
+							{totalQty} {totalQty === 1 ? "Qty" : "Qty"}
+						</Text>
 					</View>
 				</View>
 
@@ -109,55 +104,83 @@ export default function OrderCard({
 				</View>
 			</View>
 
-			{/* Expanded items */}
+			{/* Expanded items grouped by KOT */}
 			{expanded && (
 				<View style={styles.body}>
 					<View style={styles.bodyDivider} />
 
-					{order.items.map((item, idx) => {
-						const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pending;
-						const next = NEXT_STATUS[item.status];
-
+					{groups.map(([kotNo, items]) => {
+						const isAddition = kotNo > 1;
 						return (
-							<View key={item.id} style={styles.itemRow}>
-								<View style={styles.itemLeft}>
-									<Text style={styles.itemIdx}>{idx + 1}</Text>
-									<View>
-										<Text style={styles.itemName}>{item.name}</Text>
-										<Text style={styles.itemQty}>
-											{item.qty}x · ₹{item.price_per_unit.toLocaleString()}
-										</Text>
+							<View key={kotNo} style={styles.kotBlock}>
+								<View style={styles.kotHeader}>
+									<View style={styles.kotLeft}>
+										<Text style={styles.kotLabel}>KOT #{kotNo}</Text>
+										{isAddition && (
+											<View style={styles.kotAddTag}>
+												<Text style={styles.kotAddTagText}>ADDITION</Text>
+											</View>
+										)}
 									</View>
-								</View>
-
-								<View style={styles.itemRight}>
-									<View
-										style={[styles.statusChip, { backgroundColor: cfg.bg }]}
-									>
-										<MaterialCommunityIcons
-											name={cfg.icon}
-											size={11}
-											color={cfg.color}
-										/>
-										<Text style={[styles.statusText, { color: cfg.color }]}>
-											{cfg.label}
+									{items.length > 1 && (
+										<Text style={styles.kotCount}>
+											{items.reduce((s, i) => s + i.qty, 0)} qty
 										</Text>
-									</View>
-									{next && (
-										<TouchableOpacity
-											style={styles.actionChip}
-											onPress={() => onUpdateStatus(item.id, next.next)}
-											activeOpacity={0.75}
-										>
-											<Text style={styles.actionChipText}>{next.action}</Text>
-										</TouchableOpacity>
 									)}
 								</View>
+
+								{items.map((item, idx) => {
+									const next = NEXT_STATUS[item.status];
+
+									return (
+										<View key={item.id} style={styles.itemRow}>
+											<View style={styles.itemIdxWrap}>
+												<Text style={styles.itemIdx}>{idx + 1}</Text>
+												{isAddition && (
+													<Text style={styles.addPrefix}>+</Text>
+												)}
+											</View>
+											<Text style={styles.itemName} numberOfLines={1}>
+												{item.name}
+											</Text>
+											<Text style={styles.itemQty}>
+												{item.qty} X ₹
+												{item.price_per_unit.toLocaleString()}
+											</Text>
+											{next && (
+												<TouchableOpacity
+													style={styles.actionChip}
+													onPress={() => onUpdateStatus(item.id, next.next)}
+													activeOpacity={0.75}
+												>
+													<Text style={styles.actionChipText}>
+														{next.action}
+													</Text>
+												</TouchableOpacity>
+											)}
+										</View>
+									);
+								})}
 							</View>
 						);
 					})}
 
-					{/* Bill button */}
+				{/* Add Items + Bill buttons */}
+				<View style={styles.actionsRow}>
+					{!isPaid && (
+						<TouchableOpacity
+							style={styles.addBtn}
+							onPress={() => onAddItems(order)}
+							activeOpacity={0.85}
+						>
+							<MaterialCommunityIcons
+								name="plus"
+								size={16}
+								color={theme.colors.primary}
+							/>
+							<Text style={styles.addBtnText}>Add Items</Text>
+						</TouchableOpacity>
+					)}
 					<TouchableOpacity
 						style={[styles.billBtn, !allServed && styles.billBtnAlt]}
 						onPress={() => onBillOrder(order)}
@@ -174,6 +197,7 @@ export default function OrderCard({
 							{allServed ? "Generate Bill" : "Bill This Order"}
 						</Text>
 					</TouchableOpacity>
+				</View>
 				</View>
 			)}
 		</TouchableOpacity>
@@ -219,13 +243,40 @@ const styles = StyleSheet.create({
 		gap: 6,
 		flexWrap: "wrap",
 	},
-	metaChip: {
+	tableChip: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: 3,
+		gap: 4,
+		backgroundColor: theme.colors.primaryLight,
+		borderRadius: theme.radius.full,
+		paddingHorizontal: 8,
+		paddingVertical: 3,
+		maxWidth: 140,
 	},
-	metaText: {
+	tableChipText: {
+		color: theme.colors.primary,
+		fontSize: 11,
+		fontWeight: "700",
+		flexShrink: 1,
+	},
+	custChipText: {
 		color: theme.colors.textSecondary,
+		fontSize: 10,
+		fontWeight: "600",
+		marginTop: 2,
+		maxWidth: 90,
+	},
+	walkinChip: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+		backgroundColor: theme.colors.surfaceTertiary,
+		borderRadius: theme.radius.full,
+		paddingHorizontal: 8,
+		paddingVertical: 3,
+	},
+	walkinChipText: {
+		color: theme.colors.textMuted,
 		fontSize: 11,
 		fontWeight: "600",
 	},
@@ -254,17 +305,11 @@ const styles = StyleSheet.create({
 	},
 	itemRow: {
 		flexDirection: "row",
-		justifyContent: "space-between",
 		alignItems: "center",
+		gap: 10,
 		paddingVertical: 8,
 		borderBottomWidth: 1,
 		borderBottomColor: theme.colors.borderLight,
-	},
-	itemLeft: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 10,
-		flex: 1,
 	},
 	itemIdx: {
 		width: 22,
@@ -278,30 +323,67 @@ const styles = StyleSheet.create({
 		color: theme.colors.textSecondary,
 	},
 	itemName: {
+		flex: 1,
 		color: theme.colors.textPrimary,
 		fontSize: 13,
 		fontWeight: "600",
 	},
 	itemQty: {
-		color: theme.colors.textMuted,
+		color: theme.colors.textSecondary,
 		fontSize: 11,
-		marginTop: 1,
+		fontWeight: "600",
+		textAlign: "center",
 	},
-	itemRight: {
-		alignItems: "flex-end",
-		gap: 5,
+	// KOT grouping
+	kotBlock: {
+		marginTop: 8,
+		paddingTop: 8,
+		borderTopWidth: 1,
+		borderTopColor: theme.colors.borderLight,
 	},
-	statusChip: {
+	kotHeader: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: 4,
-		paddingHorizontal: 8,
-		paddingVertical: 3,
-		borderRadius: theme.radius.full,
+		justifyContent: "space-between",
+		marginBottom: 4,
 	},
-	statusText: {
+	kotLeft: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+	},
+	kotLabel: {
 		fontSize: 11,
+		fontWeight: "900",
+		color: theme.colors.textSecondary,
+		letterSpacing: 0.5,
+	},
+	kotAddTag: {
+		backgroundColor: theme.colors.warningLight,
+		borderRadius: theme.radius.full,
+		paddingHorizontal: 7,
+		paddingVertical: 2,
+	},
+	kotAddTagText: {
+		fontSize: 9,
+		fontWeight: "900",
+		color: theme.colors.warning,
+		letterSpacing: 0.8,
+	},
+	kotCount: {
+		fontSize: 11,
+		color: theme.colors.textMuted,
 		fontWeight: "700",
+	},
+	itemIdxWrap: {
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	addPrefix: {
+		color: theme.colors.warning,
+		fontSize: 13,
+		fontWeight: "900",
+		marginLeft: 2,
 	},
 	actionChip: {
 		backgroundColor: theme.colors.primary,
@@ -314,7 +396,30 @@ const styles = StyleSheet.create({
 		fontSize: 11,
 		fontWeight: "700",
 	},
+	actionsRow: {
+		flexDirection: "row",
+		gap: 8,
+		marginTop: 12,
+	},
+	addBtn: {
+		flex: 1,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 6,
+		backgroundColor: theme.colors.primaryLight,
+		borderWidth: 1.5,
+		borderColor: theme.colors.primary,
+		borderRadius: theme.radius.md,
+		paddingVertical: 12,
+	},
+	addBtnText: {
+		color: theme.colors.primary,
+		fontSize: 14,
+		fontWeight: "800",
+	},
 	billBtn: {
+		flex: 1,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
@@ -322,7 +427,6 @@ const styles = StyleSheet.create({
 		backgroundColor: theme.colors.primary,
 		paddingVertical: 12,
 		borderRadius: theme.radius.md,
-		marginTop: 12,
 		...theme.shadow.lg,
 	},
 	billBtnAlt: {

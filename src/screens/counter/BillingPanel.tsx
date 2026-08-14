@@ -1,7 +1,8 @@
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-	FlatList,
+	Alert,
+	SectionList,
 	StyleSheet,
 	Text,
 	TouchableOpacity,
@@ -16,6 +17,7 @@ import { useCreateOrder } from "../../hooks/useOrders";
 import { useTables } from "../../hooks/useTables";
 import { useCartStore } from "../../store/cartStore";
 import { useCustomerStore } from "../../store/customerStore";
+import { useFlowStore } from "../../store/flowStore";
 import { useOrderStore } from "../../store/orderStore";
 import { useTableStore } from "../../store/tableStore";
 import { theme } from "../../theme";
@@ -31,12 +33,17 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const navigation = useNavigation<any>();
 	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
+	const setCart = useCartStore((s) => s.setCart);
 	const addOrder = useOrderStore((s) => s.addOrder);
+	const updateOrder = useOrderStore((s) => s.updateOrder);
 	const activeOrderId = useOrderStore((s) => s.activeOrderId);
 	const orders = useOrderStore((s) => s.orders);
 	const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
 	const selectedTable = useTableStore((s) => s.selectedTable);
 	const setSelectedTable = useTableStore((s) => s.setSelectedTable);
+	const activeDraftId = useFlowStore((s) => s.activeDraftId);
+	const removeDraft = useFlowStore((s) => s.removeDraft);
+	const setActiveDraftId = useFlowStore((s) => s.setActiveDraftId);
 
 	const [customerModal, setCustomerModal] = useState(false);
 	const [tableModal, setTableModal] = useState(false);
@@ -65,6 +72,30 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		() => orders.find((o) => o.id === activeOrderId) ?? null,
 		[orders, activeOrderId],
 	);
+
+	// Model B: while editing an existing order, only lines that were never
+	// confirmed to kitchen (sentToKitchen = false) are pending additions.
+	const additions = useMemo(
+		() => cart.filter((i) => !i.sentToKitchen),
+		[cart],
+	);
+
+	const isBillingExisting = activeOrderId != null;
+
+	// Sections: locked existing items + editable new additions.
+	const cartSections = useMemo(() => {
+		if (!isBillingExisting) return [{ key: "all", data: cart }];
+		const existingItems = cart.filter((i) => i.sentToKitchen);
+		const newItems = cart.filter((i) => !i.sentToKitchen);
+		const sections: { key: string; title?: string; locked?: boolean; data: CartItem[] }[] = [];
+		if (existingItems.length > 0) {
+			sections.push({ key: "existing", title: "Existing Items", locked: true, data: existingItems });
+		}
+		if (newItems.length > 0) {
+			sections.push({ key: "new", title: "New Items", locked: false, data: newItems });
+		}
+		return sections;
+	}, [cart, isBillingExisting]);
 
 	// ── Auto-fill customer & table from the order being billed ──
 	const [autofilledFor, setAutofilledFor] = useState<string | null>(null);
@@ -100,17 +131,35 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	}, [cart]);
 
 	const handleClearAll = useCallback(() => {
-		clearCart();
+		// In edit mode only the unsent additions can be cleared; the confirmed
+		// existing items stay locked.
+		if (existingOrder) {
+			setCart(cart.filter((i) => i.sentToKitchen));
+		} else {
+			clearCart();
+		}
 		setSelectedCustomer(null);
 		setSelectedTable(null);
-	}, [clearCart, setSelectedCustomer, setSelectedTable]);
+	}, [
+		existingOrder,
+		cart,
+		setCart,
+		clearCart,
+		setSelectedCustomer,
+		setSelectedTable,
+	]);
 
 	const handleSendToKitchen = async () => {
-		if (cart.length === 0 || activeOrderId) return;
+		if (cart.length === 0) return;
+		if (existingOrder) {
+			if (existingOrder.paymentStatus === "PAID") return;
+			handleEditSend(existingOrder);
+			return;
+		}
 		try {
 			const res = await createOrder.mutateAsync({
-				table_id: selectedTable?.id ?? existingOrder?.table_id ?? null,
-				account_id: selectedCustomer?.id ?? existingOrder?.account_id ?? null,
+				table_id: selectedTable?.id ?? null,
+				account_id: selectedCustomer?.id ?? null,
 				total_amount: subtotal,
 				tax_amount: taxTotal,
 				discount_amount: 0,
@@ -129,7 +178,12 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			const newOrder: Order = {
 				id: o?.id,
 				order_number: o?.order_number,
-				items: cart.map((i) => ({ ...i, status: "pending" as const })),
+				items: cart.map((i) => ({
+					...i,
+					status: "pending" as const,
+					sentToKitchen: true,
+					kotNo: 1,
+				})),
 				total: grandTotal,
 				status: "PENDING",
 				paymentStatus: "UNPAID",
@@ -137,6 +191,19 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				account_id: selectedCustomer?.id ?? null,
 				table_name: selectedTable?.name,
 				customer_name: selectedCustomer?.name,
+				kots: [
+					{
+						kotNo: 1,
+						items: cart.map(({ id, name, qty, price_per_unit }) => ({
+							id,
+							name,
+							qty,
+							price_per_unit,
+						})),
+						createdAt: new Date().toISOString(),
+					},
+				],
+				nextKotNo: 2,
 			};
 
 			addOrder(newOrder);
@@ -144,10 +211,63 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			setActiveOrder(null);
 			setSelectedTable(null);
 			setSelectedCustomer(null);
+			if (activeDraftId) removeDraft(activeDraftId);
+			setActiveDraftId(null);
 			onRequestClose?.();
 		} catch (e) {
 			console.error("Failed to create order", e);
 		}
+	};
+
+	// Model B delta: only never-sent lines go to the kitchen as a new KOT.
+	// Original items keep their status — kitchen never re-cooks them.
+	const handleEditSend = (order: Order) => {
+		if (additions.length === 0) return;
+		const kotNo = Math.max(
+			order.nextKotNo ?? 1,
+			order.items.reduce((m, i) => Math.max(m, i.kotNo ?? 0), 0) + 1,
+			(order.kots?.length ?? 0) + 1,
+		);
+		const sentAdditions = additions.map((i) => ({
+			...i,
+			status: "pending" as const,
+			sentToKitchen: true,
+			kotNo,
+		}));
+		const deltaTotal = sentAdditions.reduce(
+			(s, i) =>
+				s + i.price_per_unit * i.qty + (i.price_per_unit * i.qty * i.tax) / 100,
+			0,
+		);
+		updateOrder(order.id, {
+			items: [...order.items, ...sentAdditions],
+			total: order.total + deltaTotal,
+			nextKotNo: kotNo + 1,
+			kots: [
+				...(order.kots ?? []),
+				{
+					kotNo,
+					items: sentAdditions.map(({ id, name, qty, price_per_unit }) => ({
+						id,
+						name,
+						qty,
+						price_per_unit,
+					})),
+					createdAt: new Date().toISOString(),
+				},
+			],
+		});
+		clearCart();
+		setActiveOrder(null);
+		setSelectedTable(null);
+		setSelectedCustomer(null);
+		if (activeDraftId) removeDraft(activeDraftId);
+		setActiveDraftId(null);
+		onRequestClose?.();
+		Alert.alert(
+			"Sent to Kitchen",
+			`KOT #${kotNo} — ${additions.length} item${additions.length === 1 ? "" : "s"} added to Order #${order.order_number}`,
+		);
 	};
 
 	const handlePayment = () => {
@@ -161,7 +281,40 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	// ── ALL hooks must be declared before any conditional return ──
 
 	const renderItem = useCallback(
-		({ item }: { item: CartItem }) => <BillingItem item={item} />,
+		({ item, section }: { item: CartItem; section: any }) => (
+			<BillingItem item={item} locked={section?.locked} />
+		),
+		[],
+	);
+
+	const renderSectionHeader = useCallback(
+		({ section }: { section: any }) =>
+			section.title ? (
+				<View style={styles.sectionHeader}>
+					<Text style={styles.sectionHeaderText}>{section.title}</Text>
+					{section.locked ? (
+						<View style={styles.sectionTag}>
+							<MaterialCommunityIcons
+								name="lock-outline"
+								size={11}
+								color={theme.colors.textMuted}
+							/>
+							<Text style={styles.sectionTagText}>Locked</Text>
+						</View>
+					) : (
+						<View style={[styles.sectionTag, styles.sectionTagNew]}>
+							<MaterialCommunityIcons
+								name="plus"
+								size={11}
+								color={theme.colors.success}
+							/>
+							<Text style={[styles.sectionTagText, { color: theme.colors.success }]}>
+								Editable
+							</Text>
+						</View>
+					)}
+				</View>
+			) : null,
 		[],
 	);
 
@@ -194,14 +347,15 @@ export default function BillingPanel({ onRequestClose }: Props) {
 					{cart.length} {cart.length === 1 ? "item" : "items"} in cart
 				</Text>
 				<TouchableOpacity onPress={handleClearAll}>
-					<Text style={styles.clearText}>Clear all</Text>
+					<Text style={styles.clearText}>
+						{isBillingExisting ? "Clear new" : "Clear all"}
+					</Text>
 				</TouchableOpacity>
 			</View>
 		),
-		[cart.length, handleClearAll],
+		[cart.length, handleClearAll, isBillingExisting],
 	);
 
-	const isBillingExisting = activeOrderId != null;
 	const isPaid = existingOrder?.paymentStatus === "PAID";
 
 	return (
@@ -313,14 +467,16 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				</View>
 			) : (
 				<>
-					{/* ── FlatList: items + Bill Summary footer ── */}
-					<FlatList
-						data={cart}
+					{/* ── SectionList: Existing (locked) / New items + summary ── */}
+					<SectionList
+						sections={cartSections}
 						keyExtractor={(item) => item.id}
 						renderItem={renderItem}
+						renderSectionHeader={renderSectionHeader}
 						ListHeaderComponent={renderHeader}
 						ListFooterComponent={renderFooter}
 						contentContainerStyle={styles.listContent}
+						stickySectionHeadersEnabled={false}
 						showsVerticalScrollIndicator={false}
 						keyboardShouldPersistTaps="handled"
 						removeClippedSubviews={true}
@@ -329,33 +485,40 @@ export default function BillingPanel({ onRequestClose }: Props) {
 						windowSize={7}
 					/>
 
-					{/* ── Fixed bottom: action buttons ── */}
-					<View style={styles.actions}>
-						<TouchableOpacity
-							style={[styles.actionBtn, styles.kitchenBtn]}
-							onPress={handleSendToKitchen}
-							disabled={createOrder.isPending || isBillingExisting || isPaid}
-							activeOpacity={0.85}
-						>
-							<MaterialCommunityIcons
-								name="chef-hat"
-								size={18}
-								color={
-									isBillingExisting || isPaid
-										? theme.colors.textMuted
-										: theme.colors.primary
-								}
-							/>
-							<Text style={styles.kitchenBtnText}>
-								{isPaid
-									? "Order Paid"
-									: isBillingExisting
-										? "Existing Order"
-										: createOrder.isPending
-											? "Sending..."
-											: "Send to Kitchen"}
-							</Text>
-						</TouchableOpacity>
+				{/* ── Fixed bottom: action buttons ── */}
+				<View style={styles.actions}>
+					<TouchableOpacity
+						style={[styles.actionBtn, styles.kitchenBtn]}
+						onPress={handleSendToKitchen}
+						disabled={
+							isPaid ||
+							(isBillingExisting
+								? additions.length === 0
+								: createOrder.isPending)
+						}
+						activeOpacity={0.85}
+					>
+						<MaterialCommunityIcons
+							name="chef-hat"
+							size={18}
+							color={
+								isPaid || (isBillingExisting && additions.length === 0)
+									? theme.colors.textMuted
+									: theme.colors.primary
+							}
+						/>
+						<Text style={styles.kitchenBtnText}>
+							{isPaid
+								? "Order Paid"
+								: isBillingExisting
+									? additions.length > 0
+										? `Send to Kitchen (${additions.length})`
+										: "No New Items"
+									: createOrder.isPending
+										? "Sending..."
+										: "Send to Kitchen"}
+						</Text>
+					</TouchableOpacity>
 
 						<TouchableOpacity
 							style={[
@@ -520,6 +683,39 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		fontWeight: "700",
 		color: theme.colors.danger,
+	},
+
+	// ── Section headers (Existing / New) ──────────────────
+	sectionHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		marginTop: 10,
+		marginBottom: 6,
+	},
+	sectionHeaderText: {
+		fontSize: 12,
+		fontWeight: "800",
+		color: theme.colors.textMuted,
+		letterSpacing: 0.5,
+		textTransform: "uppercase",
+	},
+	sectionTag: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 3,
+		backgroundColor: theme.colors.surfaceTertiary,
+		borderRadius: theme.radius.full,
+		paddingHorizontal: 8,
+		paddingVertical: 2,
+	},
+	sectionTagNew: {
+		backgroundColor: theme.colors.successLight,
+	},
+	sectionTagText: {
+		fontSize: 10,
+		fontWeight: "700",
+		color: theme.colors.textMuted,
 	},
 
 	// ── Bill Summary (ListFooter) ─────────────────────────

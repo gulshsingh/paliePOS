@@ -16,8 +16,14 @@ export function useCart() {
 		if (!fullOrder) {
 			addOrder(order);
 		}
+		const src = fullOrder ?? order;
 		clearCart();
-		setCart(fullOrder?.items ?? order.items);
+		setCart(
+			src.items.map((i) => ({
+				...i,
+				sentToKitchen: true,
+			})),
+		);
 		setActiveOrder(order.id);
 	};
 

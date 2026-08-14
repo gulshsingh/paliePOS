@@ -10,8 +10,11 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import Skeleton from "../../components/common/Skeleton";
 import OrderCard from "../../components/order/OrderCard";
 import { useCart } from "../../hooks/useCart";
+import { useCustomers } from "../../hooks/useCustomers";
 import { useOrders } from "../../hooks/useOrders";
+import { useTables } from "../../hooks/useTables";
 import { useUpdateOrderStatus } from "../../hooks/useUpdateOrderStatus";
+import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { Order } from "../../types/order";
 import { ORDER_TABS, type OrderTab } from "../../types/order-status";
@@ -56,6 +59,29 @@ export default function OrdersPanel({
 	const { data, isLoading } = useOrders(TAB_ITEM_STATUS[activeTab]);
 	const { updateItemStatusLocally } = useUpdateOrderStatus();
 	const { onBillOrder } = useCart();
+	const localOrders = useOrderStore((s) => s.orders);
+	const tablesData = useTables();
+	const customersData = useCustomers();
+
+	const tableMap = useMemo(() => {
+		const d = tablesData.data as any;
+		const list =
+			d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
+		return new Map<string, string>(
+			(list ?? []).map((t: any) => [t.id, t.name]),
+		);
+	}, [tablesData.data]);
+
+	const customerMap = useMemo(() => {
+		const list =
+			customersData.data?.pages.flatMap((p: any) => {
+				const d = p.data as any;
+				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
+			}) ?? [];
+		return new Map<string, string>(
+			list.map((c: any) => [c.id, c.name]),
+		);
+	}, [customersData.data]);
 
 	const handleBillOrder = useCallback(
 		(order: Order) => {
@@ -70,6 +96,7 @@ export default function OrdersPanel({
 			<OrderCard
 				order={item}
 				onBillOrder={handleBillOrder}
+				onAddItems={handleBillOrder}
 				onUpdateStatus={updateItemStatusLocally}
 			/>
 		),
@@ -78,36 +105,49 @@ export default function OrdersPanel({
 
 	const orders = useMemo(() => {
 		const tabStatus = TAB_ITEM_STATUS[activeTab];
-		const allOrders =
+		const apiOrders =
 			data?.pages.flatMap((p) => {
 				const d = p.data as any;
 				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
 			}) ?? [];
-		return allOrders
-			.map((o: any) => ({
-				id: o.id,
-				order_number: o.order_number,
-				items: (o.items ?? [])
-					.filter((i: any) => i.status === tabStatus)
-					.map((i: any) => ({
-						id: i.id,
-						name: i.product?.name ?? i.product_name ?? "",
-						price: Number(i.total),
-						price_per_unit: Number(i.price),
-						qty: Number(i.quantity),
-						tax: 0,
-						status: i.status,
-					})),
-				total: Number(o.grand_total),
-				status: o.status,
-				paymentStatus: o.payment_status,
-				table_id: o.table_id,
-				account_id: o.account_id,
-				table_name: o.table?.name,
-				customer_name: o.account?.name,
+
+		const apiMapped: Order[] = apiOrders.map((o: any) => ({
+			id: o.id,
+			order_number: o.order_number,
+			items: (o.items ?? [])
+				.filter((i: any) => i.status === tabStatus)
+				.map((i: any) => ({
+					id: i.id,
+					name: i.product?.name ?? i.product_name ?? "",
+					price: Number(i.total),
+					price_per_unit: Number(i.price),
+					qty: Number(i.quantity),
+					tax: 0,
+					status: i.status,
+					product_id: i.product_id,
+				})),
+			total: Number(o.grand_total),
+			status: o.status,
+			paymentStatus: o.payment_status ?? "UNPAID",
+			table_id: o.table_id,
+			account_id: o.account_id,
+			table_name: o.table?.name ?? tableMap.get(o.table_id) ?? "",
+			customer_name: o.account?.name ?? customerMap.get(o.account_id) ?? "",
+		}));
+
+		// Merge session (local zustand) orders on top so edits & additions
+		// made in this session stay visible. Local copy wins on id clash.
+		const merged = new Map<string, Order>();
+		for (const o of apiMapped) merged.set(o.id, o);
+		for (const lo of localOrders) merged.set(lo.id, lo);
+
+		return [...merged.values()]
+			.map((o) => ({
+				...o,
+				items: o.items.filter((i) => i.status === tabStatus),
 			}))
-			.filter((o: any) => o.items.length > 0);
-	}, [data, activeTab]);
+			.filter((o) => o.items.length > 0);
+	}, [data, activeTab, localOrders, tableMap, customerMap]);
 
 	return (
 		<View style={styles.container}>

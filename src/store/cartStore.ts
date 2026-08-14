@@ -19,11 +19,20 @@ export const useCartStore = create<CartStore>((set, get) => ({
 	setCart: (items) => set({ cart: items }),
 	addToCart: (product) =>
 		set((state) => {
-			const existing = state.cart.find((i) => i.id === product.id);
+			// Merge only into lines not yet confirmed to kitchen, so a locked
+			// (sentToKitchen) line stays untouched while editing an order.
+			const existing = state.cart.find(
+				(i) =>
+					!i.sentToKitchen &&
+					((i.product_id && i.product_id === product.id) ||
+						i.id === product.id),
+			);
 			if (existing) {
 				return {
 					cart: state.cart.map((i) =>
-						i.id === product.id ? { ...i, qty: i.qty + 1 } : i,
+						i.id === existing.id
+							? { ...i, qty: i.qty + 1, price: i.price_per_unit * (i.qty + 1) }
+							: i,
 					),
 				};
 			}
@@ -38,6 +47,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
 						qty: 1,
 						tax: Number(product.tax_percentage),
 						status: "pending",
+						product_id: product.id,
+						sentToKitchen: false,
 					},
 				],
 			};
