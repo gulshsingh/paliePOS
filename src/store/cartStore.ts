@@ -11,7 +11,11 @@ interface CartStore {
 	decreaseQty: (id: string) => void;
 	removeItem: (id: string) => void;
 	clearCart: () => void;
-	getTotals: () => { subtotal: number; taxTotal: number; grandTotal: number };
+	getTotals: (existingTaxAmount?: number) => {
+		subtotal: number;
+		taxTotal: number;
+		grandTotal: number;
+	};
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
@@ -78,13 +82,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
 	removeItem: (id) =>
 		set((state) => ({ cart: state.cart.filter((i) => i.id !== id) })),
 	clearCart: () => set({ cart: [] }),
-	getTotals: () => {
+	getTotals: (existingTaxAmount?: number) => {
 		const { cart } = get();
 		const subtotal = cart.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
-		const taxTotal = cart.reduce(
-			(s, i) => s + (i.price_per_unit * i.qty * i.tax) / 100,
-			0,
-		);
+		// Tax only on lines never confirmed to kitchen. Confirmed (locked) lines
+		// are covered by existingTaxAmount (the backend order's tax_amount), so
+		// counting them again here would double-charge tax on re-billed orders.
+		const additionsTax = cart
+			.filter((i) => !i.sentToKitchen)
+			.reduce((s, i) => s + (i.price_per_unit * i.qty * i.tax) / 100, 0);
+		const taxTotal = Number(existingTaxAmount || 0) + additionsTax;
 		return { subtotal, taxTotal, grandTotal: subtotal + taxTotal };
 	},
 }));

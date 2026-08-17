@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import {
+	addOrderItems,
 	createOrder,
 	getOrders,
 	updateItemStatus,
@@ -28,6 +29,22 @@ export function useCreateOrder() {
 	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: (data: CreateOrderPayload) => createOrder(data),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["orders"] });
+		},
+	});
+}
+
+export function useAddOrderItems() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			orderId,
+			items,
+		}: {
+			orderId: string;
+			items: CreateOrderPayload["items"];
+		}) => addOrderItems(orderId, items),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["orders"] });
 		},

@@ -34,7 +34,11 @@ function avatarText(name: string) {
 	return (name ?? "?").charAt(0).toUpperCase();
 }
 
-export default function CustomersScreen(): React.JSX.Element {
+export default function CustomersScreen({
+	embedded = false,
+}: {
+	embedded?: boolean;
+}): React.JSX.Element {
 	const insets = useSafeAreaInsets();
 	const navigation = useNavigation<any>();
 	const [search, setSearch] = useState<string>("");
@@ -92,17 +96,19 @@ export default function CustomersScreen(): React.JSX.Element {
 	);
 
 	return (
-		<View style={[styles.container, { paddingTop: insets.top }]}>
+		<View style={[styles.container, !embedded && { paddingTop: insets.top }]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
 			{/* Header */}
-			<View style={styles.header}>
+			<View style={[styles.header, embedded && styles.embeddedHeader]}>
 				<View>
-					<Text style={styles.headerSub}>Manage</Text>
-					<Text style={styles.headerTitle}>Customers</Text>
+					{!embedded && <Text style={styles.headerSub}>Manage</Text>}
+					<Text style={[styles.headerTitle, embedded && styles.embeddedTitle]}>
+						Customers
+					</Text>
 				</View>
 				<TouchableOpacity
-					style={styles.addBtn}
+					style={[styles.addBtn, embedded && styles.embeddedAddBtn]}
 					onPress={() => navigation.navigate("CustomerForm", {})}
 					activeOpacity={0.85}
 				>
@@ -224,6 +230,24 @@ const styles = StyleSheet.create({
 		fontWeight: "900",
 		color: theme.colors.textPrimary,
 		marginTop: 1,
+	},
+	embeddedHeader: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		paddingHorizontal: 16,
+		paddingVertical: 8,
+		backgroundColor: "#fff",
+	},
+	embeddedTitle: {
+		fontSize: 17,
+		marginTop: 0,
+	},
+	embeddedAddBtn: {
+		paddingHorizontal: 12,
+		paddingVertical: 8,
+		shadowOpacity: 0,
+		elevation: 0,
 	},
 	addBtn: {
 		flexDirection: "row",

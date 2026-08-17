@@ -19,7 +19,7 @@ export default function BillingKeypad({
 	return (
 		<View style={styles.container}>
 			<View style={styles.display}>
-				<Text style={styles.displayText}>{value || "0"} F</Text>
+				<Text style={styles.displayText}>{value || "0"}</Text>
 			</View>
 			<View style={styles.keys}>
 				{KEYS.map((key) => (

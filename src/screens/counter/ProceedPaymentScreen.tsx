@@ -38,7 +38,10 @@ export default function ProceedPaymentScreen() {
 
 	const customer = route.params?.customer;
 	const table = route.params?.table;
-	const { subtotal, taxTotal, grandTotal } = getTotals();
+	const existingOrder = orders.find((o) => o.id === activeOrderId);
+	const { subtotal, taxTotal, grandTotal } = getTotals(
+		existingOrder?.tax_amount ?? 0,
+	);
 
 	const [paidAmount, setPaidAmount] = useState("");
 	const discount = "0";
@@ -53,7 +56,11 @@ export default function ProceedPaymentScreen() {
 	const change = amountPaid - totalPayable;
 	const canPay = amountPaid >= totalPayable && paidAmount.length > 0;
 
-	const handleKeyPress = (key: string) => setPaidAmount((prev) => prev + key);
+	const handleKeyPress = (key: string) =>
+		setPaidAmount((prev) => {
+			if (key === "." && (prev.includes(".") || prev.length === 0)) return prev;
+			return prev + key;
+		});
 	const handleDelete = () => setPaidAmount((prev) => prev.slice(0, -1));
 	const handleClear = () => setPaidAmount("");
 
@@ -84,6 +91,10 @@ export default function ProceedPaymentScreen() {
 				const o = created?.data ?? created;
 				orderId = o?.id ?? null;
 				orderNumber = o?.order_number ?? "N/A";
+				// Persist the created order id immediately so a mid-flow retry
+				// (e.g. invoice/payment network error) reuses this order instead
+				// of creating a duplicate order + invoice.
+				if (orderId) setActiveOrder(orderId);
 			} else {
 				const existing = orders.find((o) => o.id === orderId);
 				if (existing?.order_number) orderNumber = existing.order_number;
@@ -154,6 +165,7 @@ export default function ProceedPaymentScreen() {
 						kotNo: 1,
 					})),
 					total: grandTotal,
+					tax_amount: taxTotal,
 					status: "COMPLETED",
 					paymentStatus: paidStatus,
 					invoice: true,
@@ -300,11 +312,11 @@ export default function ProceedPaymentScreen() {
 			<View style={styles.summaryCard}>
 				<View style={styles.summaryRow}>
 					<Text style={styles.summaryLabel}>Subtotal</Text>
-					<Text style={styles.summaryValue}>₹{subtotal.toLocaleString()}</Text>
+					<Text style={styles.summaryValue}>₹{subtotal.toLocaleString("en-IN")}</Text>
 				</View>
 				<View style={styles.summaryRow}>
 					<Text style={styles.summaryLabel}>Taxes & Charges</Text>
-					<Text style={styles.summaryValue}>₹{taxTotal.toLocaleString()}</Text>
+					<Text style={styles.summaryValue}>₹{taxTotal.toLocaleString("en-IN")}</Text>
 				</View>
 				{Number(discount) > 0 && (
 					<View style={styles.summaryRow}>
@@ -312,7 +324,7 @@ export default function ProceedPaymentScreen() {
 						<Text
 							style={[styles.summaryValue, { color: theme.colors.success }]}
 						>
-							− ₹{Number(discount).toLocaleString()}
+							− ₹{Number(discount).toLocaleString("en-IN")}
 						</Text>
 					</View>
 				)}
@@ -320,7 +332,7 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.summaryRow}>
 					<Text style={styles.totalLabel}>Total Payable</Text>
 					<Text style={styles.totalValue}>
-						₹{totalPayable.toLocaleString()}
+						₹{totalPayable.toLocaleString("en-IN")}
 					</Text>
 				</View>
 			</View>
@@ -355,8 +367,8 @@ export default function ProceedPaymentScreen() {
 							]}
 						>
 							{change >= 0
-								? `Change: ₹${change.toLocaleString()}`
-								: `Short by ₹${Math.abs(change).toLocaleString()}`}
+								? `Change: ₹${change.toLocaleString("en-IN")}`
+								: `Short by ₹${Math.abs(change).toLocaleString("en-IN")}`}
 						</Text>
 					</View>
 				)}
@@ -388,7 +400,7 @@ export default function ProceedPaymentScreen() {
 						: !paidAmount
 							? "Enter amount to pay"
 							: !canPay
-								? `Need ₹${(totalPayable - amountPaid).toLocaleString()} more`
+								? `Need ₹${(totalPayable - amountPaid).toLocaleString("en-IN")} more`
 								: "Complete Payment"}
 				</Text>
 			</TouchableOpacity>

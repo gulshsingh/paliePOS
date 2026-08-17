@@ -12,9 +12,7 @@ import {
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import CounterScreen from "../screens/counter/CounterScreen";
-import CustomersScreen from "../screens/customers/CustomersScreen";
 import ProductsScreen from "../screens/products/ProductsScreen";
-import ReportsScreen from "../screens/reports/ReportsScreen";
 import ConfigurationScreen from "../screens/settings/ConfigurationScreen";
 import TablesScreen from "../screens/tables/TablesScreen";
 import { theme } from "../theme";
@@ -30,15 +28,8 @@ const TAB_CONFIG = [
 		component: CounterScreen,
 	},
 	{
-		name: "Customers",
-		label: "Customers",
-		icon: "account-group-outline",
-		iconActive: "account-group",
-		component: CustomersScreen,
-	},
-	{
 		name: "Products",
-		label: "Menu",
+		label: "Products",
 		icon: "food-outline",
 		iconActive: "food",
 		component: ProductsScreen,
@@ -49,13 +40,6 @@ const TAB_CONFIG = [
 		icon: "table-furniture",
 		iconActive: "table-furniture",
 		component: TablesScreen,
-	},
-	{
-		name: "Reports",
-		label: "Reports",
-		icon: "chart-bar-stacked",
-		iconActive: "chart-bar",
-		component: ReportsScreen,
 	},
 	{
 		name: "Settings",

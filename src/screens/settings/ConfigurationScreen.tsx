@@ -1,7 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import {
-	ActivityIndicator,
 	Alert,
 	ScrollView,
 	StatusBar,
@@ -13,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { getCompany, updateCompany } from "../../api/services/companies";
+import { getCompany } from "../../api/services/companies";
 import {
 	useCategories,
 	useCreateCategory,
@@ -21,54 +20,78 @@ import {
 } from "../../hooks/useCategories";
 import { useAuth } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import CustomersScreen from "../customers/CustomersScreen";
+import ReportsScreen from "../reports/ReportsScreen";
+import AllOrdersScreen from "./AllOrdersScreen";
 
-type Section = "company" | "categories" | "profile";
+type Section =
+	| "categories"
+	| "profile"
+	| "customers"
+	| "reports"
+	| "orders";
 
-const SECTIONS: { key: Section; label: string; icon: string }[] = [
-	{ key: "company", label: "Restaurant", icon: "store-outline" },
-	{ key: "categories", label: "Categories", icon: "shape-outline" },
-	{ key: "profile", label: "Account", icon: "account-circle-outline" },
+const SECTIONS: Record<
+	Section,
+	{ label: string; icon: string; color: string; bg: string }
+> = {
+	categories: {
+		label: "Categories",
+		icon: "shape-outline",
+		color: theme.colors.warning,
+		bg: theme.colors.warningLight,
+	},
+	customers: {
+		label: "Customers",
+		icon: "account-group-outline",
+		color: theme.colors.info,
+		bg: theme.colors.infoLight,
+	},
+	reports: {
+		label: "Reports",
+		icon: "chart-bar-stacked",
+		color: theme.colors.success,
+		bg: theme.colors.successLight,
+	},
+	orders: {
+		label: "All Orders",
+		icon: "receipt-text-outline",
+		color: theme.colors.info,
+		bg: theme.colors.infoLight,
+	},
+	profile: {
+		label: "Account",
+		icon: "account-circle-outline",
+		color: theme.colors.textMuted,
+		bg: theme.colors.surfaceTertiary,
+	},
+};
+
+const MENU_GROUPS: Section[][] = [
+	["categories", "orders", "customers", "reports"],
+	["profile"],
 ];
 
 export default function ConfigurationScreen() {
 	const insets = useSafeAreaInsets();
 	// ── All useState first — never interleave with other hooks ──
-	const [activeSection, setActiveSection] = useState<Section>("company");
-	const [name, setName] = useState("");
-	const [email, setEmail] = useState("");
-	const [phone, setPhone] = useState("");
-	const [address, setAddress] = useState("");
+	const [screen, setScreen] = useState<Section | "menu">("menu");
 	const [newCat, setNewCat] = useState("");
 	const [focused, setFocused] = useState<string | null>(null);
 
 	// ── Other hooks after all state ──
-	const queryClient = useQueryClient();
 	const { signOut } = useAuth();
 
 	const { data: companyData } = useQuery({
 		queryKey: ["company"],
 		queryFn: () => getCompany(),
 	});
-	const company = companyData?.data?.data;
+	const company = companyData?.data?.data?.data;
 
 	const { data: categoriesData } = useCategories();
 	const categories = (categoriesData as any)?.data ?? [];
 	const createCategory = useCreateCategory();
 	const deleteCategory = useDeleteCategory();
-
-	useEffect(() => {
-		if (company) {
-			setName(company.name ?? "");
-			setEmail(company.email ?? "");
-			setPhone(company.phone ?? "");
-			setAddress(company.address ?? "");
-		}
-	}, [company]);
-
-	const updateMutation = useMutation({
-		mutationFn: updateCompany,
-		onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company"] }),
-	});
 
 	const handleAddCategory = () => {
 		if (newCat.trim()) {
@@ -84,155 +107,144 @@ export default function ConfigurationScreen() {
 		]);
 	};
 
-	const field = (
-		id: string,
-		icon: string,
-		label: string,
-		value: string,
-		onChange: (v: string) => void,
-		props: any = {},
-	) => (
-		<View style={styles.fieldWrap}>
-			<Text style={styles.label}>{label}</Text>
-			<View style={[styles.inputRow, focused === id && styles.inputFocused]}>
-				<MaterialCommunityIcons
-					name={icon}
-					size={17}
-					color={focused === id ? theme.colors.primary : theme.colors.textMuted}
-				/>
-				<TextInput
-					style={styles.input}
-					value={value}
-					onChangeText={onChange}
-					placeholderTextColor={theme.colors.textMuted}
-					onFocus={() => setFocused(id)}
-					onBlur={() => setFocused(null)}
-					{...props}
-				/>
-			</View>
-		</View>
-	);
-
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-			{/* Header */}
-			<View style={styles.header}>
-				<View>
-					<Text style={styles.headerSub}>Configuration</Text>
-					<Text style={styles.headerTitle}>Settings</Text>
-				</View>
-				<View style={styles.headerIcon}>
-					<MaterialCommunityIcons
-						name="cog"
-						size={20}
-						color={theme.colors.primary}
-					/>
-				</View>
-			</View>
-
-			{/* Section tabs */}
-			<View style={styles.tabRow}>
-				{SECTIONS.map((s) => (
-					<TouchableOpacity
-						key={s.key}
-						style={[
-							styles.tabPill,
-							activeSection === s.key && styles.tabPillActive,
-						]}
-						onPress={() => setActiveSection(s.key)}
-						activeOpacity={0.8}
-					>
-						<MaterialCommunityIcons
-							name={s.icon}
-							size={14}
-							color={
-								activeSection === s.key
-									? theme.colors.primary
-									: theme.colors.textMuted
-							}
-						/>
-						<Text
-							style={[
-								styles.tabText,
-								activeSection === s.key && styles.tabTextActive,
-							]}
-						>
-							{s.label}
-						</Text>
-					</TouchableOpacity>
-				))}
-			</View>
-
-			<ScrollView
-				style={styles.scroll}
-				contentContainerStyle={styles.scrollContent}
-				showsVerticalScrollIndicator={false}
-				keyboardShouldPersistTaps="handled"
-			>
-				{/* ── Company ── */}
-				{activeSection === "company" && (
-					<View style={styles.card}>
-						<View style={styles.cardHeader}>
+			{screen === "menu" ? (
+				<>
+					{/* Header */}
+					<View style={styles.header}>
+						<View>
+							<Text style={styles.headerSub}>Configuration</Text>
+							<Text style={styles.headerTitle}>Settings</Text>
+						</View>
+						<View style={styles.headerIcon}>
 							<MaterialCommunityIcons
-								name="store-outline"
-								size={16}
+								name="cog"
+								size={20}
 								color={theme.colors.primary}
 							/>
-							<Text style={styles.cardTitle}>Restaurant Details</Text>
 						</View>
-
-						{field("name", "store-outline", "Restaurant Name", name, setName, {
-							placeholder: "Your Restaurant",
-						})}
-						{field("email", "email-outline", "Email Address", email, setEmail, {
-							placeholder: "contact@restaurant.com",
-							keyboardType: "email-address",
-							autoCapitalize: "none",
-						})}
-						{field("phone", "phone-outline", "Phone Number", phone, setPhone, {
-							placeholder: "9876543210",
-							keyboardType: "phone-pad",
-						})}
-						{field(
-							"address",
-							"map-marker-outline",
-							"Address",
-							address,
-							setAddress,
-							{ placeholder: "Full address...", multiline: true },
-						)}
-
-						<TouchableOpacity
-							style={[
-								styles.saveBtn,
-								updateMutation.isPending && styles.buttonDisabled,
-							]}
-							onPress={() =>
-								updateMutation.mutate({ name, email, phone, address })
-							}
-							disabled={updateMutation.isPending}
-							activeOpacity={0.85}
-						>
-							{updateMutation.isPending ? (
-								<ActivityIndicator color="#fff" size="small" />
-							) : (
-								<>
-									<MaterialCommunityIcons
-										name="content-save-outline"
-										size={18}
-										color="#fff"
-									/>
-									<Text style={styles.saveBtnText}>Save Changes</Text>
-								</>
-							)}
-						</TouchableOpacity>
 					</View>
-				)}
 
+					{/* Menu groups */}
+					<ScrollView
+						style={styles.scroll}
+						contentContainerStyle={styles.menuContent}
+						showsVerticalScrollIndicator={false}
+					>
+						{MENU_GROUPS.map((group, gi) => (
+							<View key={gi} style={styles.menuGroup}>
+								{group.map((key) => {
+									const s = SECTIONS[key];
+									return (
+										<TouchableOpacity
+											key={key}
+											style={[
+												styles.menuRow,
+												key !== group[group.length - 1] &&
+													styles.menuRowDivider,
+											]}
+											onPress={() => setScreen(key)}
+											activeOpacity={0.7}
+										>
+											<View
+												style={[
+													styles.menuIcon,
+													{ backgroundColor: s.bg },
+												]}
+											>
+												<MaterialCommunityIcons
+													name={s.icon}
+													size={18}
+													color={s.color}
+												/>
+											</View>
+											<Text style={styles.menuLabel}>{s.label}</Text>
+											<MaterialCommunityIcons
+												name="chevron-right"
+												size={20}
+												color={theme.colors.textMuted}
+											/>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
+						))}
+
+						{/* Logout */}
+						<View style={styles.menuGroup}>
+							<TouchableOpacity
+								style={styles.menuRow}
+								onPress={handleLogout}
+								activeOpacity={0.7}
+							>
+								<View
+									style={[
+										styles.menuIcon,
+										{ backgroundColor: theme.colors.dangerLight },
+									]}
+								>
+									<MaterialCommunityIcons
+										name="logout"
+										size={18}
+										color={theme.colors.danger}
+									/>
+								</View>
+								<Text
+									style={[
+										styles.menuLabel,
+										{ color: theme.colors.danger },
+									]}
+								>
+									Logout
+								</Text>
+								<MaterialCommunityIcons
+									name="chevron-right"
+									size={20}
+									color={theme.colors.textMuted}
+								/>
+							</TouchableOpacity>
+						</View>
+					</ScrollView>
+				</>
+			) : (
+				<>
+					{/* Sub-header */}
+					<View style={styles.subHeader}>
+						<TouchableOpacity
+							style={styles.backBtn}
+							onPress={() => setScreen("menu")}
+							activeOpacity={0.7}
+						>
+							<MaterialCommunityIcons
+								name="arrow-left"
+								size={22}
+								color={theme.colors.textPrimary}
+							/>
+						</TouchableOpacity>
+						<Text style={styles.subHeaderTitle}>
+							{SECTIONS[screen].label}
+						</Text>
+						<View style={styles.backBtn} />
+					</View>
+
+					{screen === "customers" ? (
+						<CustomersScreen embedded />
+					) : screen === "reports" ? (
+						<ReportsScreen embedded />
+					) : screen === "orders" ? (
+						<AllOrdersScreen embedded />
+					) : (
+						<ScrollView
+							style={styles.scroll}
+							contentContainerStyle={styles.scrollContent}
+							showsVerticalScrollIndicator={false}
+							keyboardShouldPersistTaps="handled"
+						>
 				{/* ── Categories ── */}
-				{activeSection === "categories" && (
+				{screen === "categories" && (
 					<View style={styles.card}>
 						<View style={styles.cardHeader}>
 							<MaterialCommunityIcons
@@ -322,7 +334,7 @@ export default function ConfigurationScreen() {
 				)}
 
 				{/* ── Profile ── */}
-				{activeSection === "profile" && (
+				{screen === "profile" && (
 					<>
 						{/* Profile card */}
 						<View style={styles.card}>
@@ -334,7 +346,7 @@ export default function ConfigurationScreen() {
 								/>
 							</View>
 							<Text style={styles.profileName}>
-								{name || "Your Restaurant"}
+								{company?.name ?? "Your Restaurant"}
 							</Text>
 							<Text style={styles.profileEmail}>
 								{company?.email ?? "Not set"}
@@ -361,23 +373,12 @@ export default function ConfigurationScreen() {
 								</View>
 							))}
 						</View>
-
-						{/* Logout */}
-						<TouchableOpacity
-							style={styles.logoutBtn}
-							onPress={handleLogout}
-							activeOpacity={0.85}
-						>
-							<MaterialCommunityIcons
-								name="logout"
-								size={18}
-								color={theme.colors.danger}
-							/>
-							<Text style={styles.logoutText}>Logout</Text>
-						</TouchableOpacity>
 					</>
 				)}
 			</ScrollView>
+			)}
+			</>
+			)}
 		</View>
 	);
 }
@@ -421,6 +422,7 @@ const styles = StyleSheet.create({
 	},
 	tabRow: {
 		flexDirection: "row",
+		flexWrap: "wrap",
 		gap: 8,
 		paddingHorizontal: 14,
 		paddingVertical: 12,
@@ -429,12 +431,13 @@ const styles = StyleSheet.create({
 		borderBottomColor: theme.colors.borderLight,
 	},
 	tabPill: {
-		flex: 1,
+		flexShrink: 0,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 5,
 		paddingVertical: 9,
+		paddingHorizontal: 14,
 		borderRadius: theme.radius.full,
 		borderWidth: 1.5,
 		borderColor: theme.colors.border,
@@ -451,6 +454,69 @@ const styles = StyleSheet.create({
 	},
 	tabTextActive: {
 		color: theme.colors.primary,
+	},
+	subHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		paddingHorizontal: 12,
+		paddingVertical: 8,
+		backgroundColor: "#fff",
+		borderBottomWidth: 1,
+		borderBottomColor: theme.colors.borderLight,
+	},
+	backBtn: {
+		width: 36,
+		height: 36,
+		borderRadius: 18,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	subHeaderTitle: {
+		flex: 1,
+		textAlign: "center",
+		fontSize: 18,
+		fontWeight: "800",
+		color: theme.colors.textPrimary,
+	},
+	menuContent: {
+		paddingHorizontal: 14,
+		paddingTop: 14,
+		paddingBottom: 40,
+		gap: 12,
+	},
+	menuGroup: {
+		backgroundColor: "#fff",
+		borderRadius: theme.radius.xl,
+		borderWidth: 1,
+		borderColor: theme.colors.borderLight,
+		overflow: "hidden",
+		...theme.shadow.sm,
+	},
+	menuRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 12,
+		paddingHorizontal: 16,
+		paddingVertical: 13,
+		backgroundColor: "#fff",
+	},
+	menuRowDivider: {
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: theme.colors.borderLight,
+	},
+	menuIcon: {
+		width: 36,
+		height: 36,
+		borderRadius: 10,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	menuLabel: {
+		flex: 1,
+		fontSize: 15,
+		fontWeight: "700",
+		color: theme.colors.textPrimary,
 	},
 	scroll: { flex: 1 },
 	scrollContent: {
@@ -478,9 +544,7 @@ const styles = StyleSheet.create({
 		fontWeight: "800",
 		color: theme.colors.textPrimary,
 	},
-	fieldWrap: { marginBottom: 10 },
-	label: {
-		fontSize: 12,
+	label: {		fontSize: 12,
 		fontWeight: "700",
 		color: theme.colors.textSecondary,
 		marginBottom: 6,
@@ -506,22 +570,6 @@ const styles = StyleSheet.create({
 		color: theme.colors.textPrimary,
 		fontSize: 14,
 		paddingVertical: 11,
-	},
-	saveBtn: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		backgroundColor: theme.colors.primary,
-		paddingVertical: 14,
-		borderRadius: theme.radius.md,
-		marginTop: 8,
-		...theme.shadow.lg,
-	},
-	saveBtnText: {
-		color: "#fff",
-		fontSize: 14,
-		fontWeight: "800",
 	},
 	addRow: {
 		flexDirection: "row",

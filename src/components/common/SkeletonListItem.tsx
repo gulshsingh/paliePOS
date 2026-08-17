@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { theme } from "../../theme";
 import Skeleton from "./Skeleton";
 
 export default function SkeletonListItem() {
@@ -8,12 +9,12 @@ export default function SkeletonListItem() {
 				<Skeleton
 					width="60%"
 					height={16}
-					borderRadius={6}
+					borderRadius={8}
 					style={styles.skeletonTop}
 				/>
-				<Skeleton width="30%" height={13} borderRadius={6} />
+				<Skeleton width="32%" height={13} borderRadius={7} />
 			</View>
-			<Skeleton width={50} height={30} borderRadius={10} />
+			<Skeleton width={56} height={32} borderRadius={12} />
 		</View>
 	);
 }
@@ -25,12 +26,13 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 16,
 		paddingVertical: 14,
 		borderBottomWidth: 1,
-		borderBottomColor: "#E2E8F0",
+		borderBottomColor: theme.colors.borderLight,
+		backgroundColor: theme.colors.surface,
 	},
 	content: {
 		flex: 1,
 	},
 	skeletonTop: {
-		marginBottom: 6,
+		marginBottom: 8,
 	},
 });

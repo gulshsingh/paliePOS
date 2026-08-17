@@ -1,4 +1,10 @@
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+	FlatList,
+	StyleSheet,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useCartStore } from "../../store/cartStore";
 import { useCustomerStore } from "../../store/customerStore";
@@ -72,8 +78,8 @@ export default function FlowPanel({ onResume }: Props) {
 					/>
 					<Text style={styles.emptyTitle}>No running orders</Text>
 					<Text style={styles.emptySubtitle}>
-						Start an order from the Menu tab — unfinished orders are saved
-						here automatically.
+						Start an order from the Menu tab — unfinished orders are saved here
+						automatically.
 					</Text>
 				</View>
 			) : (
@@ -108,7 +114,9 @@ export default function FlowPanel({ onResume }: Props) {
 										]}
 									>
 										<MaterialCommunityIcons
-											name={item.table_id ? "table-furniture" : "account-outline"}
+											name={
+												item.table_id ? "table-furniture" : "account-outline"
+											}
 											size={20}
 											color={
 												item.table_id
@@ -122,11 +130,9 @@ export default function FlowPanel({ onResume }: Props) {
 											{item.table_name ?? "Walk-in"}
 										</Text>
 										<Text style={styles.cardSub} numberOfLines={1}>
-											{item.customer_name
-												? `${item.customer_name} · `
-												: ""}
+											{item.customer_name ? `${item.customer_name} · ` : ""}
 											{qty} {qty === 1 ? "item" : "items"} · ₹
-											{total.toLocaleString()}
+											{total.toLocaleString("en-IN")}
 										</Text>
 										{(confirmed.length > 0 || pending.length > 0) && (
 											<View style={styles.statusBlock}>
@@ -134,10 +140,7 @@ export default function FlowPanel({ onResume }: Props) {
 													<Text style={styles.kitchenLine} numberOfLines={1}>
 														<Text style={styles.kitchenLabel}>Kitchen: </Text>
 														{confirmed
-															.map(
-																(i) =>
-																	`${i.name} ×${i.qty}`,
-															)
+															.map((i) => `${i.name} ×${i.qty}`)
 															.join(", ")}
 													</Text>
 												)}

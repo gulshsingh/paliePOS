@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import Skeleton from "../../components/common/Skeleton";
 import {
 	useDashboard,
 	useLowStock,
@@ -24,34 +25,42 @@ const TABS: { key: ReportTab; label: string; icon: string }[] = [
 	{ key: "lowstock", label: "Low Stock", icon: "alert-circle-outline" },
 ];
 
-export default function ReportsScreen() {
+export default function ReportsScreen({
+	embedded = false,
+}: {
+	embedded?: boolean;
+}) {
 	const insets = useSafeAreaInsets();
 	const [tab, setTab] = useState<ReportTab>("dashboard");
-	const { data: dashboardData } = useDashboard();
-	const { data: stockData } = useStockSummary();
-	const { data: lowStockData } = useLowStock();
+	const { data: dashboardData, isLoading: dashboardLoading } = useDashboard();
+	const { data: stockData, isLoading: stockLoading } = useStockSummary();
+	const { data: lowStockData, isLoading: lowStockLoading } = useLowStock();
 
 	const dashboard = (dashboardData as any)?.data?.data?.data;
 	const stock = (stockData as any)?.data?.data?.data;
 	const lowStock = (lowStockData as any)?.data?.data?.data ?? [];
 
 	return (
-		<View style={[styles.container, { paddingTop: insets.top }]}>
+		<View style={[styles.container, !embedded && { paddingTop: insets.top }]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
 			{/* Header */}
-			<View style={styles.header}>
+			<View style={[styles.header, embedded && styles.embeddedHeader]}>
 				<View>
-					<Text style={styles.headerSub}>Analytics</Text>
-					<Text style={styles.headerTitle}>Reports</Text>
+					{!embedded && <Text style={styles.headerSub}>Analytics</Text>}
+					<Text style={[styles.headerTitle, embedded && styles.embeddedTitle]}>
+						Reports
+					</Text>
 				</View>
-				<View style={styles.headerBadge}>
-					<MaterialCommunityIcons
-						name="chart-line"
-						size={18}
-						color={theme.colors.primary}
-					/>
-				</View>
+				{!embedded && (
+					<View style={styles.headerBadge}>
+						<MaterialCommunityIcons
+							name="chart-line"
+							size={18}
+							color={theme.colors.primary}
+						/>
+					</View>
+				)}
 			</View>
 
 			{/* Tab pills */}
@@ -85,6 +94,24 @@ export default function ReportsScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				{/* ── Dashboard ── */}
+				{tab === "dashboard" && dashboardLoading && (
+					<View style={styles.section}>
+						<Skeleton
+							width="45%"
+							height={15}
+							borderRadius={7}
+							style={styles.skeletonTitle}
+						/>
+						<View style={styles.kpiRow}>
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+						</View>
+						<View style={styles.kpiRow}>
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+						</View>
+					</View>
+				)}
 				{tab === "dashboard" && dashboard && (
 					<View style={styles.section}>
 						<Text style={styles.sectionTitle}>Today's Performance</Text>
@@ -100,7 +127,7 @@ export default function ReportsScreen() {
 								icon="cash-multiple"
 								iconBg={theme.colors.successLight}
 								iconColor={theme.colors.success}
-								value={`₹${(dashboard.total_revenue_today ?? 0).toLocaleString()}`}
+								value={`₹${(dashboard.total_revenue_today ?? 0).toLocaleString("en-IN")}`}
 								label="Revenue Today"
 							/>
 						</View>
@@ -131,6 +158,24 @@ export default function ReportsScreen() {
 				)}
 
 				{/* ── Stock ── */}
+				{tab === "stock" && stockLoading && (
+					<View style={styles.section}>
+						<Skeleton
+							width="50%"
+							height={15}
+							borderRadius={7}
+							style={styles.skeletonTitle}
+						/>
+						<View style={styles.kpiRow}>
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+						</View>
+						<View style={styles.kpiRow}>
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+							<Skeleton height={118} borderRadius={18} style={styles.skeletonKpi} />
+						</View>
+					</View>
+				)}
 				{tab === "stock" && stock && (
 					<View style={styles.section}>
 						<Text style={styles.sectionTitle}>Inventory Overview</Text>
@@ -146,7 +191,7 @@ export default function ReportsScreen() {
 								icon="currency-inr"
 								iconBg={theme.colors.successLight}
 								iconColor={theme.colors.success}
-								value={`₹${(stock.total_stock_value ?? 0).toLocaleString()}`}
+								value={`₹${(stock.total_stock_value ?? 0).toLocaleString("en-IN")}`}
 								label="Stock Value"
 							/>
 						</View>
@@ -177,6 +222,33 @@ export default function ReportsScreen() {
 				)}
 
 				{/* ── Low Stock ── */}
+				{tab === "lowstock" && lowStockLoading && (
+					<View style={styles.section}>
+						<Skeleton
+							width="55%"
+							height={15}
+							borderRadius={7}
+							style={styles.skeletonTitle}
+						/>
+						{[1, 2, 3, 4].map((i) => (
+							<View key={i} style={styles.lowStockRow}>
+								<View style={styles.lowStockLeft}>
+									<Skeleton width={12} height={12} borderRadius={6} />
+									<View style={styles.skeletonLowRight}>
+										<Skeleton width="65%" height={14} borderRadius={7} />
+										<Skeleton
+											width="45%"
+											height={11}
+											borderRadius={6}
+											style={styles.skeletonLowQty}
+										/>
+									</View>
+								</View>
+								<Skeleton width={46} height={24} borderRadius={12} />
+							</View>
+						))}
+					</View>
+				)}
 				{tab === "lowstock" && (
 					<View style={styles.section}>
 						<Text style={styles.sectionTitle}>
@@ -346,6 +418,15 @@ const styles = StyleSheet.create({
 		color: theme.colors.textPrimary,
 		marginTop: 1,
 	},
+	embeddedHeader: {
+		paddingHorizontal: 16,
+		paddingVertical: 8,
+		backgroundColor: "#fff",
+	},
+	embeddedTitle: {
+		fontSize: 17,
+		marginTop: 0,
+	},
 	headerBadge: {
 		width: 40,
 		height: 40,
@@ -394,6 +475,18 @@ const styles = StyleSheet.create({
 		paddingBottom: 32,
 	},
 	section: { gap: 10 },
+	skeletonTitle: {
+		marginBottom: 4,
+	},
+	skeletonKpi: {
+		flex: 1,
+	},
+	skeletonLowRight: {
+		flex: 1,
+	},
+	skeletonLowQty: {
+		marginTop: 6,
+	},
 	sectionTitle: {
 		fontSize: 13,
 		fontWeight: "800",

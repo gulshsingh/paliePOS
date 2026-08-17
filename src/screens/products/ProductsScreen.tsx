@@ -84,7 +84,7 @@ export default function ProductsScreen() {
 							{item.name}
 						</Text>
 						<Text style={styles.price}>
-							₹{Number(item.price_per_unit).toLocaleString()}
+							₹{Number(item.price_per_unit).toLocaleString("en-IN")}
 						</Text>
 					</View>
 

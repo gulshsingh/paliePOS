@@ -20,12 +20,12 @@ function CartModalItem({ item, onIncrease, onDecrease }: Props) {
 					{item.name}
 				</Text>
 
-				<Text style={styles.lineTotal}>₹{lineTotal.toLocaleString()}</Text>
+				<Text style={styles.lineTotal}>₹{lineTotal.toLocaleString("en-IN")}</Text>
 			</View>
 
 			<View style={styles.bottomRow}>
 				<Text style={styles.itemPrice}>
-					₹{Number(item.price_per_unit).toLocaleString()}
+					₹{Number(item.price_per_unit).toLocaleString("en-IN")}
 				</Text>
 
 				<View style={styles.stepper}>

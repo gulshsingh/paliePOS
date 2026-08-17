@@ -77,7 +77,7 @@ export default function RunningOrdersScreen() {
 
 				{/* Right: total + status */}
 				<View style={styles.cardRight}>
-					<Text style={styles.total}>₹{item.total.toLocaleString()}</Text>
+					<Text style={styles.total}>₹{item.total.toLocaleString("en-IN")}</Text>
 					<View
 						style={[styles.statusPill, { backgroundColor: `${statusColor}18` }]}
 					>

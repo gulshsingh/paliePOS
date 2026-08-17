@@ -230,7 +230,7 @@ export default function ProductFormScreen() {
 					)}
 					{price ? (
 						<Text style={styles.emojiPrice}>
-							₹{Number(price).toLocaleString()}
+							₹{Number(price).toLocaleString("en-IN")}
 						</Text>
 					) : null}
 				</View>

@@ -66,7 +66,7 @@ export default function Receipt({
 						{item.name} × {item.qty}
 					</Text>
 					<Text style={styles.itemPrice}>
-						₹ {(item.price_per_unit * item.qty).toLocaleString()}
+						₹ {(item.price_per_unit * item.qty).toLocaleString("en-IN")}
 					</Text>
 				</View>
 			))}
@@ -75,24 +75,24 @@ export default function Receipt({
 
 			<View style={styles.totalRow}>
 				<Text style={styles.totalLabel}>Subtotal</Text>
-				<Text style={styles.totalValue}>₹ {subtotal.toLocaleString()}</Text>
+				<Text style={styles.totalValue}>₹ {subtotal.toLocaleString("en-IN")}</Text>
 			</View>
 			<View style={styles.totalRow}>
 				<Text style={styles.totalLabel}>Tax</Text>
-				<Text style={styles.totalValue}>₹ {taxTotal.toLocaleString()}</Text>
+				<Text style={styles.totalValue}>₹ {taxTotal.toLocaleString("en-IN")}</Text>
 			</View>
 			{discount > 0 && (
 				<View style={styles.totalRow}>
 					<Text style={styles.totalLabel}>Discount</Text>
 					<Text style={[styles.totalValue, { color: theme.colors.success }]}>
-						-₹ {discount.toLocaleString()}
+						-₹ {discount.toLocaleString("en-IN")}
 					</Text>
 				</View>
 			)}
 			<View style={styles.grandTotalRow}>
 				<Text style={styles.grandTotalLabel}>Grand Total</Text>
 				<Text style={styles.grandTotalValue}>
-					₹ {grandTotal.toLocaleString()}
+					₹ {grandTotal.toLocaleString("en-IN")}
 				</Text>
 			</View>
 
@@ -100,12 +100,12 @@ export default function Receipt({
 
 			<View style={styles.totalRow}>
 				<Text style={styles.totalLabel}>Amount Paid</Text>
-				<Text style={styles.totalValue}>₹ {amountPaid.toLocaleString()}</Text>
+				<Text style={styles.totalValue}>₹ {amountPaid.toLocaleString("en-IN")}</Text>
 			</View>
 			<View style={styles.totalRow}>
 				<Text style={styles.totalLabel}>Change</Text>
 				<Text style={[styles.totalValue, { color: theme.colors.success }]}>
-					₹ {change.toLocaleString()}
+					₹ {change.toLocaleString("en-IN")}
 				</Text>
 			</View>
 

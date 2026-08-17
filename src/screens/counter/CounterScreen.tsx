@@ -24,6 +24,12 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 export default function CounterScreen() {
 	const insets = useSafeAreaInsets();
 	const [activeTab, setActiveTab] = useState<Tab>("products");
+	const [cartOpenToken, setCartOpenToken] = useState(0);
+
+	const handleBillToCart = () => {
+		setActiveTab("products");
+		setCartOpenToken((t) => t + 1);
+	};
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -85,9 +91,11 @@ export default function CounterScreen() {
 
 			<View style={styles.content}>
 				{activeTab === "orders" && (
-					<OrdersPanel onBillToCart={() => setActiveTab("products")} />
+					<OrdersPanel onBillToCart={handleBillToCart} />
 				)}
-				{activeTab === "products" && <ProductsPanel />}
+				{activeTab === "products" && (
+					<ProductsPanel cartOpenToken={cartOpenToken} />
+				)}
 				{activeTab === "flow" && (
 					<FlowPanel onResume={() => setActiveTab("products")} />
 				)}

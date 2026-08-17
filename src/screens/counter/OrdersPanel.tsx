@@ -26,6 +26,18 @@ const TAB_ITEM_STATUS: Record<OrderTab, string> = {
 	SERVED: "served",
 };
 
+function isToday(dateStr?: string): boolean {
+	if (!dateStr) return true;
+	const d = new Date(dateStr);
+	if (isNaN(d.getTime())) return true;
+	const now = new Date();
+	return (
+		d.getFullYear() === now.getFullYear() &&
+		d.getMonth() === now.getMonth() &&
+		d.getDate() === now.getDate()
+	);
+}
+
 const TAB_META: Record<OrderTab, { icon: string; color: string; bg: string }> =
 	{
 		PENDING: {
@@ -56,7 +68,8 @@ export default function OrdersPanel({
 	onBillToCart?: () => void;
 }) {
 	const [activeTab, setActiveTab] = useState<OrderTab>("PENDING");
-	const { data, isLoading } = useOrders(TAB_ITEM_STATUS[activeTab]);
+	const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+		useOrders(TAB_ITEM_STATUS[activeTab]);
 	const { updateItemStatusLocally } = useUpdateOrderStatus();
 	const { onBillOrder } = useCart();
 	const localOrders = useOrderStore((s) => s.orders);
@@ -65,8 +78,7 @@ export default function OrdersPanel({
 
 	const tableMap = useMemo(() => {
 		const d = tablesData.data as any;
-		const list =
-			d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
+		const list = d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
 		return new Map<string, string>(
 			(list ?? []).map((t: any) => [t.id, t.name]),
 		);
@@ -78,9 +90,7 @@ export default function OrdersPanel({
 				const d = p.data as any;
 				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
 			}) ?? [];
-		return new Map<string, string>(
-			list.map((c: any) => [c.id, c.name]),
-		);
+		return new Map<string, string>(list.map((c: any) => [c.id, c.name]));
 	}, [customersData.data]);
 
 	const handleBillOrder = useCallback(
@@ -111,7 +121,9 @@ export default function OrdersPanel({
 				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
 			}) ?? [];
 
-		const apiMapped: Order[] = apiOrders.map((o: any) => ({
+		const apiMapped: Order[] = apiOrders
+			.filter((o: any) => isToday(o.created_at))
+			.map((o: any) => ({
 			id: o.id,
 			order_number: o.order_number,
 			items: (o.items ?? [])
@@ -127,6 +139,7 @@ export default function OrdersPanel({
 					product_id: i.product_id,
 				})),
 			total: Number(o.grand_total),
+			tax_amount: Number(o.tax_amount) || 0,
 			status: o.status,
 			paymentStatus: o.payment_status ?? "UNPAID",
 			table_id: o.table_id,
@@ -241,6 +254,10 @@ export default function OrdersPanel({
 					maxToRenderPerBatch={10}
 					windowSize={5}
 					initialNumToRender={6}
+					onEndReached={() => {
+						if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+					}}
+					onEndReachedThreshold={0.4}
 				/>
 			)}
 		</View>

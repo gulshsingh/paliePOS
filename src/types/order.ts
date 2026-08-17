@@ -33,6 +33,7 @@ export interface Order {
 	order_number: string;
 	items: CartItem[];
 	total: number;
+	tax_amount?: number;
 	status: OrderStatus;
 	paymentStatus: PaymentStatus;
 	table_id?: string | null;

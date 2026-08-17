@@ -68,7 +68,7 @@ function ProductCard({ product, qty, onPress, onIncrease, onDecrease }: Props) {
 					{product.name}
 				</Text>
 				<Text style={styles.price}>
-					₹{Number(product.price_per_unit).toLocaleString()}
+					₹{Number(product.price_per_unit).toLocaleString("en-IN")}
 				</Text>
 			</View>
 

@@ -104,8 +104,14 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			const newOrder: Order = {
 				id: o?.id,
 				order_number: o?.order_number,
-				items: cart.map((i) => ({ ...i, status: "pending" as const })),
+				items: cart.map((i) => ({
+					...i,
+					status: "pending" as const,
+					sentToKitchen: true,
+					kotNo: 1,
+				})),
 				total: grandTotal,
+				tax_amount: taxTotal,
 				status: "PENDING",
 				paymentStatus: "UNPAID",
 				table_id: selectedTable?.id ?? null,
@@ -163,15 +169,15 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			<View style={styles.totals}>
 				<View style={styles.totalRow}>
 					<Text style={styles.totalLabel}>Subtotal</Text>
-					<Text style={styles.totalValue}>₹{subtotal.toLocaleString()}</Text>
+					<Text style={styles.totalValue}>₹{subtotal.toLocaleString("en-IN")}</Text>
 				</View>
 				<View style={styles.totalRow}>
 					<Text style={styles.totalLabel}>Tax</Text>
-					<Text style={styles.totalValue}>₹{taxTotal.toLocaleString()}</Text>
+					<Text style={styles.totalValue}>₹{taxTotal.toLocaleString("en-IN")}</Text>
 				</View>
 				<View style={[styles.totalRow, styles.grandRow]}>
 					<Text style={styles.grandLabel}>Total</Text>
-					<Text style={styles.grandValue}>₹{grandTotal.toLocaleString()}</Text>
+					<Text style={styles.grandValue}>₹{grandTotal.toLocaleString("en-IN")}</Text>
 				</View>
 			</View>
 		),

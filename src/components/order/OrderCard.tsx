@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { theme } from "../../theme";
@@ -7,9 +7,10 @@ import type { ApiOrderItemStatus, Order } from "../../types/order";
 
 interface Props {
 	order: Order;
-	onBillOrder: (order: Order) => void;
-	onAddItems: (order: Order) => void;
-	onUpdateStatus: (itemId: string, status: ApiOrderItemStatus) => void;
+	onBillOrder?: (order: Order) => void;
+	onAddItems?: (order: Order) => void;
+	onUpdateStatus?: (itemId: string, status: ApiOrderItemStatus) => void;
+	readOnly?: boolean;
 }
 
 const NEXT_STATUS: Record<
@@ -21,11 +22,43 @@ const NEXT_STATUS: Record<
 	ready: { action: "Serve Now", next: "served" },
 };
 
-export default function OrderCard({
+const STATUS_BADGE: Record<
+	string,
+	{ label: string; color: string; bg: string }
+> = {
+	pending: {
+		label: "Pending",
+		color: theme.colors.warning,
+		bg: theme.colors.warningLight,
+	},
+	preparing: {
+		label: "Kitchen",
+		color: theme.colors.info,
+		bg: theme.colors.infoLight,
+	},
+	ready: {
+		label: "Serving",
+		color: theme.colors.success,
+		bg: theme.colors.successLight,
+	},
+	served: {
+		label: "Served",
+		color: theme.colors.textSecondary,
+		bg: theme.colors.surfaceTertiary,
+	},
+	cancelled: {
+		label: "Cancelled",
+		color: theme.colors.danger,
+		bg: theme.colors.dangerLight,
+	},
+};
+
+export default memo(function OrderCard({
 	order,
 	onBillOrder,
 	onAddItems,
 	onUpdateStatus,
+	readOnly = false,
 }: Props) {
 	const [expanded, setExpanded] = useState(false);
 
@@ -87,14 +120,14 @@ export default function OrderCard({
 							)}
 						</View>
 						<Text style={styles.itemCount}>
-							{totalQty} {totalQty === 1 ? "Qty" : "Qty"}
+							{totalQty} {totalQty === 1 ? "Item" : "Items"}
 						</Text>
 					</View>
 				</View>
 
 				<View style={styles.headerRight}>
 					<Text style={styles.totalAmount}>
-						₹{order.total.toLocaleString()}
+						₹{order.total.toLocaleString("en-IN")}
 					</Text>
 					<MaterialCommunityIcons
 						name={expanded ? "chevron-up" : "chevron-down"}
@@ -136,28 +169,44 @@ export default function OrderCard({
 										<View key={item.id} style={styles.itemRow}>
 											<View style={styles.itemIdxWrap}>
 												<Text style={styles.itemIdx}>{idx + 1}</Text>
-												{isAddition && (
-													<Text style={styles.addPrefix}>+</Text>
-												)}
+												{isAddition && <Text style={styles.addPrefix}>+</Text>}
 											</View>
 											<Text style={styles.itemName} numberOfLines={1}>
 												{item.name}
 											</Text>
 											<Text style={styles.itemQty}>
-												{item.qty} X ₹
-												{item.price_per_unit.toLocaleString()}
+												{item.qty} X ₹{item.price_per_unit.toLocaleString("en-IN")}
 											</Text>
-											{next && (
-												<TouchableOpacity
-													style={styles.actionChip}
-													onPress={() => onUpdateStatus(item.id, next.next)}
-													activeOpacity={0.75}
+{next && !readOnly && (
+											<TouchableOpacity
+												style={styles.actionChip}
+												onPress={() =>
+													onUpdateStatus?.(item.id, next.next)
+												}
+												activeOpacity={0.75}
+											>
+												<Text style={styles.actionChipText}>
+													{next.action}
+												</Text>
+											</TouchableOpacity>
+										)}
+										{readOnly && (
+											<View
+												style={[
+													styles.statusBadge,
+													{ backgroundColor: STATUS_BADGE[item.status]?.bg },
+												]}
+											>
+												<Text
+													style={[
+														styles.statusBadgeText,
+														{ color: STATUS_BADGE[item.status]?.color },
+													]}
 												>
-													<Text style={styles.actionChipText}>
-														{next.action}
-													</Text>
-												</TouchableOpacity>
-											)}
+													{STATUS_BADGE[item.status]?.label ?? item.status}
+												</Text>
+											</View>
+										)}
 										</View>
 									);
 								})}
@@ -165,44 +214,49 @@ export default function OrderCard({
 						);
 					})}
 
-				{/* Add Items + Bill buttons */}
-				<View style={styles.actionsRow}>
-					{!isPaid && (
-						<TouchableOpacity
-							style={styles.addBtn}
-							onPress={() => onAddItems(order)}
-							activeOpacity={0.85}
-						>
-							<MaterialCommunityIcons
-								name="plus"
-								size={16}
-								color={theme.colors.primary}
-							/>
-							<Text style={styles.addBtnText}>Add Items</Text>
-						</TouchableOpacity>
+					{/* Add Items + Bill buttons */}
+					{!readOnly && (
+						<View style={styles.actionsRow}>
+							{!isPaid && (
+								<TouchableOpacity
+									style={styles.addBtn}
+									onPress={() => onAddItems?.(order)}
+									activeOpacity={0.85}
+								>
+									<MaterialCommunityIcons
+										name="plus"
+										size={16}
+										color={theme.colors.primary}
+									/>
+									<Text style={styles.addBtnText}>Add Items</Text>
+								</TouchableOpacity>
+							)}
+							<TouchableOpacity
+								style={[styles.billBtn, !allServed && styles.billBtnAlt]}
+								onPress={() => onBillOrder?.(order)}
+								activeOpacity={0.85}
+							>
+								<MaterialCommunityIcons
+									name="cash-register"
+									size={16}
+									color={allServed ? "#fff" : theme.colors.primary}
+								/>
+								<Text
+									style={[
+										styles.billBtnText,
+										!allServed && styles.billBtnTextAlt,
+									]}
+								>
+									{allServed ? "Generate Bill" : "Bill This Order"}
+								</Text>
+							</TouchableOpacity>
+						</View>
 					)}
-					<TouchableOpacity
-						style={[styles.billBtn, !allServed && styles.billBtnAlt]}
-						onPress={() => onBillOrder(order)}
-						activeOpacity={0.85}
-					>
-						<MaterialCommunityIcons
-							name="cash-register"
-							size={16}
-							color={allServed ? "#fff" : theme.colors.primary}
-						/>
-						<Text
-							style={[styles.billBtnText, !allServed && styles.billBtnTextAlt]}
-						>
-							{allServed ? "Generate Bill" : "Bill This Order"}
-						</Text>
-					</TouchableOpacity>
-				</View>
 				</View>
 			)}
 		</TouchableOpacity>
 	);
-}
+});
 
 const styles = StyleSheet.create({
 	card: {
@@ -393,6 +447,15 @@ const styles = StyleSheet.create({
 	},
 	actionChipText: {
 		color: "#fff",
+		fontSize: 11,
+		fontWeight: "700",
+	},
+	statusBadge: {
+		paddingHorizontal: 10,
+		paddingVertical: 4,
+		borderRadius: theme.radius.full,
+	},
+	statusBadgeText: {
 		fontSize: 11,
 		fontWeight: "700",
 	},

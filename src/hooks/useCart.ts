@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useCartStore } from "../store/cartStore";
 import { useOrderStore } from "../store/orderStore";
 import type { Order } from "../types/order";
@@ -11,21 +12,24 @@ export function useCart() {
 	const orders = useOrderStore((s) => s.orders);
 	const addOrder = useOrderStore((s) => s.addOrder);
 
-	const onBillOrder = (order: Order) => {
-		const fullOrder = orders.find((o) => o.id === order.id);
-		if (!fullOrder) {
-			addOrder(order);
-		}
-		const src = fullOrder ?? order;
-		clearCart();
-		setCart(
-			src.items.map((i) => ({
-				...i,
-				sentToKitchen: true,
-			})),
-		);
-		setActiveOrder(order.id);
-	};
+	const onBillOrder = useCallback(
+		(order: Order) => {
+			const fullOrder = orders.find((o) => o.id === order.id);
+			if (!fullOrder) {
+				addOrder(order);
+			}
+			const src = fullOrder ?? order;
+			clearCart();
+			setCart(
+				src.items.map((i) => ({
+					...i,
+					sentToKitchen: true,
+				})),
+			);
+			setActiveOrder(order.id);
+		},
+		[orders, addOrder, clearCart, setCart, setActiveOrder],
+	);
 
 	return {
 		cart,
