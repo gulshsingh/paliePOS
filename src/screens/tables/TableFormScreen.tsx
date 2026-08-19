@@ -98,7 +98,8 @@ export default function TableFormScreen() {
 		}
 	};
 
-	const currentStatus = STATUS_OPTIONS.find((s) => s.key === status)!;
+	const currentStatus =
+		STATUS_OPTIONS.find((s) => s.key === status) ?? STATUS_OPTIONS[0];
 
 	return (
 		<KeyboardAvoidingView

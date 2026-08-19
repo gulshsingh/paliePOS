@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useCartStore } from "../../store/cartStore";
+import { useCartStore, mergeOrderItems } from "../../store/cartStore";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { Order } from "../../types/order";
@@ -29,7 +29,7 @@ export default function RunningOrdersScreen() {
 	const setCart = useCartStore((s) => s.setCart);
 
 	const handleSelectOrder = (order: Order) => {
-		setCart(order.items);
+		setCart(mergeOrderItems(order.items));
 		setActiveOrder(order.id);
 		navigation.goBack();
 	};

@@ -67,6 +67,7 @@ export default function AllOrdersScreen({
 			})),
 			total: Number(o.grand_total),
 			status: o.status,
+			invoice: o.invoice === true,
 			paymentStatus: o.payment_status ?? "UNPAID",
 			table_id: o.table_id,
 			account_id: o.account_id,

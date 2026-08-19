@@ -86,7 +86,7 @@ export default function ConfigurationScreen() {
 		queryKey: ["company"],
 		queryFn: () => getCompany(),
 	});
-	const company = companyData?.data?.data?.data;
+	const company = companyData?.data?.data;
 
 	const { data: categoriesData } = useCategories();
 	const categories = (categoriesData as any)?.data ?? [];
@@ -134,8 +134,8 @@ export default function ConfigurationScreen() {
 						contentContainerStyle={styles.menuContent}
 						showsVerticalScrollIndicator={false}
 					>
-						{MENU_GROUPS.map((group, gi) => (
-							<View key={gi} style={styles.menuGroup}>
+						{MENU_GROUPS.map((group) => (
+							<View key={group.join("-")} style={styles.menuGroup}>
 								{group.map((key) => {
 									const s = SECTIONS[key];
 									return (

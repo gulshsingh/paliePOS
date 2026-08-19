@@ -601,6 +601,12 @@ const styles = StyleSheet.create({
 		height: 80,
 		textAlignVertical: "top",
 	},
+	fieldError: {
+		color: theme.colors.danger,
+		fontSize: 11,
+		fontWeight: "600",
+		marginBottom: 6,
+	},
 	chipRow: {
 		flexDirection: "row",
 		flexWrap: "wrap",

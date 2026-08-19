@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
+	Alert,
 	FlatList,
 	Modal,
 	StyleSheet,
@@ -19,6 +20,9 @@ import { useTableStore } from "../../store/tableStore";
 import { theme } from "../../theme";
 import type { CartItem } from "../../types/cart";
 import type { Order } from "../../types/order";
+import { extractList } from "../../utils/apiHelpers";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
 import CustomerModal from "../customer/CustomerModal";
 import TableModal from "../table/TableModal";
 import CartModalItem from "./CartModalItem";
@@ -46,6 +50,8 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 
 	const [customerModal, setCustomerModal] = useState(false);
 	const [tableModal, setTableModal] = useState(false);
+	// Prevent duplicate order creation on fast double-tap
+	const submittingRef = useRef(false);
 
 	const { data: customersData } = useCustomers();
 	const { data: tablesData } = useTables();
@@ -53,17 +59,14 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 
 	const customers = useMemo(
 		() =>
-			customersData?.pages?.flatMap((p) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [],
+			customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
 		[customersData],
 	);
 
-	const tables: any[] = useMemo(() => {
-		const d = tablesData?.data as any;
-		return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
-	}, [tablesData]);
+	const tables: any[] = useMemo(
+		() => extractList(tablesData?.data),
+		[tablesData],
+	);
 
 	const { subtotal, taxTotal, grandTotal } = useMemo(() => {
 		const sub = cart.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
@@ -81,7 +84,8 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 	}, [clearCart, setSelectedCustomer, setSelectedTable]);
 
 	const handleSendToKitchen = async () => {
-		if (cart.length === 0) return;
+		if (cart.length === 0 || submittingRef.current) return;
+		submittingRef.current = true;
 		try {
 			const res = await createOrder.mutateAsync({
 				table_id: selectedTable?.id ?? null,
@@ -104,12 +108,15 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			const newOrder: Order = {
 				id: o?.id,
 				order_number: o?.order_number,
-				items: cart.map((i) => ({
-					...i,
-					status: "pending" as const,
-					sentToKitchen: true,
-					kotNo: 1,
-				})),
+				items:
+					(o?.items ?? []).length > 0
+						? mapApiItemsToCart(o.items, { status: "pending", sentToKitchen: true, kotNo: 1 })
+						: cart.map((i) => ({
+								...i,
+								status: "pending" as const,
+								sentToKitchen: true,
+								kotNo: 1,
+							})),
 				total: grandTotal,
 				tax_amount: taxTotal,
 				status: "PENDING",
@@ -118,6 +125,20 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 				account_id: selectedCustomer?.id ?? null,
 				table_name: selectedTable?.name,
 				customer_name: selectedCustomer?.name,
+				// KOT tracking — required for add-items flow in BillingPanel
+				kots: [
+					{
+						kotNo: 1,
+						items: cart.map(({ id, name, qty, price_per_unit }) => ({
+							id,
+							name,
+							qty,
+							price_per_unit,
+						})),
+						createdAt: new Date().toISOString(),
+					},
+				],
+				nextKotNo: 2,
 			};
 
 			addOrder(newOrder);
@@ -128,6 +149,9 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			onClose();
 		} catch (e) {
 			console.error("Failed to create order", e);
+			Alert.alert("Error", "Could not send order to kitchen. Please try again.");
+		} finally {
+			submittingRef.current = false;
 		}
 	};
 

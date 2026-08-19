@@ -2,45 +2,55 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { theme } from "../../theme";
 
 interface Props {
-	value: string;
 	onKeyPress: (key: string) => void;
 	onDelete: () => void;
 	onClear: () => void;
 }
 
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "00"];
+// 3-column grid; last row = Clear + Backspace (null = spacer for symmetry).
+const ROWS: (string | null)[][] = [
+	["1", "2", "3"],
+	["4", "5", "6"],
+	["7", "8", "9"],
+	[".", "0", "00"],
+	["C", "⌫", null],
+];
 
-export default function BillingKeypad({
-	value,
-	onKeyPress,
-	onDelete,
-	onClear,
-}: Props) {
+export default function BillingKeypad({ onKeyPress, onDelete, onClear }: Props) {
 	return (
 		<View style={styles.container}>
-			<View style={styles.display}>
-				<Text style={styles.displayText}>{value || "0"}</Text>
-			</View>
 			<View style={styles.keys}>
-				{KEYS.map((key) => (
-					<TouchableOpacity
-						key={key}
-						style={styles.key}
-						onPress={() => onKeyPress(key)}
-					>
-						<Text style={styles.keyText}>{key}</Text>
-					</TouchableOpacity>
+				{ROWS.map((row, ri) => (
+					<View key={ri} style={styles.row}>
+						{row.map((key, ki) =>
+							key === null ? (
+								<View key={ki} style={[styles.key, styles.spacer]} />
+							) : (
+								<TouchableOpacity
+									key={ki}
+									style={styles.key}
+									onPress={
+										key === "C"
+											? onClear
+											: key === "⌫"
+												? onDelete
+												: () => onKeyPress(key)
+									}
+								>
+									<Text
+										style={[
+											styles.keyText,
+											key === "C" && { color: theme.colors.danger },
+											key === "⌫" && { color: theme.colors.warning },
+										]}
+									>
+										{key}
+									</Text>
+								</TouchableOpacity>
+							),
+						)}
+					</View>
 				))}
-				<TouchableOpacity style={styles.key} onPress={onClear}>
-					<Text style={[styles.keyText, { color: theme.colors.danger }]}>
-						C
-					</Text>
-				</TouchableOpacity>
-				<TouchableOpacity style={styles.key} onPress={onDelete}>
-					<Text style={[styles.keyText, { color: theme.colors.warning }]}>
-						⌫
-					</Text>
-				</TouchableOpacity>
 			</View>
 		</View>
 	);
@@ -48,36 +58,31 @@ export default function BillingKeypad({
 
 const styles = StyleSheet.create({
 	container: {
+		flex: 1,
 		backgroundColor: theme.colors.surfaceSecondary,
 		borderRadius: 8,
 		padding: 8,
 		borderWidth: 1,
 		borderColor: theme.colors.border,
 	},
-	display: {
-		backgroundColor: theme.colors.surface,
-		borderRadius: 6,
-		padding: 12,
-		marginBottom: 8,
-		alignItems: "flex-end",
-	},
-	displayText: {
-		color: theme.colors.textPrimary,
-		fontSize: 28,
-		fontWeight: "700",
-	},
 	keys: {
+		flex: 1,
+		gap: 6,
+	},
+	row: {
+		flex: 1,
 		flexDirection: "row",
-		flexWrap: "wrap",
 		gap: 6,
 	},
 	key: {
-		width: "30%",
+		flex: 1,
 		backgroundColor: theme.colors.surfaceTertiary,
 		borderRadius: 6,
-		paddingVertical: 14,
 		alignItems: "center",
 		justifyContent: "center",
+	},
+	spacer: {
+		backgroundColor: "transparent",
 	},
 	keyText: {
 		color: theme.colors.textPrimary,

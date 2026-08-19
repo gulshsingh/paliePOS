@@ -21,6 +21,7 @@ import { useCartStore } from "../../store/cartStore";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { PaymentStatus } from "../../types/order";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
 
 export default function ProceedPaymentScreen() {
 	const insets = useSafeAreaInsets();
@@ -70,6 +71,7 @@ export default function ProceedPaymentScreen() {
 		try {
 			let orderId: string | null = activeOrderId;
 			let orderNumber = activeOrderId ? "N/A" : "NEW";
+			let createdItems: any[] = [];
 
 			// ② Create order first if this is a brand-new order (no Bill This Order)
 			if (!orderId) {
@@ -91,6 +93,10 @@ export default function ProceedPaymentScreen() {
 				const o = created?.data ?? created;
 				orderId = o?.id ?? null;
 				orderNumber = o?.order_number ?? "N/A";
+				// Capture the server-created item ids (UUIDs) so the local copy
+				// carries real item ids — not the cart's product ids — and status
+				// updates PATCH the correct /orders/items/:id endpoint.
+				createdItems = o?.items ?? [];
 				// Persist the created order id immediately so a mid-flow retry
 				// (e.g. invoice/payment network error) reuses this order instead
 				// of creating a duplicate order + invoice.
@@ -134,16 +140,8 @@ export default function ProceedPaymentScreen() {
 				payment_method: "cash",
 			});
 
-			// ⑥ Free the table
-			if (table?.id) {
-				try {
-					await updateTable(table.id, { status: "available" });
-				} catch (e) {
-					console.warn("Failed to free table", e);
-				}
-			}
-
-			// ③ Update order locally (zustand)
+			// ③ Update local Zustand state immediately after payment succeeds —
+			// BEFORE updateTable so the UI reflects PAID even if table free fails.
 			const paidStatus: PaymentStatus =
 				totalPaid >= payable ? "PAID" : "PARTIALLY_PAID";
 			if (activeOrderId) {
@@ -156,14 +154,19 @@ export default function ProceedPaymentScreen() {
 				});
 			} else {
 				addOrder({
-					id: orderId!,
+					id: orderId,
 					order_number: orderNumber,
-					items: cart.map((i) => ({
-						...i,
-						status: "served" as const,
-						sentToKitchen: true,
-						kotNo: 1,
-					})),
+					items:
+						createdItems.length > 0
+							? mapApiItemsToCart(createdItems, { kotNo: 1 }).map(
+									(i) => ({ ...i, status: "served" as const }),
+								)
+							: cart.map((i) => ({
+									...i,
+									status: "served" as const,
+									sentToKitchen: true,
+									kotNo: 1,
+								})),
 					total: grandTotal,
 					tax_amount: taxTotal,
 					status: "COMPLETED",
@@ -192,6 +195,18 @@ export default function ProceedPaymentScreen() {
 				});
 			}
 
+			// ⑥ Free the table — best-effort, failure doesn't affect payment
+			if (table?.id) {
+				try {
+					await updateTable(table.id, { status: "available" });
+				} catch (e) {
+					console.warn("Failed to free table", e);
+				}
+			}
+
+			// change can't be negative on a completed payment (canPay guards it)
+			const safeChange = Math.max(change, 0);
+
 			setResult({
 				orderNumber,
 				invoiceNumber,
@@ -201,7 +216,7 @@ export default function ProceedPaymentScreen() {
 				discount: Number(discount || 0),
 				grandTotal,
 				amountPaid: totalPaid,
-				change,
+				change: safeChange,
 			});
 			setShowReceipt(true);
 			clearCart();
@@ -228,7 +243,7 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.successHeader}>
 					<TouchableOpacity
 						style={styles.backBtn}
-						onPress={() => navigation.goBack()}
+						onPress={() => navigation.reset({ index: 0, routes: [{ name: "Counter" }] })}
 					>
 						<MaterialCommunityIcons
 							name="close"
@@ -251,7 +266,7 @@ export default function ProceedPaymentScreen() {
 				</ScrollView>
 				<TouchableOpacity
 					style={styles.doneBtn}
-					onPress={() => navigation.goBack()}
+					onPress={() => navigation.reset({ index: 0, routes: [{ name: "Counter" }] })}
 					activeOpacity={0.85}
 				>
 					<MaterialCommunityIcons name="home-outline" size={18} color="#fff" />
@@ -284,60 +299,60 @@ export default function ProceedPaymentScreen() {
 
 			{/* Context chips */}
 			{(customer || table) && (
-				<View style={styles.contextRow}>
-					{customer && (
-						<View style={styles.contextChip}>
-							<MaterialCommunityIcons
-								name="account-outline"
-								size={13}
-								color={theme.colors.textSecondary}
-							/>
-							<Text style={styles.contextChipText}>{customer.name}</Text>
-						</View>
-					)}
-					{table && (
-						<View style={styles.contextChip}>
-							<MaterialCommunityIcons
-								name="table-furniture"
-								size={13}
-								color={theme.colors.textSecondary}
-							/>
-							<Text style={styles.contextChipText}>{table.name}</Text>
-						</View>
-					)}
-				</View>
-			)}
-
-			{/* Bill summary card */}
-			<View style={styles.summaryCard}>
-				<View style={styles.summaryRow}>
-					<Text style={styles.summaryLabel}>Subtotal</Text>
-					<Text style={styles.summaryValue}>₹{subtotal.toLocaleString("en-IN")}</Text>
-				</View>
-				<View style={styles.summaryRow}>
-					<Text style={styles.summaryLabel}>Taxes & Charges</Text>
-					<Text style={styles.summaryValue}>₹{taxTotal.toLocaleString("en-IN")}</Text>
-				</View>
-				{Number(discount) > 0 && (
-					<View style={styles.summaryRow}>
-						<Text style={styles.summaryLabel}>Discount</Text>
-						<Text
-							style={[styles.summaryValue, { color: theme.colors.success }]}
-						>
-							− ₹{Number(discount).toLocaleString("en-IN")}
-						</Text>
+					<View style={styles.contextRow}>
+						{customer && (
+							<View style={styles.contextChip}>
+								<MaterialCommunityIcons
+									name="account-outline"
+									size={13}
+									color={theme.colors.textSecondary}
+								/>
+								<Text style={styles.contextChipText}>{customer.name}</Text>
+							</View>
+						)}
+						{table && (
+							<View style={styles.contextChip}>
+								<MaterialCommunityIcons
+									name="table-furniture"
+									size={13}
+									color={theme.colors.textSecondary}
+								/>
+								<Text style={styles.contextChipText}>{table.name}</Text>
+							</View>
+						)}
 					</View>
 				)}
-				<View style={styles.totalDivider} />
-				<View style={styles.summaryRow}>
-					<Text style={styles.totalLabel}>Total Payable</Text>
-					<Text style={styles.totalValue}>
-						₹{totalPayable.toLocaleString("en-IN")}
-					</Text>
-				</View>
-			</View>
 
-			{/* Entered amount display */}
+				{/* Bill summary card */}
+				<View style={styles.summaryCard}>
+					<View style={styles.summaryRow}>
+						<Text style={styles.summaryLabel}>Subtotal</Text>
+						<Text style={styles.summaryValue}>₹{subtotal.toLocaleString("en-IN")}</Text>
+					</View>
+					<View style={styles.summaryRow}>
+						<Text style={styles.summaryLabel}>Taxes & Charges</Text>
+						<Text style={styles.summaryValue}>₹{taxTotal.toLocaleString("en-IN")}</Text>
+					</View>
+					{Number(discount) > 0 && (
+						<View style={styles.summaryRow}>
+							<Text style={styles.summaryLabel}>Discount</Text>
+							<Text
+								style={[styles.summaryValue, { color: theme.colors.success }]}
+							>
+								− ₹{Number(discount).toLocaleString("en-IN")}
+							</Text>
+						</View>
+					)}
+					<View style={styles.totalDivider} />
+					<View style={styles.summaryRow}>
+						<Text style={styles.totalLabel}>Total Payable</Text>
+						<Text style={styles.totalValue}>
+							₹{totalPayable.toLocaleString("en-IN")}
+						</Text>
+					</View>
+				</View>
+
+{/* Entered amount display */}
 			<View style={styles.amountDisplay}>
 				<Text style={styles.amountLabel}>Cash Received</Text>
 				<Text
@@ -374,9 +389,8 @@ export default function ProceedPaymentScreen() {
 				)}
 			</View>
 
-			{/* Keypad */}
+			{/* Keypad — flex:1 so it fills the remaining space on any screen */}
 			<BillingKeypad
-				value={paidAmount}
 				onKeyPress={handleKeyPress}
 				onDelete={handleDelete}
 				onClear={handleClear}
@@ -384,7 +398,11 @@ export default function ProceedPaymentScreen() {
 
 			{/* CTA */}
 			<TouchableOpacity
-				style={[styles.completeBtn, !canPay && styles.completeBtnDisabled]}
+				style={[
+					styles.completeBtn,
+					!canPay && styles.completeBtnDisabled,
+					{ marginBottom: 12 + insets.bottom },
+				]}
 				onPress={handleCompleteOrder}
 				disabled={!canPay || isSubmitting}
 				activeOpacity={0.85}
@@ -441,7 +459,7 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		gap: 8,
 		paddingHorizontal: 16,
-		paddingVertical: 10,
+		paddingVertical: 6,
 		backgroundColor: "#fff",
 		borderBottomWidth: 1,
 		borderBottomColor: theme.colors.borderLight,
@@ -464,9 +482,9 @@ const styles = StyleSheet.create({
 	},
 	summaryCard: {
 		backgroundColor: "#fff",
-		margin: 12,
+		margin: 8,
 		borderRadius: theme.radius.lg,
-		padding: 16,
+		padding: 12,
 		borderWidth: 1,
 		borderColor: theme.colors.borderLight,
 		...theme.shadow.sm,
@@ -504,7 +522,7 @@ const styles = StyleSheet.create({
 	},
 	amountDisplay: {
 		alignItems: "center",
-		paddingVertical: 8,
+		paddingVertical: 4,
 		paddingHorizontal: 16,
 	},
 	amountLabel: {
@@ -541,8 +559,7 @@ const styles = StyleSheet.create({
 		gap: 10,
 		backgroundColor: theme.colors.success,
 		marginHorizontal: 12,
-		marginBottom: 16,
-		paddingVertical: 16,
+		paddingVertical: 12,
 		borderRadius: theme.radius.lg,
 		...theme.shadow.md,
 	},

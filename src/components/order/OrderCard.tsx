@@ -1,8 +1,7 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { theme } from "../../theme";
-import type { CartItem } from "../../types/cart";
 import type { ApiOrderItemStatus, Order } from "../../types/order";
 
 interface Props {
@@ -11,6 +10,9 @@ interface Props {
 	onAddItems?: (order: Order) => void;
 	onUpdateStatus?: (itemId: string, status: ApiOrderItemStatus) => void;
 	readOnly?: boolean;
+	// Only show action buttons for items whose current status matches this.
+	// Prevents wrong-tab button flash (e.g. "Mark Ready" showing in Pending tab).
+	actionableStatus?: string;
 }
 
 const NEXT_STATUS: Record<
@@ -59,24 +61,32 @@ export default memo(function OrderCard({
 	onAddItems,
 	onUpdateStatus,
 	readOnly = false,
+	actionableStatus,
 }: Props) {
 	const [expanded, setExpanded] = useState(false);
 
+	// Stores the status we just fired for each item (itemId → firedStatus).
+	// This ref is read synchronously during render to compute effectiveStatus,
+	// so the button reflects the new state in the SAME render that Zustand
+	// triggers (no flash of the wrong next-button is possible).
+	// We never clear it — once order.items carries the Zustand override the
+	// firedRef value equals item.status and has no effect.
+	const firedRef = useRef<Record<string, ApiOrderItemStatus>>({});
+
+	// Guard against FlatList reusing the same component instance for a
+	// different order (key collision / list reorder). If the order id changes,
+	// the previously fired statuses no longer apply — reset the ref so stale
+	// entries don't suppress action buttons on the new order.
+	const prevOrderIdRef = useRef(order.id);
+	if (prevOrderIdRef.current !== order.id) {
+		prevOrderIdRef.current = order.id;
+		firedRef.current = {};
+	}
+
 	const allServed = order.items.every((i) => i.status === "served");
 	const isPaid = order.paymentStatus === "PAID";
+	const isInvoiced = order.invoice === true;
 	const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
-
-	// Group lines by their kitchen ticket (KOT). Lines without a KOT number
-	// are treated as the original KOT #1.
-	const groups = useMemo(() => {
-		const map = new Map<number, CartItem[]>();
-		for (const it of order.items) {
-			const key = it.kotNo ?? 1;
-			if (!map.has(key)) map.set(key, []);
-			map.get(key)!.push(it);
-		}
-		return [...map.entries()].sort((a, b) => a[0] - b[0]);
-	}, [order.items]);
 
 	return (
 		<TouchableOpacity
@@ -137,85 +147,78 @@ export default memo(function OrderCard({
 				</View>
 			</View>
 
-			{/* Expanded items grouped by KOT */}
+			{/* Expanded items */}
 			{expanded && (
 				<View style={styles.body}>
 					<View style={styles.bodyDivider} />
 
-					{groups.map(([kotNo, items]) => {
-						const isAddition = kotNo > 1;
+					{order.items.map((item, idx) => {
+						// firedRef gives us the status we just sent so the button
+						// label/visibility is correct even before Zustand propagates.
+						const effectiveStatus =
+							firedRef.current[item.id] ?? item.status;
+						const next = NEXT_STATUS[effectiveStatus];
+						// Only show the action button if this item's CURRENT (server)
+						// status matches the tab we're on. This prevents the wrong
+						// next-button from flashing after an override is applied.
+						const canAct =
+							!actionableStatus || item.status === actionableStatus;
+
 						return (
-							<View key={kotNo} style={styles.kotBlock}>
-								<View style={styles.kotHeader}>
-									<View style={styles.kotLeft}>
-										<Text style={styles.kotLabel}>KOT #{kotNo}</Text>
-										{isAddition && (
-											<View style={styles.kotAddTag}>
-												<Text style={styles.kotAddTagText}>ADDITION</Text>
-											</View>
-										)}
-									</View>
-									{items.length > 1 && (
-										<Text style={styles.kotCount}>
-											{items.reduce((s, i) => s + i.qty, 0)} qty
-										</Text>
-									)}
+							<View
+								key={`${item.id}-${idx}`}
+								style={styles.itemRow}
+							>
+								<View style={styles.itemIdxWrap}>
+									<Text style={styles.itemIdx}>{idx + 1}</Text>
 								</View>
-
-								{items.map((item, idx) => {
-									const next = NEXT_STATUS[item.status];
-
-									return (
-										<View key={item.id} style={styles.itemRow}>
-											<View style={styles.itemIdxWrap}>
-												<Text style={styles.itemIdx}>{idx + 1}</Text>
-												{isAddition && <Text style={styles.addPrefix}>+</Text>}
-											</View>
-											<Text style={styles.itemName} numberOfLines={1}>
-												{item.name}
-											</Text>
-											<Text style={styles.itemQty}>
-												{item.qty} X ₹{item.price_per_unit.toLocaleString("en-IN")}
-											</Text>
-{next && !readOnly && (
-											<TouchableOpacity
-												style={styles.actionChip}
-												onPress={() =>
-													onUpdateStatus?.(item.id, next.next)
-												}
-												activeOpacity={0.75}
-											>
-												<Text style={styles.actionChipText}>
-													{next.action}
-												</Text>
-											</TouchableOpacity>
-										)}
-										{readOnly && (
-											<View
-												style={[
-													styles.statusBadge,
-													{ backgroundColor: STATUS_BADGE[item.status]?.bg },
-												]}
-											>
-												<Text
-													style={[
-														styles.statusBadgeText,
-														{ color: STATUS_BADGE[item.status]?.color },
-													]}
-												>
-													{STATUS_BADGE[item.status]?.label ?? item.status}
-												</Text>
-											</View>
-										)}
-										</View>
-									);
-								})}
+								<Text style={styles.itemName} numberOfLines={1}>
+									{item.name}
+								</Text>
+								<Text style={styles.itemQty}>
+									{item.qty} X ₹
+									{item.price_per_unit.toLocaleString("en-IN")}
+								</Text>
+								{next && !readOnly && canAct && (
+									<TouchableOpacity
+										style={styles.actionChip}
+										onPress={() => {
+											firedRef.current[item.id] = next.next;
+											onUpdateStatus?.(item.id, next.next);
+										}}
+										activeOpacity={0.75}
+									>
+										<Text style={styles.actionChipText}>
+											{next.action}
+										</Text>
+									</TouchableOpacity>
+								)}
+								{readOnly && (
+									<View
+										style={[
+											styles.statusBadge,
+											{
+												backgroundColor:
+													STATUS_BADGE[item.status]?.bg,
+											},
+										]}
+									>
+										<Text
+											style={[
+												styles.statusBadgeText,
+												{ color: STATUS_BADGE[item.status]?.color },
+											]}
+										>
+											{STATUS_BADGE[item.status]?.label ?? item.status}
+										</Text>
+									</View>
+								)}
 							</View>
 						);
 					})}
 
 					{/* Add Items + Bill buttons */}
-					{!readOnly && (
+					{!readOnly && !isInvoiced && (
 						<View style={styles.actionsRow}>
 							{!isPaid && (
 								<TouchableOpacity
@@ -388,56 +391,9 @@ const styles = StyleSheet.create({
 		fontWeight: "600",
 		textAlign: "center",
 	},
-	// KOT grouping
-	kotBlock: {
-		marginTop: 8,
-		paddingTop: 8,
-		borderTopWidth: 1,
-		borderTopColor: theme.colors.borderLight,
-	},
-	kotHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: 4,
-	},
-	kotLeft: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 6,
-	},
-	kotLabel: {
-		fontSize: 11,
-		fontWeight: "900",
-		color: theme.colors.textSecondary,
-		letterSpacing: 0.5,
-	},
-	kotAddTag: {
-		backgroundColor: theme.colors.warningLight,
-		borderRadius: theme.radius.full,
-		paddingHorizontal: 7,
-		paddingVertical: 2,
-	},
-	kotAddTagText: {
-		fontSize: 9,
-		fontWeight: "900",
-		color: theme.colors.warning,
-		letterSpacing: 0.8,
-	},
-	kotCount: {
-		fontSize: 11,
-		color: theme.colors.textMuted,
-		fontWeight: "700",
-	},
 	itemIdxWrap: {
 		flexDirection: "row",
 		alignItems: "center",
-	},
-	addPrefix: {
-		color: theme.colors.warning,
-		fontSize: 13,
-		fontWeight: "900",
-		marginLeft: 2,
 	},
 	actionChip: {
 		backgroundColor: theme.colors.primary,

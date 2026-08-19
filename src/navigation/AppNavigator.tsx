@@ -11,6 +11,8 @@ import {
 } from "react";
 import { AppState, StyleSheet, View } from "react-native";
 import { setUnauthorizedHandler } from "../api/client";
+
+declare const atob: (encoded: string) => string;
 import Loader from "../components/common/Loader";
 import ProceedPaymentScreen from "../screens/counter/ProceedPaymentScreen";
 import CustomerFormScreen from "../screens/customers/CustomerFormScreen";
@@ -29,7 +31,11 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-export const useAuth = () => useContext(AuthContext)!;
+export const useAuth = () => {
+	const ctx = useContext(AuthContext);
+	if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+	return ctx;
+};
 
 const Stack = createNativeStackNavigator();
 
@@ -79,13 +85,43 @@ const pushScreenOptions = {
 	contentStyle: { backgroundColor: theme.colors.surfaceSecondary },
 };
 
+// Decode the JWT payload and check its `exp` claim. Returns true for missing,
+// malformed, or already-expired tokens so the app never flashes the main screen
+// with a dead session before the API kicks it back to login.
+function isTokenExpired(token: string | null): boolean {
+	if (!token) return true;
+	try {
+		const payload = token.split(".")[1];
+		if (!payload) return true;
+		const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+		const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+		const json = decodeURIComponent(
+			atob(padded)
+				.split("")
+				.map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+				.join(""),
+		);
+		const decoded = JSON.parse(json);
+		if (typeof decoded?.exp !== "number") return true;
+		return decoded.exp * 1000 <= Date.now();
+	} catch {
+		return true;
+	}
+}
+
 export default function AppNavigator() {
 	const [token, setToken] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
 		AsyncStorage.getItem("token").then((t) => {
-			setToken(t);
+			if (t && !isTokenExpired(t)) {
+				setToken(t);
+			} else {
+				// Expired/malformed token: drop it and go straight to login.
+				if (t) AsyncStorage.removeItem("token");
+				setToken(null);
+			}
 			setLoading(false);
 		});
 	}, []);

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	FlatList,
 	StyleSheet,
@@ -18,6 +18,8 @@ import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { Order } from "../../types/order";
 import { ORDER_TABS, type OrderTab } from "../../types/order-status";
+import { extractList } from "../../utils/apiHelpers";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
 
 const TAB_ITEM_STATUS: Record<OrderTab, string> = {
 	PENDING: "pending",
@@ -29,7 +31,10 @@ const TAB_ITEM_STATUS: Record<OrderTab, string> = {
 function isToday(dateStr?: string): boolean {
 	if (!dateStr) return true;
 	const d = new Date(dateStr);
-	if (isNaN(d.getTime())) return true;
+	// Treat unparseable dates as NOT today — show them only when they have a
+	// valid timestamp that matches the current date. Previously invalid dates
+	// defaulted to true, leaking stale or corrupt orders into every tab.
+	if (Number.isNaN(d.getTime())) return false;
 	const now = new Date();
 	return (
 		d.getFullYear() === now.getFullYear() &&
@@ -73,12 +78,12 @@ export default function OrdersPanel({
 	const { updateItemStatusLocally } = useUpdateOrderStatus();
 	const { onBillOrder } = useCart();
 	const localOrders = useOrderStore((s) => s.orders);
+	const itemStatusOverrides = useOrderStore((s) => s.itemStatusOverrides);
 	const tablesData = useTables();
 	const customersData = useCustomers();
 
 	const tableMap = useMemo(() => {
-		const d = tablesData.data as any;
-		const list = d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
+		const list = extractList(tablesData.data);
 		return new Map<string, string>(
 			(list ?? []).map((t: any) => [t.id, t.name]),
 		);
@@ -86,10 +91,7 @@ export default function OrdersPanel({
 
 	const customerMap = useMemo(() => {
 		const list =
-			customersData.data?.pages.flatMap((p: any) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [];
+			customersData.data?.pages.flatMap((p: any) => extractList(p.data)) ?? [];
 		return new Map<string, string>(list.map((c: any) => [c.id, c.name]));
 	}, [customersData.data]);
 
@@ -108,39 +110,32 @@ export default function OrdersPanel({
 				onBillOrder={handleBillOrder}
 				onAddItems={handleBillOrder}
 				onUpdateStatus={updateItemStatusLocally}
+				actionableStatus={TAB_ITEM_STATUS[activeTab]}
 			/>
 		),
-		[handleBillOrder, updateItemStatusLocally],
+		[handleBillOrder, updateItemStatusLocally, activeTab],
 	);
 
 	const orders = useMemo(() => {
 		const tabStatus = TAB_ITEM_STATUS[activeTab];
 		const apiOrders =
-			data?.pages.flatMap((p) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [];
+			data?.pages.flatMap((p) => extractList(p.data)) ?? [];
 
 		const apiMapped: Order[] = apiOrders
 			.filter((o: any) => isToday(o.created_at))
 			.map((o: any) => ({
 			id: o.id,
 			order_number: o.order_number,
-			items: (o.items ?? [])
-				.filter((i: any) => i.status === tabStatus)
-				.map((i: any) => ({
-					id: i.id,
-					name: i.product?.name ?? i.product_name ?? "",
-					price: Number(i.total),
-					price_per_unit: Number(i.price),
-					qty: Number(i.quantity),
-					tax: 0,
-					status: i.status,
-					product_id: i.product_id,
-				})),
+			// Use mapApiItemsToCart so item.id is always the real server
+			// order-item UUID. Optimistic overrides win over server status.
+			items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
+				...item,
+				status: itemStatusOverrides[item.id] ?? item.status,
+			})),
 			total: Number(o.grand_total),
 			tax_amount: Number(o.tax_amount) || 0,
 			status: o.status,
+			invoice: o.invoice === true,
 			paymentStatus: o.payment_status ?? "UNPAID",
 			table_id: o.table_id,
 			account_id: o.account_id,
@@ -154,13 +149,33 @@ export default function OrdersPanel({
 		for (const o of apiMapped) merged.set(o.id, o);
 		for (const lo of localOrders) merged.set(lo.id, lo);
 
-		return [...merged.values()]
-			.map((o) => ({
-				...o,
-				items: o.items.filter((i) => i.status === tabStatus),
-			}))
-			.filter((o) => o.items.length > 0);
-	}, [data, activeTab, localOrders, tableMap, customerMap]);
+		// A tab lists orders that have at least one item in that status, but the
+		// order object keeps its full item list so nothing is lost when billing.
+		return [...merged.values()].filter((o) =>
+			o.items.some((i) => i.status === tabStatus),
+		);
+	}, [data, activeTab, localOrders, itemStatusOverrides, tableMap, customerMap]);
+
+	// Clear item-status overrides once the server confirms them in a fetch, so
+	// the optimistic state converges with the backend without ever flickering.
+	useEffect(() => {
+		const overrides = useOrderStore.getState().itemStatusOverrides;
+		const ids = Object.keys(overrides);
+		if (ids.length === 0) return;
+		const apiItems: any[] =
+			(data?.pages ?? []).flatMap((p) => {
+				const list = extractList(p.data);
+				return (list ?? []).flatMap((o: any) => o.items ?? []);
+			});
+		const confirmed = ids.filter((id) => {
+			const it = apiItems.find((x) => x.id === id);
+			return !!it && it.status === overrides[id];
+		});
+		if (confirmed.length > 0) {
+			const store = useOrderStore.getState();
+			confirmed.forEach((id) => store.clearItemStatusOverride(id));
+		}
+	}, [data]);
 
 	return (
 		<View style={styles.container}>

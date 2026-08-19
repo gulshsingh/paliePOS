@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	FlatList,
 	Modal,
@@ -20,11 +20,7 @@ import { theme } from "../../theme";
 import type { Product } from "../../types/product";
 import BillingPanel from "../counter/BillingPanel";
 
-export default function ProductsPanel({
-	cartOpenToken = 0,
-}: {
-	cartOpenToken?: number;
-}) {
+export default function ProductsPanel() {
 	const [search, setSearch] = useState("");
 	const [cartOpen, setCartOpen] = useState(false);
 	const { data, isLoading } = useProducts();
@@ -41,11 +37,6 @@ export default function ProductsPanel({
 	const selectedTable = useTableStore((s) => s.selectedTable);
 
 	const decreaseQty = useCartStore((s) => s.decreaseQty);
-
-	// Auto-open the cart when an order is sent here for billing
-	useEffect(() => {
-		if (cartOpenToken > 0) setCartOpen(true);
-	}, [cartOpenToken]);
 
 	const cartMap = useMemo(
 		() => new Map(cart.map((i) => [i.id, i.qty])),

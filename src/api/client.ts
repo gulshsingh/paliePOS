@@ -32,7 +32,9 @@ export const setUnauthorizedHandler = (handler: () => void) => {
 };
 
 const triggerLogout = async () => {
-	await AsyncStorage.clear();
+	// Only remove the auth token — do NOT clear() the entire storage as that
+	// would wipe persisted cart, flow drafts, and other app state.
+	await AsyncStorage.removeItem("token");
 	_onUnauthorized?.();
 };
 

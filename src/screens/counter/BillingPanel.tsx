@@ -24,6 +24,8 @@ import { theme } from "../../theme";
 import type { CartItem } from "../../types/cart";
 import type { Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
+import { extractList } from "../../utils/apiHelpers";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
 
 interface Props {
 	onRequestClose?: () => void;
@@ -33,7 +35,6 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const navigation = useNavigation<any>();
 	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
-	const setCart = useCartStore((s) => s.setCart);
 	const addOrder = useOrderStore((s) => s.addOrder);
 	const updateOrder = useOrderStore((s) => s.updateOrder);
 	const activeOrderId = useOrderStore((s) => s.activeOrderId);
@@ -58,17 +59,14 @@ export default function BillingPanel({ onRequestClose }: Props) {
 
 	const customers = useMemo(
 		() =>
-			customersData?.pages?.flatMap((p) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [],
+			customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
 		[customersData],
 	);
 
-	const tables: RestaurantTable[] = useMemo(() => {
-		const d = tablesData?.data as any;
-		return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
-	}, [tablesData]);
+	const tables: RestaurantTable[] = useMemo(
+		() => extractList(tablesData?.data),
+		[tablesData],
+	);
 
 	const existingOrder = useMemo(
 		() => orders.find((o) => o.id === activeOrderId) ?? null,
@@ -124,13 +122,18 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			? tables.find((tt) => tt.id === existingOrder.table_id)
 			: null;
 
-		// Only apply values we can resolve. Don't set the re-run guard until
-		// every referenced id has resolved, so a late-arriving customers/tables
-		// fetch can still populate the chips.
-		if (existingOrder.account_id && !customerFound) return;
-		if (existingOrder.table_id && !tableFound) return;
+		// If the ID exists but the record hasn't arrived yet, wait — UNLESS the
+		// data lists are already populated (loaded), in which case the record is
+		// simply missing (deleted/inaccessible) and we should not loop forever.
+		const customersLoaded = customers.length > 0;
+		const tablesLoaded = tables.length > 0;
+		if (existingOrder.account_id && !customerFound && !customersLoaded) return;
+		if (existingOrder.table_id && !tableFound && !tablesLoaded) return;
+
 		if (customerFound) setSelectedCustomer(customerFound);
 		if (tableFound) setSelectedTable(tableFound);
+		// Mark as done regardless — if the record is missing after data loads,
+		// don't keep retrying on every render.
 		setAutofilledFor(existingOrder.id);
 	}, [
 		existingOrder,
@@ -157,22 +160,21 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	}, [cart, additions, isBillingExisting, existingOrder]);
 
 	const handleClearAll = useCallback(() => {
-		// In edit mode only the unsent additions can be cleared; the confirmed
-		// existing items stay locked.
-		if (existingOrder) {
-			setCart(cart.filter((i) => i.sentToKitchen));
-		} else {
-			clearCart();
-		}
+		// Full reset: clear the whole cart (locked + new items) and the active
+		// order context so the billing view starts fresh again.
+		clearCart();
+		setActiveOrder(null);
 		setSelectedCustomer(null);
 		setSelectedTable(null);
+		setAutofilledFor(null);
 	}, [
-		existingOrder,
-		cart,
-		setCart,
 		clearCart,
+		setActiveOrder,
 		setSelectedCustomer,
 		setSelectedTable,
+		// setAutofilledFor is a stable React setState setter but is listed
+		// explicitly so linters don't warn about the missing dependency.
+		setAutofilledFor,
 	]);
 
 	const handleSendToKitchen = async () => {
@@ -183,7 +185,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				submittingRef.current = false;
 				return;
 			}
-			handleEditSend(existingOrder);
+			await handleEditSend(existingOrder);
 			submittingRef.current = false;
 			return;
 		}
@@ -206,15 +208,21 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			const created = (res.data as any)?.data;
 			const o = created?.data ?? created;
 
+			// Use server-returned item IDs (real order-item UUIDs). If the
+			// response includes items, map them directly so we never store
+			// a product_id where an order-item UUID is required.
 			const newOrder: Order = {
 				id: o?.id,
 				order_number: o?.order_number,
-				items: cart.map((i) => ({
-					...i,
-					status: "pending" as const,
-					sentToKitchen: true,
-					kotNo: 1,
-				})),
+				items:
+					(o?.items ?? []).length > 0
+						? mapApiItemsToCart(o.items, { status: "pending", sentToKitchen: true, kotNo: 1 })
+						: cart.map((i) => ({
+								...i,
+								status: "pending" as const,
+								sentToKitchen: true,
+								kotNo: 1,
+							})),
 				total: grandTotal,
 				tax_amount: taxTotal,
 				status: "PENDING",
@@ -255,19 +263,27 @@ export default function BillingPanel({ onRequestClose }: Props) {
 
 	// Model B delta: only never-sent lines go to the kitchen as a new KOT.
 	// Original items keep their status — kitchen never re-cooks them.
-	const handleEditSend = (order: Order) => {
+	const handleEditSend = async (order: Order) => {
 		if (additions.length === 0) return;
 		const kotNo = Math.max(
 			order.nextKotNo ?? 1,
 			order.items.reduce((m, i) => Math.max(m, i.kotNo ?? 0), 0) + 1,
 			(order.kots?.length ?? 0) + 1,
 		);
-		const sentAdditions = additions.map((i) => ({
+
+		// Optimistic: add additions with a temporary id so the UI shows them
+		// immediately. We replace every item in the order with the server's
+		// canonical list once the POST resolves, before closing the panel.
+		// This means the user can NEVER see or tap a fake id — the real UUIDs
+		// are in place before OrderCard becomes interactive.
+		const sentAdditions = additions.map((i, idx) => ({
 			...i,
+			id: `__tmp_${i.product_id ?? i.id}_${idx}`,
 			status: "pending" as const,
 			sentToKitchen: true,
 			kotNo,
 		}));
+
 		const deltaTotal = sentAdditions.reduce(
 			(s, i) =>
 				s + i.price_per_unit * i.qty + (i.price_per_unit * i.qty * i.tax) / 100,
@@ -277,6 +293,8 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			(s, i) => s + (i.price_per_unit * i.qty * i.tax) / 100,
 			0,
 		);
+
+		// Optimistic local update
 		updateOrder(order.id, {
 			items: [...order.items, ...sentAdditions],
 			total: order.total + deltaTotal,
@@ -286,8 +304,8 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				...(order.kots ?? []),
 				{
 					kotNo,
-					items: sentAdditions.map(({ id, name, qty, price_per_unit }) => ({
-						id,
+					items: sentAdditions.map(({ name, qty, price_per_unit, product_id, id }) => ({
+						id: product_id ?? id,
 						name,
 						qty,
 						price_per_unit,
@@ -296,15 +314,50 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				},
 			],
 		});
-		addOrderItems.mutate({
-			orderId: order.id,
-			items: sentAdditions.map((i) => ({
-				product_id: i.id,
-				quantity: i.qty,
-				price: i.price_per_unit,
-				total: i.price_per_unit * i.qty,
-			})),
-		});
+
+		try {
+			// mutateAsync — wait for server response so real item UUIDs are
+			// stored before the panel closes and OrderCard becomes interactive.
+			const res = await addOrderItems.mutateAsync({
+				orderId: order.id,
+				items: sentAdditions.map((i) => ({
+					product_id: i.product_id ?? i.id,
+					quantity: i.qty,
+					price: i.price_per_unit,
+					total: i.price_per_unit * i.qty,
+				})),
+			});
+
+			// Replace the entire order's item list with the server's canonical
+			// items (real order-item UUIDs). This is the single source of truth —
+			// no fragile local ID-swap logic needed.
+			const d = (res.data as any)?.data;
+			const updatedOrder = d?.data ?? d;
+			const serverItems: any[] = updatedOrder?.items ?? [];
+
+			if (serverItems.length > 0) {
+				useOrderStore.getState().updateOrder(order.id, {
+					items: mapApiItemsToCart(serverItems),
+				});
+			}
+		} catch (e) {
+			// Roll back the optimistic local update
+			updateOrder(order.id, {
+				items: order.items,
+				total: order.total,
+				tax_amount: order.tax_amount,
+				nextKotNo: order.nextKotNo,
+				kots: order.kots,
+			});
+			const msg =
+				(e as any)?.response?.data?.message ??
+				(e as any)?.message ??
+				"Could not add items to order. Please try again.";
+			Alert.alert("Failed to send KOT", msg);
+			return;
+		}
+
+		// Close panel only after real IDs are in place
 		clearCart();
 		setActiveOrder(null);
 		setSelectedTable(null);
@@ -415,13 +468,11 @@ export default function BillingPanel({ onRequestClose }: Props) {
 					</Text>
 				</View>
 				<TouchableOpacity onPress={handleClearAll}>
-					<Text style={styles.clearText}>
-						{isBillingExisting ? "Clear new" : "Clear all"}
-					</Text>
+					<Text style={styles.clearText}>Clear all</Text>
 				</TouchableOpacity>
 			</View>
 		),
-		[cart.length, handleClearAll, isBillingExisting],
+		[cart.length, handleClearAll],
 	);
 
 	const isPaid = existingOrder?.paymentStatus === "PAID";

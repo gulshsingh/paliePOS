@@ -3,4 +3,5 @@ export const STORAGE_KEYS = {
 	USER: "user",
 	COMPANY: "company",
 	LAST_SYNC: "last_sync",
+	CART: "cart",
 };

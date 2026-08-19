@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useCartStore } from "../store/cartStore";
+import { mergeOrderItems, useCartStore } from "../store/cartStore";
 import { useOrderStore } from "../store/orderStore";
 import type { Order } from "../types/order";
 
@@ -20,8 +20,10 @@ export function useCart() {
 			}
 			const src = fullOrder ?? order;
 			clearCart();
+			// Merge duplicate product lines across KOTs so the bill shows one
+			// combined line per item (e.g. Roti 5 + Roti 5 -> Roti 10).
 			setCart(
-				src.items.map((i) => ({
+				mergeOrderItems(src.items).map((i) => ({
 					...i,
 					sentToKitchen: true,
 				})),
