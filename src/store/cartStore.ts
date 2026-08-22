@@ -21,8 +21,6 @@ interface CartStore {
 	};
 }
 
-// Combine lines of the same product across multiple KOTs into one bill line,
-// so quantities add up (e.g. Roti 5 in KOT1 + Roti 5 in KOT2 -> Roti 10).
 export function mergeOrderItems(items: CartItem[]): CartItem[] {
 	const map = new Map<string, CartItem>();
 	for (const it of items) {
@@ -126,10 +124,7 @@ export const useCartStore = create<CartStore>()(
 					(s, i) => s + i.price_per_unit * i.qty,
 					0,
 				);
-				// Tax only on lines never confirmed to kitchen. Confirmed (locked)
-				// lines are covered by existingTaxAmount (the backend order's
-				// tax_amount), so counting them again here would double-charge tax
-				// on re-billed orders.
+				
 				const additionsTax = cart
 					.filter((i) => !i.sentToKitchen)
 					.reduce(
@@ -143,10 +138,7 @@ export const useCartStore = create<CartStore>()(
 		{
 			name: STORAGE_KEYS.CART,
 			storage: createJSONStorage(() => AsyncStorage),
-			// Only persist draft (unsent) items. sentToKitchen=true items belong
-			// to an active billing session — if the app restarts, orderStore's
-			// activeOrderId is gone (not persisted) so those locked items would
-			// create a ghost billing session with no recoverable order context.
+			
 			partialize: (state) => ({
 				cart: state.cart.filter((i) => !i.sentToKitchen),
 			}),

@@ -22,7 +22,6 @@ import type { CartItem } from "../../types/cart";
 import type { Order } from "../../types/order";
 import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
-import { mapApiItemsToCart } from "../../utils/orderMappers";
 import CustomerModal from "../customer/CustomerModal";
 import TableModal from "../table/TableModal";
 import CartModalItem from "./CartModalItem";

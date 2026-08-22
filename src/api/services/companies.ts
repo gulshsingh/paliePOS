@@ -13,7 +13,8 @@ export interface Company {
 	updated_at?: string;
 }
 
-export const getCompany = () => api.get<ApiResponse<Company>>("/companies/me");
+export const getCompany = () =>
+	api.get<ApiResponse<{ data: Company }>>("/companies/me").then((res) => res.data.data?.data);
 
 export const updateCompany = (data: Partial<Company>) =>
-	api.put<ApiResponse<Company>>("/companies/me", data);
+	api.put<ApiResponse<{ data: Company }>>("/companies/me", data);

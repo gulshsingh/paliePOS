@@ -82,11 +82,10 @@ export default function ConfigurationScreen() {
 	// ── Other hooks after all state ──
 	const { signOut } = useAuth();
 
-	const { data: companyData } = useQuery({
+	const { data: company } = useQuery({
 		queryKey: ["company"],
 		queryFn: () => getCompany(),
 	});
-	const company = companyData?.data?.data;
 
 	const { data: categoriesData } = useCategories();
 	const categories = (categoriesData as any)?.data ?? [];
