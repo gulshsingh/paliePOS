@@ -13,6 +13,7 @@ import {
 export function useProducts() {
 	return useInfiniteQuery({
 		queryKey: ["products"],
+		enabled: true,
 		initialPageParam: null as string | null,
 		queryFn: ({ pageParam }) => getProducts(pageParam),
 		getNextPageParam: (lastPage) =>

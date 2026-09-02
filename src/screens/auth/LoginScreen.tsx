@@ -15,10 +15,12 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { login } from "../../api/services/auth";
 import { useAuth } from "../../navigation/AppNavigator";
 import { loginSchema } from "../../schemas/auth/loginSchema";
+import { useQueryClient } from "@tanstack/react-query";
 import { theme } from "../../theme";
 
 export default function LoginScreen() {
 	const { signIn } = useAuth();
+	const qc = useQueryClient();
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -53,6 +55,7 @@ export default function LoginScreen() {
 		setLoading(true);
 		try {
 			const res = await login({ email, password });
+			qc.clear();
 			const d = res.data as any;
 			const token = d?.data?.data?.session?.access_token;
 			if (!token) {
