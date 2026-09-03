@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	FlatList,
 	Modal,
@@ -20,9 +20,14 @@ import { theme } from "../../theme";
 import type { Product } from "../../types/product";
 import BillingPanel from "../counter/BillingPanel";
 
-export default function ProductsPanel() {
+export default function ProductsPanel({ openCartSignal }: { openCartSignal?: number }) {
 	const [search, setSearch] = useState("");
 	const [cartOpen, setCartOpen] = useState(false);
+
+	// Open cart externally (e.g. from FlowPanel "Pay This Order")
+	useEffect(() => {
+		if (openCartSignal && openCartSignal > 0) setCartOpen(true);
+	}, [openCartSignal]);
 	const { data, isLoading } = useProducts();
 	const addToCart = useCartStore((s) => s.addToCart);
 	const cart = useCartStore((s) => s.cart);

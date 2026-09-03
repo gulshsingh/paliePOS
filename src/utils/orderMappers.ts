@@ -21,7 +21,7 @@ export function mapApiItemsToCart(
 		price_per_unit: Number(i.price),
 		qty: Number(i.quantity),
 		tax: 0,
-		status: (i.status ?? opts.status ?? "pending") as CartItem["status"],
+		status: (opts.sentToKitchen && opts.status ? opts.status : i.status ?? opts.status ?? "pending") as CartItem["status"],
 		product_id: i.product_id,
 		sentToKitchen: opts.sentToKitchen ?? true,
 		kotNo: opts.kotNo ?? (Number(i.kot_no) || 1),

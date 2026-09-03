@@ -16,6 +16,8 @@ import { useCustomers } from "../../hooks/useCustomers";
 import { useTables } from "../../hooks/useTables";
 import { theme } from "../../theme";
 import type { Order } from "../../types/order";
+import { extractList } from "../../utils/apiHelpers";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
 
 export default function AllOrdersScreen({
 	embedded = false,
@@ -29,8 +31,7 @@ export default function AllOrdersScreen({
 	const customersData = useCustomers();
 
 	const tableMap = useMemo(() => {
-		const d = tablesData.data as any;
-		const list = d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? d ?? [];
+		const list = extractList(tablesData.data);
 		return new Map<string, string>(
 			(list ?? []).map((t: any) => [t.id, t.name]),
 		);
@@ -38,34 +39,20 @@ export default function AllOrdersScreen({
 
 	const customerMap = useMemo(() => {
 		const list =
-			customersData.data?.pages.flatMap((p: any) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [];
+			customersData.data?.pages.flatMap((p: any) => extractList(p.data)) ?? [];
 		return new Map<string, string>(list.map((c: any) => [c.id, c.name]));
 	}, [customersData.data]);
 
 	const orders: Order[] = useMemo(() => {
 		const apiOrders =
-			data?.pages.flatMap((p) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [];
+			data?.pages.flatMap((p) => extractList(p.data)) ?? [];
 
 		return apiOrders.map((o: any) => ({
 			id: o.id,
 			order_number: o.order_number,
-			items: (o.items ?? []).map((i: any) => ({
-				id: i.id,
-				name: i.product?.name ?? i.product_name ?? "",
-				price: Number(i.total),
-				price_per_unit: Number(i.price),
-				qty: Number(i.quantity),
-				tax: 0,
-				status: i.status,
-				product_id: i.product_id,
-			})),
+			items: mapApiItemsToCart(o.items ?? [], {}),
 			total: Number(o.grand_total),
+			tax_amount: Number(o.tax_amount) || 0,
 			status: o.status,
 			invoice: o.invoice === true,
 			paymentStatus: o.payment_status ?? "UNPAID",
@@ -78,7 +65,9 @@ export default function AllOrdersScreen({
 	}, [data, tableMap, customerMap]);
 
 	const renderOrder = useCallback(
-		({ item }: { item: Order }) => <OrderCard order={item} readOnly />,
+		({ item }: { item: Order }) => (
+			<OrderCard order={item} readOnly  hideStatus />
+		),
 		[],
 	);
 
@@ -212,9 +201,6 @@ const styles = StyleSheet.create({
 	skeletonHeaderRight: {
 		alignItems: "flex-end",
 		gap: 5,
-	},
-	skeletonMargin: {
-		marginTop: 8,
 	},
 	emptyState: {
 		flex: 1,
