@@ -24,8 +24,14 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 export default function CounterScreen() {
 	const insets = useSafeAreaInsets();
 	const [activeTab, setActiveTab] = useState<Tab>("products");
+	const [openCartSignal, setOpenCartSignal] = useState(0);
 
 	const handleBillToCart = () => {
+		setActiveTab("products");
+	};
+
+	const handlePayOrder = () => {
+		setOpenCartSignal((n) => n + 1);
 		setActiveTab("products");
 	};
 
@@ -91,9 +97,12 @@ export default function CounterScreen() {
 				{activeTab === "orders" && (
 					<OrdersPanel onBillToCart={handleBillToCart} />
 				)}
-				{activeTab === "products" && <ProductsPanel />}
+				{activeTab === "products" && <ProductsPanel openCartSignal={openCartSignal} />}
 				{activeTab === "flow" && (
-					<FlowPanel onResume={() => setActiveTab("products")} />
+					<FlowPanel
+						onResume={() => setActiveTab("products")}
+						onPayOrder={handlePayOrder}
+					/>
 				)}
 			</View>
 		</View>

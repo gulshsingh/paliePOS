@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { useMemo } from "react";
 import {
 	FlatList,
 	StatusBar,
@@ -9,24 +10,76 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import Skeleton from "../../components/common/Skeleton";
+import { useOrders } from "../../hooks/useOrders";
 import { useCartStore, mergeOrderItems } from "../../store/cartStore";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { Order } from "../../types/order";
+import { extractList } from "../../utils/apiHelpers";
+import { mapApiItemsToCart } from "../../utils/orderMappers";
 
 const STATUS_COLOR: Record<string, string> = {
 	PENDING: theme.colors.warning,
+	PREPARING: theme.colors.info,
 	KITCHEN: theme.colors.info,
 	SERVING: theme.colors.success,
+	READY: theme.colors.success,
+	SERVED: theme.colors.textMuted,
 	COMPLETED: theme.colors.textMuted,
 };
+
+function isToday(dateStr?: string): boolean {
+	if (!dateStr) return true;
+	const d = new Date(dateStr);
+	if (Number.isNaN(d.getTime())) return false;
+	const now = new Date();
+	return (
+		d.getFullYear() === now.getFullYear() &&
+		d.getMonth() === now.getMonth() &&
+		d.getDate() === now.getDate()
+	);
+}
 
 export default function RunningOrdersScreen() {
 	const insets = useSafeAreaInsets();
 	const navigation = useNavigation<any>();
-	const orders = useOrderStore((s) => s.orders);
+	const sessionOrders = useOrderStore((s) => s.orders);
 	const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
 	const setCart = useCartStore((s) => s.setCart);
+	const itemStatusOverrides = useOrderStore((s) => s.itemStatusOverrides);
+
+	const { data, isLoading } = useOrders();
+
+	const apiOrders = useMemo(() => {
+		const all = data?.pages.flatMap((p) => extractList(p.data)) ?? [];
+		return all
+			.filter((o: any) => isToday(o.created_at))
+			.map((o: any) => ({
+				id: o.id,
+				order_number: o.order_number,
+				items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
+					...item,
+					status: itemStatusOverrides[item.id] ?? item.status,
+				})),
+				total: Number(o.grand_total),
+				tax_amount: Number(o.tax_amount) || 0,
+				status: o.status,
+				invoice: o.invoice === true,
+				paymentStatus: o.payment_status ?? "UNPAID",
+				table_id: o.table_id,
+				account_id: o.account_id,
+				table_name: o.table?.name ?? "",
+				customer_name: o.account?.name ?? "",
+			}));
+	}, [data, itemStatusOverrides]);
+
+	const orders = useMemo(() => {
+		const merged = new Map<string, Order>();
+		for (const o of apiOrders) merged.set(o.id, o);
+		for (const o of sessionOrders) merged.set(o.id, o);
+		return [...merged.values()];
+	}, [apiOrders, sessionOrders]);
 
 	const handleSelectOrder = (order: Order) => {
 		setCart(mergeOrderItems(order.items));
@@ -119,26 +172,43 @@ export default function RunningOrdersScreen() {
 				<View style={styles.headerSpacer} />
 			</View>
 
-			<FlatList
-				data={orders}
-				keyExtractor={(item) => item.id}
-				renderItem={renderItem}
-				contentContainerStyle={styles.listContent}
-				showsVerticalScrollIndicator={false}
-				ListEmptyComponent={
-					<View style={styles.emptyState}>
-						<MaterialCommunityIcons
-							name="receipt"
-							size={56}
-							color={theme.colors.textMuted}
-						/>
-						<Text style={styles.emptyTitle}>No running orders</Text>
-						<Text style={styles.emptySub}>
-							Orders you send to kitchen will appear here
-						</Text>
-					</View>
-				}
-			/>
+			{isLoading ? (
+				<View style={styles.listContent}>
+					{[1, 2, 3].map((i) => (
+						<View key={i} style={styles.skeletonCard}>
+							<View style={styles.skeletonRow}>
+								<Skeleton width={70} height={32} borderRadius={8} />
+								<View style={styles.skeletonFlex}>
+									<Skeleton width="60%" height={14} borderRadius={6} />
+									<Skeleton width="35%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
+								</View>
+								<Skeleton width={60} height={20} borderRadius={6} />
+							</View>
+						</View>
+					))}
+				</View>
+			) : (
+				<FlatList
+					data={orders}
+					keyExtractor={(item) => item.id}
+					renderItem={renderItem}
+					contentContainerStyle={styles.listContent}
+					showsVerticalScrollIndicator={false}
+					ListEmptyComponent={
+						<View style={styles.emptyState}>
+							<MaterialCommunityIcons
+								name="receipt"
+								size={56}
+								color={theme.colors.textMuted}
+							/>
+							<Text style={styles.emptyTitle}>No running orders</Text>
+							<Text style={styles.emptySub}>
+								Orders you send to kitchen will appear here
+							</Text>
+						</View>
+					}
+				/>
+			)}
 		</View>
 	);
 }
@@ -273,5 +343,21 @@ const styles = StyleSheet.create({
 	},
 	headerSpacer: {
 		width: 36,
+	},
+	skeletonCard: {
+		backgroundColor: "#fff",
+		borderRadius: theme.radius.lg,
+		padding: 14,
+		marginBottom: 8,
+		borderWidth: 1,
+		borderColor: theme.colors.borderLight,
+	},
+	skeletonRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 12,
+	},
+	skeletonFlex: {
+		flex: 1,
 	},
 });

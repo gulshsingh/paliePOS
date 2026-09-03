@@ -31,9 +31,6 @@ const TAB_ITEM_STATUS: Record<OrderTab, string> = {
 function isToday(dateStr?: string): boolean {
 	if (!dateStr) return true;
 	const d = new Date(dateStr);
-	// Treat unparseable dates as NOT today — show them only when they have a
-	// valid timestamp that matches the current date. Previously invalid dates
-	// defaulted to true, leaking stale or corrupt orders into every tab.
 	if (Number.isNaN(d.getTime())) return false;
 	const now = new Date();
 	return (
@@ -111,6 +108,7 @@ export default function OrdersPanel({
 				onAddItems={handleBillOrder}
 				onUpdateStatus={updateItemStatusLocally}
 				actionableStatus={TAB_ITEM_STATUS[activeTab]}
+				hideAmount
 			/>
 		),
 		[handleBillOrder, updateItemStatusLocally, activeTab],
@@ -126,8 +124,6 @@ export default function OrdersPanel({
 			.map((o: any) => ({
 			id: o.id,
 			order_number: o.order_number,
-			// Use mapApiItemsToCart so item.id is always the real server
-			// order-item UUID. Optimistic overrides win over server status.
 			items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
 				...item,
 				status: itemStatusOverrides[item.id] ?? item.status,
@@ -143,21 +139,15 @@ export default function OrdersPanel({
 			customer_name: o.account?.name ?? customerMap.get(o.account_id) ?? "",
 		}));
 
-		// Merge session (local zustand) orders on top so edits & additions
-		// made in this session stay visible. Local copy wins on id clash.
 		const merged = new Map<string, Order>();
 		for (const o of apiMapped) merged.set(o.id, o);
 		for (const lo of localOrders) merged.set(lo.id, lo);
 
-		// A tab lists orders that have at least one item in that status, but the
-		// order object keeps its full item list so nothing is lost when billing.
 		return [...merged.values()].filter((o) =>
 			o.items.some((i) => i.status === tabStatus),
 		);
 	}, [data, activeTab, localOrders, itemStatusOverrides, tableMap, customerMap]);
 
-	// Clear item-status overrides once the server confirms them in a fetch, so
-	// the optimistic state converges with the backend without ever flickering.
 	useEffect(() => {
 		const overrides = useOrderStore.getState().itemStatusOverrides;
 		const ids = Object.keys(overrides);
@@ -197,14 +187,14 @@ export default function OrdersPanel({
 							onPress={() => setActiveTab(tab)}
 							activeOpacity={0.8}
 						>
-							<MaterialCommunityIcons
-								name={meta.icon}
-								size={14}
-								color={isActive ? meta.color : theme.colors.textMuted}
-							/>
-							<Text style={[styles.tabText, isActive && { color: meta.color }]}>
-								{tab}
-							</Text>
+						<MaterialCommunityIcons
+							name={meta.icon}
+							size={14}
+							color={isActive ? meta.color : theme.colors.textMuted}
+						/>
+						<Text style={[styles.tabText, isActive && { color: meta.color }]}>
+							{tab}
+						</Text>
 						</TouchableOpacity>
 					);
 				})}

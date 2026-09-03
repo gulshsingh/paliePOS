@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useCustomers } from "../../hooks/useCustomers";
-import { useCreateOrder } from "../../hooks/useOrders";
+import { useCreateOrder, useUpdateItemStatus } from "../../hooks/useOrders";
 import { useTables } from "../../hooks/useTables";
 import { useCartStore } from "../../store/cartStore";
 import { useCustomerStore } from "../../store/customerStore";
@@ -55,6 +55,7 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 	const { data: customersData } = useCustomers();
 	const { data: tablesData } = useTables();
 	const createOrder = useCreateOrder();
+	const updateItemStatusRemote = useUpdateItemStatus();
 
 	const customers = useMemo(
 		() =>
@@ -109,16 +110,16 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 				order_number: o?.order_number,
 				items:
 					(o?.items ?? []).length > 0
-						? mapApiItemsToCart(o.items, { status: "pending", sentToKitchen: true, kotNo: 1 })
+						? mapApiItemsToCart(o.items, { status: "preparing", sentToKitchen: true, kotNo: 1 })
 						: cart.map((i) => ({
 								...i,
-								status: "pending" as const,
+								status: "preparing" as const,
 								sentToKitchen: true,
 								kotNo: 1,
 							})),
 				total: grandTotal,
 				tax_amount: taxTotal,
-				status: "PENDING",
+				status: "PREPARING",
 				paymentStatus: "UNPAID",
 				table_id: selectedTable?.id ?? null,
 				account_id: selectedCustomer?.id ?? null,
@@ -141,6 +142,19 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			};
 
 			addOrder(newOrder);
+
+			const serverItems: any[] = o?.items ?? [];
+			if (serverItems.length > 0) {
+				const store = useOrderStore.getState();
+				for (const item of serverItems) {
+					store.setItemStatusOverride(item.id, "preparing");
+					updateItemStatusRemote.mutate(
+						{ item_id: item.id, status: "preparing" },
+						{ onError: () => {} },
+					);
+				}
+			}
+
 			clearCart();
 			setActiveOrder(null);
 			setSelectedTable(null);
