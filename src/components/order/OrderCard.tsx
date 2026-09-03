@@ -10,9 +10,9 @@ interface Props {
 	onAddItems?: (order: Order) => void;
 	onUpdateStatus?: (itemId: string, status: ApiOrderItemStatus) => void;
 	readOnly?: boolean;
-	// Only show action buttons for items whose current status matches this.
-	// Prevents wrong-tab button flash (e.g. "Mark Ready" showing in Pending tab).
 	actionableStatus?: string;
+	hideAmount?: boolean;
+	hideStatus?: boolean;
 }
 
 const NEXT_STATUS: Record<
@@ -20,8 +20,8 @@ const NEXT_STATUS: Record<
 	{ action: string; next: ApiOrderItemStatus }
 > = {
 	pending: { action: "Send to Kitchen", next: "preparing" },
-	preparing: { action: "Mark Ready", next: "ready" },
-	ready: { action: "Serve Now", next: "served" },
+	preparing: { action: "Serve Now", next: "ready" },
+	ready: { action: "Mark Server", next: "served" },
 };
 
 const STATUS_BADGE: Record<
@@ -62,6 +62,8 @@ export default memo(function OrderCard({
 	onUpdateStatus,
 	readOnly = false,
 	actionableStatus,
+	hideAmount = false,
+	hideStatus = false,
 }: Props) {
 	const [expanded, setExpanded] = useState(false);
 
@@ -136,9 +138,11 @@ export default memo(function OrderCard({
 				</View>
 
 				<View style={styles.headerRight}>
-					<Text style={styles.totalAmount}>
-						₹{order.total.toLocaleString("en-IN")}
-					</Text>
+					{!hideAmount && (
+						<Text style={styles.totalAmount}>
+							₹{order.total.toLocaleString("en-IN")}
+						</Text>
+					)}
 					<MaterialCommunityIcons
 						name={expanded ? "chevron-up" : "chevron-down"}
 						size={18}
@@ -193,7 +197,7 @@ export default memo(function OrderCard({
 										</Text>
 									</TouchableOpacity>
 								)}
-								{readOnly && (
+								{readOnly && !hideStatus && (
 									<View
 										style={[
 											styles.statusBadge,
