@@ -9,7 +9,7 @@ import BillingItem from "../../components/billing/BillingItem";
 import CustomerModal from "../../components/customer/CustomerModal";
 import TableModal from "../../components/table/TableModal";
 import { useCustomers } from "../../hooks/useCustomers";
-import { useAddOrderItems, useCreateOrder } from "../../hooks/useOrders";
+import { useAddOrderItems, useCreateOrder, useUpdateItemStatus } from "../../hooks/useOrders";
 import { useTables } from "../../hooks/useTables";
 import { useCartStore } from "../../store/cartStore";
 import { useCustomerStore } from "../../store/customerStore";
@@ -61,6 +61,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const { data: tablesData } = useTables();
 	const createOrder = useCreateOrder();
 	const addOrderItems = useAddOrderItems();
+	const updateItemStatusRemote = useUpdateItemStatus();
 
 	const customers = useMemo(
 		() =>
@@ -77,6 +78,33 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		() => orders.find((o) => o.id === activeOrderId) ?? null,
 		[orders, activeOrderId],
 	);
+
+	const setCart = useCartStore((s) => s.setCart);
+
+	const [loadedForOrder, setLoadedForOrder] = useState<string | null>(null);
+	useEffect(() => {
+		if (!existingOrder) return;
+		if (loadedForOrder === existingOrder.id) return;
+		if (cart.length > 0) return;
+		setCart(
+			existingOrder.items.map((i) => ({
+				...i,
+				sentToKitchen: true,
+			})),
+		);
+		setLoadedForOrder(existingOrder.id);
+	}, [existingOrder, loadedForOrder, cart.length, setCart]);
+
+	useEffect(() => {
+		return () => {
+			// Don't clear cart if navigating to payment (active order exists)
+			// — ProceedPaymentScreen needs the cart data.
+			if (!useOrderStore.getState().activeOrderId) {
+				clearCart();
+			}
+			setLoadedForOrder(null);
+		};
+	}, [clearCart]);
 
 	// Model B: while editing an existing order, only lines that were never
 	// confirmed to kitchen (sentToKitchen = false) are pending additions.
@@ -162,21 +190,19 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	}, [cart, additions, isBillingExisting, existingOrder]);
 
 	const handleClearAll = useCallback(() => {
-		// Full reset: clear the whole cart (locked + new items) and the active
-		// order context so the billing view starts fresh again.
 		clearCart();
 		setActiveOrder(null);
 		setSelectedCustomer(null);
 		setSelectedTable(null);
 		setAutofilledFor(null);
+		setLoadedForOrder(null);
 	}, [
 		clearCart,
 		setActiveOrder,
 		setSelectedCustomer,
 		setSelectedTable,
-		// setAutofilledFor is a stable React setState setter but is listed
-		// explicitly so linters don't warn about the missing dependency.
 		setAutofilledFor,
+		setLoadedForOrder,
 	]);
 
 	const handleSendToKitchen = async () => {
@@ -213,21 +239,21 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			// Use server-returned item IDs (real order-item UUIDs). If the
 			// response includes items, map them directly so we never store
 			// a product_id where an order-item UUID is required.
-			const newOrder: Order = {
-				id: o?.id,
-				order_number: o?.order_number,
-				items:
-					(o?.items ?? []).length > 0
-						? mapApiItemsToCart(o.items, { status: "pending", sentToKitchen: true, kotNo: 1 })
-						: cart.map((i) => ({
-								...i,
-								status: "pending" as const,
-								sentToKitchen: true,
-								kotNo: 1,
-							})),
+const newOrder: Order = {
+			id: o?.id,
+			order_number: o?.order_number,
+			items:
+				(o?.items ?? []).length > 0
+					? mapApiItemsToCart(o.items, { status: "preparing", sentToKitchen: true, kotNo: 1 })
+					: cart.map((i) => ({
+							...i,
+							status: "preparing" as const,
+							sentToKitchen: true,
+							kotNo: 1,
+						})),
 				total: grandTotal,
 				tax_amount: taxTotal,
-				status: "PENDING",
+				status: "PREPARING",
 				paymentStatus: "UNPAID",
 				table_id: selectedTable?.id ?? null,
 				account_id: selectedCustomer?.id ?? null,
@@ -249,6 +275,19 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			};
 
 			addOrder(newOrder);
+
+			const serverItems: any[] = o?.items ?? [];
+			if (serverItems.length > 0) {
+				const store = useOrderStore.getState();
+				for (const item of serverItems) {
+					store.setItemStatusOverride(item.id, "preparing");
+					updateItemStatusRemote.mutate(
+						{ item_id: item.id, status: "preparing" },
+						{ onError: () => {} },
+					);
+				}
+			}
+
 			clearCart();
 			setActiveOrder(null);
 			setSelectedTable(null);
@@ -281,7 +320,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		const sentAdditions = additions.map((i, idx) => ({
 			...i,
 			id: `__tmp_${i.product_id ?? i.id}_${idx}`,
-			status: "pending" as const,
+			status: "preparing" as const,
 			sentToKitchen: true,
 			kotNo,
 		}));
@@ -338,9 +377,28 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			const serverItems: any[] = updatedOrder?.items ?? [];
 
 			if (serverItems.length > 0) {
-				useOrderStore.getState().updateOrder(order.id, {
-					items: mapApiItemsToCart(serverItems),
+				const mapped = mapApiItemsToCart(serverItems, {
+					status: "preparing",
+					sentToKitchen: true,
 				});
+				useOrderStore.getState().updateOrder(order.id, {
+					items: mapped,
+				});
+
+				// Set preparing status overrides + call API for new items
+				const additionProductIds = new Set(
+					sentAdditions.map((i) => i.product_id ?? i.id),
+				);
+				const newItems = serverItems.filter((si: any) =>
+					additionProductIds.has(si.product_id),
+				);
+				for (const item of newItems) {
+					useOrderStore.getState().setItemStatusOverride(item.id, "preparing");
+					updateItemStatusRemote.mutate(
+						{ item_id: item.id, status: "preparing" },
+						{ onError: () => {} },
+					);
+				}
 			}
 		} catch (e) {
 			// Roll back the optimistic local update
