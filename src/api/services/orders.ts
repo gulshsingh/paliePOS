@@ -11,10 +11,15 @@ export const getOrders = (params?: {
 	status?: string;
 	cursor?: string | null;
 	limit?: number;
-}) =>
-	api.get<ApiResponse<{ data: ApiOrder[]; pagination: any }>>("/orders", {
-		params: { ...params, limit: params?.limit ?? 20 },
+}) => {
+	const clean: Record<string, any> = { limit: params?.limit ?? 20 };
+	if (params?.item_status) clean.item_status = params.item_status;
+	if (params?.status) clean.status = params.status;
+	if (params?.cursor) clean.cursor = params.cursor;
+	return api.get<ApiResponse<{ data: ApiOrder[]; pagination: any }>>("/orders", {
+		params: clean,
 	});
+};
 
 export const getOrder = (id: string) =>
 	api.get<ApiResponse<ApiOrder>>(`/orders/${id}`);
