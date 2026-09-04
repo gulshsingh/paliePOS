@@ -4,9 +4,6 @@ import type { ApiOrderItemStatus, Order } from "../types/order";
 interface OrderStore {
 	orders: Order[];
 	activeOrderId: string | null;
-	// Locally-confirmed item status changes (itemId -> status). Set instantly
-	// on tap so the UI moves the order between tabs with ZERO delay; cleared
-	// once the server confirms via the next orders fetch.
 	itemStatusOverrides: Record<string, ApiOrderItemStatus>;
 	setOrders: (orders: Order[]) => void;
 	addOrder: (order: Order) => void;
@@ -25,9 +22,6 @@ interface OrderStore {
 	deleteOrder: (id: string) => void;
 }
 
-// Maximum number of orders to keep in memory. Orders are prepended newest-
-// first, so trimming the tail drops the oldest session orders. The active
-// order and any order with a pending item-status override are never evicted.
 const MAX_ORDERS = 100;
 
 export const useOrderStore = create<OrderStore>((set) => ({
@@ -37,9 +31,8 @@ export const useOrderStore = create<OrderStore>((set) => ({
 	setOrders: (orders) => set({ orders }),
 	addOrder: (order) =>
 		set((state) => {
-			const next = [order, ...state.orders];
-			// Trim oldest orders beyond the cap, but never evict the active order
-			// or orders that still have in-flight status overrides.
+			const exists = state.orders.some((o) => o.id === order.id);
+			const next = exists ? state.orders.map((o) => (o.id === order.id ? order : o)) : [order, ...state.orders];
 			if (next.length > MAX_ORDERS) {
 				const overrideIds = new Set(
 					next.flatMap((o) =>
@@ -56,6 +49,7 @@ export const useOrderStore = create<OrderStore>((set) => ({
 					trimmed++;
 					return false;
 				});
+				if (capped.length > MAX_ORDERS) capped.length = MAX_ORDERS;
 				return { orders: capped };
 			}
 			return { orders: next };

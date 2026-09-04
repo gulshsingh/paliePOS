@@ -133,7 +133,7 @@ export default function AppNavigator() {
 	}, []);
 
 	const signOut = useCallback(async () => {
-		await AsyncStorage.clear();
+		await AsyncStorage.removeItem("token");
 		setToken(null);
 	}, []);
 

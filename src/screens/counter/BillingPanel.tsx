@@ -82,6 +82,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const setCart = useCartStore((s) => s.setCart);
 
 	const [loadedForOrder, setLoadedForOrder] = useState<string | null>(null);
+	const isLoadingCart = existingOrder && loadedForOrder !== existingOrder.id && cart.length === 0;
 	useEffect(() => {
 		if (!existingOrder) return;
 		if (loadedForOrder === existingOrder.id) return;
@@ -97,14 +98,9 @@ export default function BillingPanel({ onRequestClose }: Props) {
 
 	useEffect(() => {
 		return () => {
-			// Don't clear cart if navigating to payment (active order exists)
-			// — ProceedPaymentScreen needs the cart data.
-			if (!useOrderStore.getState().activeOrderId) {
-				clearCart();
-			}
 			setLoadedForOrder(null);
 		};
-	}, [clearCart]);
+	}, []);
 
 	// Model B: while editing an existing order, only lines that were never
 	// confirmed to kitchen (sentToKitchen = false) are pending additions.
@@ -192,6 +188,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const handleClearAll = useCallback(() => {
 		clearCart();
 		setActiveOrder(null);
+		setActiveDraftId(null);
 		setSelectedCustomer(null);
 		setSelectedTable(null);
 		setAutofilledFor(null);
@@ -199,6 +196,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	}, [
 		clearCart,
 		setActiveOrder,
+		setActiveDraftId,
 		setSelectedCustomer,
 		setSelectedTable,
 		setAutofilledFor,
@@ -207,6 +205,10 @@ export default function BillingPanel({ onRequestClose }: Props) {
 
 	const handleSendToKitchen = async () => {
 		if (cart.length === 0 || submittingRef.current) return;
+		if (!selectedTable) {
+			setTableModal(true);
+			return;
+		}
 		submittingRef.current = true;
 		if (existingOrder) {
 			if (existingOrder.paymentStatus === "PAID") {
@@ -226,7 +228,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				discount_amount: 0,
 				grand_total: grandTotal,
 				items: cart.map((i) => ({
-					product_id: i.id,
+					product_id: i.product_id ?? i.id,
 					quantity: i.qty,
 					price: i.price_per_unit,
 					total: i.price_per_unit * i.qty,
@@ -305,6 +307,7 @@ const newOrder: Order = {
 	// Model B delta: only never-sent lines go to the kitchen as a new KOT.
 	// Original items keep their status — kitchen never re-cooks them.
 	const handleEditSend = async (order: Order) => {
+		const additionsCount = additions.length;
 		if (additions.length === 0) return;
 		const kotNo = Math.max(
 			order.nextKotNo ?? 1,

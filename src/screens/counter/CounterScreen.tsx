@@ -18,7 +18,7 @@ type Tab = "orders" | "products" | "flow";
 const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: "orders", label: "Orders", icon: "clipboard-list-outline" },
 	{ key: "products", label: "Menu", icon: "food-outline" },
-	{ key: "flow", label: "Flor", icon: "format-list-bulleted" },
+	{ key: "flow", label: "Floor", icon: "format-list-bulleted" },
 ];
 
 export default function CounterScreen() {

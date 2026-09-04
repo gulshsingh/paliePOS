@@ -183,7 +183,8 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 					<Text style={styles.resultsText}>
 						{filtered.length} {filtered.length === 1 ? "item" : "items"}
 						{search ? ` for "${search}"` : " on menu"}
-					</Text>
+				</Text>
+				{cartCount > 0 && (
 					<TouchableOpacity
 						style={styles.newOrderBtn}
 						onPress={handleNewOrder}
@@ -196,6 +197,7 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 						/>
 						<Text style={styles.newOrderText}>New Order</Text>
 					</TouchableOpacity>
+				)}
 				</View>
 			)}
 

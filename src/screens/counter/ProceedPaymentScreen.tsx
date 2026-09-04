@@ -115,7 +115,16 @@ export default function ProceedPaymentScreen() {
 			}
 
 			// ④ Create invoice for the order
-			const invoiceRes = await generateInvoice(orderId);
+			const invoiceRes = await generateInvoice({
+				order_id: orderId,
+				account_id: customer?.id ?? null,
+				invoice_date: new Date().toISOString(),
+				payment_type: amountPaid >= totalPayable ? "cash" : "credit",
+				paid_amount: amountPaid,
+				change_amount: change >= 0 ? change : 0,
+				tax_amount: taxTotal,
+				discount_amount: Number(discount || 0),
+			});
 			const invData = (invoiceRes.data as any)?.data;
 			const invoice = invData?.data ?? invData;
 			const invoiceId = invoice?.id;

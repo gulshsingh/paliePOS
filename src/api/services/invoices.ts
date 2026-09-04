@@ -26,5 +26,16 @@ export const getInvoices = (params?: {
 export const getInvoice = (id: string) =>
 	api.get<ApiResponse<Invoice>>(`/invoices/${id}`);
 
-export const generateInvoice = (orderId: string) =>
-	api.post<ApiResponse<Invoice>>("/invoices", { order_id: orderId });
+export interface InvoicePayload {
+	order_id: string;
+	account_id?: string | null;
+	invoice_date?: string;
+	payment_type?: string;
+	paid_amount?: number;
+	change_amount?: number;
+	tax_amount?: number;
+	discount_amount?: number;
+}
+
+export const generateInvoice = (payload: InvoicePayload) =>
+	api.post<ApiResponse<Invoice>>("/invoices", payload);

@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { theme } from "../../theme";
@@ -15,45 +15,37 @@ interface Props {
 	hideStatus?: boolean;
 }
 
-const NEXT_STATUS: Record<
+const NEXT_ACTION: Record<
 	string,
-	{ action: string; next: ApiOrderItemStatus }
+	{ label: string; next: ApiOrderItemStatus; icon: string }
 > = {
-	pending: { action: "Send to Kitchen", next: "preparing" },
-	preparing: { action: "Serve Now", next: "ready" },
-	ready: { action: "Mark Server", next: "served" },
+	pending: { label: "Send to Kitchen", next: "preparing", icon: "silverware-fork-knife" },
+	preparing: { label: "Serve Now", next: "ready", icon: "check-circle-outline" },
+	ready: { label: "Mark Served", next: "served", icon: "check-all" },
 };
 
-const STATUS_BADGE: Record<
-	string,
-	{ label: string; color: string; bg: string }
-> = {
-	pending: {
-		label: "Pending",
-		color: theme.colors.warning,
-		bg: theme.colors.warningLight,
-	},
-	preparing: {
-		label: "Kitchen",
-		color: theme.colors.info,
-		bg: theme.colors.infoLight,
-	},
-	ready: {
-		label: "Serving",
-		color: theme.colors.success,
-		bg: theme.colors.successLight,
-	},
-	served: {
-		label: "Served",
-		color: theme.colors.textSecondary,
-		bg: theme.colors.surfaceTertiary,
-	},
-	cancelled: {
-		label: "Cancelled",
-		color: theme.colors.danger,
-		bg: theme.colors.dangerLight,
-	},
+const ST = {
+	pending:   { dot: "#F59E0B", bg: "#FEF3C7", text: "#92400E", label: "Pending" },
+	preparing: { dot: "#3B82F6", bg: "#DBEAFE", text: "#1E40AF", label: "In Kitchen" },
+	ready:     { dot: "#10B981", bg: "#D1FAE5", text: "#065F46", label: "Ready" },
+	served:    { dot: "#6B7280", bg: "#F3F4F6", text: "#374151", label: "Served" },
+	cancelled: { dot: "#EF4444", bg: "#FEE2E2", text: "#991B1B", label: "Cancelled" },
 };
+
+const PAY = {
+	PAID:           { dot: "#10B981", bg: "#D1FAE5", text: "#065F46", label: "Paid" },
+	PARTIALLY_PAID: { dot: "#F59E0B", bg: "#FEF3C7", text: "#92400E", label: "Partial" },
+	UNPAID:         { dot: "#EF4444", bg: "#FEE2E2", text: "#991B1B", label: "Unpaid" },
+};
+
+function elapsed(dateStr?: string): string {
+	if (!dateStr) return "";
+	const m = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+	if (m < 1) return "now";
+	if (m < 60) return `${m}m`;
+	const h = Math.floor(m / 60);
+	return h < 24 ? `${h}h ${m % 60}m` : `${Math.floor(h / 24)}d`;
+}
 
 export default memo(function OrderCard({
 	order,
@@ -65,198 +57,167 @@ export default memo(function OrderCard({
 	hideAmount = false,
 	hideStatus = false,
 }: Props) {
-	const [expanded, setExpanded] = useState(false);
+	const [open, setOpen] = useState(false);
+	const fired = useRef<Record<string, ApiOrderItemStatus>>({});
+	const prevId = useRef(order.id);
+	if (prevId.current !== order.id) { prevId.current = order.id; fired.current = {}; }
 
-	// Stores the status we just fired for each item (itemId → firedStatus).
-	// This ref is read synchronously during render to compute effectiveStatus,
-	// so the button reflects the new state in the SAME render that Zustand
-	// triggers (no flash of the wrong next-button is possible).
-	// We never clear it — once order.items carries the Zustand override the
-	// firedRef value equals item.status and has no effect.
-	const firedRef = useRef<Record<string, ApiOrderItemStatus>>({});
+	const items = order.items;
+	const qty = items.reduce((s, i) => s + i.qty, 0);
+	const total = items.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
+	const allDone = items.every((i) => i.status === "served");
+	const paid = order.paymentStatus === "PAID";
+	const invoiced = order.invoice === true;
+	const st = order.status?.toLowerCase?.() ?? "pending";
 
-	// Guard against FlatList reusing the same component instance for a
-	// different order (key collision / list reorder). If the order id changes,
-	// the previously fired statuses no longer apply — reset the ref so stale
-	// entries don't suppress action buttons on the new order.
-	const prevOrderIdRef = useRef(order.id);
-	if (prevOrderIdRef.current !== order.id) {
-		prevOrderIdRef.current = order.id;
-		firedRef.current = {};
-	}
+	const counts = useMemo(() => {
+		const c: Record<string, number> = {};
+		items.forEach((i) => { if (i.status !== "pending" && i.status !== "preparing") c[i.status] = (c[i.status] || 0) + 1; });
+		return c;
+	}, [items]);
 
-	const allServed = order.items.every((i) => i.status === "served");
-	const isPaid = order.paymentStatus === "PAID";
-	const isInvoiced = order.invoice === true;
-	const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
+	const stMap = ST as Record<string, { dot: string; bg: string; text: string; label: string }>;
+	const payMap = PAY as Record<string, { dot: string; bg: string; text: string; label: string }>;
+	const S = stMap[st] ?? ST.pending;
+	const P = payMap[order.paymentStatus] ?? PAY.UNPAID;
+
+	const steps = ["pending", "preparing", "ready", "served"];
+	const idx = steps.indexOf(st);
+	const pct = st === "served" ? 100 : st === "cancelled" ? 0 : ((idx + 1) / steps.length) * 100;
 
 	return (
 		<TouchableOpacity
-			style={styles.card}
-			onPress={() => setExpanded(!expanded)}
-			activeOpacity={0.95}
+			style={[s.card, open && s.cardOpen]}
+			onPress={() => setOpen(!open)}
+			activeOpacity={0.96}
 		>
-			{/* Card header */}
-			<View style={styles.header}>
-				<View style={styles.headerLeft}>
-					<View style={styles.orderNumBadge}>
-						<Text style={styles.orderNum}>#{order.order_number}</Text>
-						{order.customer_name && (
-							<Text style={styles.custChipText} numberOfLines={1}>
-								{order.customer_name}
-							</Text>
-						)}
+			{/* ── ROW 1: number + chips + price ── */}
+			<View style={s.row}>
+				<View style={s.left}>
+					<View style={[s.numWrap, { backgroundColor: "#FEF2F2" }]}>
+						<Text style={[s.num, { color: "#DC2626" }]}>#{order.order_number}</Text>
 					</View>
-					<View>
-						<View style={styles.metaRow}>
-							{order.table_name ? (
-								<View style={styles.tableChip}>
-									<MaterialCommunityIcons
-										name="table-furniture"
-										size={12}
-										color={theme.colors.primary}
-									/>
-									<Text style={styles.tableChipText} numberOfLines={1}>
-										{order.table_name}
-									</Text>
+					<View style={s.meta}>
+						<View style={s.chips}>
+							{order.customer_name ? (
+								<View style={[s.chip, { backgroundColor: "#FFF1F2" }]}>
+									<MaterialCommunityIcons name="account" size={10} color="#E11D48" />
+									<Text style={[s.chipT, { color: "#E11D48" }]} numberOfLines={1}>{order.customer_name}</Text>
 								</View>
-							) : (
-								<View style={styles.walkinChip}>
-									<MaterialCommunityIcons
-										name="account-outline"
-										size={12}
-										color={theme.colors.textMuted}
-									/>
-									<Text style={styles.walkinChipText}>Walk-in</Text>
-								</View>
-							)}
+							) : null}
 						</View>
-						<Text style={styles.itemCount}>
-							{totalQty} {totalQty === 1 ? "Item" : "Items"}
-						</Text>
+						<View style={s.infoRow}>
+							<Text style={s.infoT} numberOfLines={1}>
+								{items[0]?.name ?? ""}{items.length > 1 ? ` +${items.length - 1}` : ""}
+							</Text>
+							<View style={s.infoDot} />
+							<Text style={s.infoT}>{elapsed(order.created_at)}</Text>
+						</View>
 					</View>
 				</View>
 
-				<View style={styles.headerRight}>
-					{!hideAmount && (
-						<Text style={styles.totalAmount}>
-							₹{order.total.toLocaleString("en-IN")}
-						</Text>
+				<View style={s.right}>
+					{order.table_name ? (
+						<View style={[s.tableChip, { backgroundColor: "#FEF2F2" }]}>
+							<MaterialCommunityIcons name="table-furniture" size={14} color="#DC2626" />
+							<Text style={[s.tableChipT, { color: "#DC2626" }]} numberOfLines={1}>{order.table_name}</Text>
+						</View>
+					) : null}
+					{!hideAmount && <Text style={s.price}>₹{total.toLocaleString("en-IN")}</Text>}
+					{!hideStatus && st !== "pending" && st !== "preparing" && (
+						<View style={[s.pill, { backgroundColor: S.bg }]}>
+							<View style={[s.pillDot, { backgroundColor: S.dot }]} />
+							<Text style={[s.pillT, { color: S.text }]}>{S.label}</Text>
+						</View>
 					)}
-					<MaterialCommunityIcons
-						name={expanded ? "chevron-up" : "chevron-down"}
-						size={18}
-						color={theme.colors.textMuted}
-					/>
 				</View>
 			</View>
 
-			{/* Expanded items */}
-			{expanded && (
-				<View style={styles.body}>
-					<View style={styles.bodyDivider} />
+			{/* ── ROW 2: thin progress ── */}
+			{!readOnly && st !== "cancelled" && st !== "pending" && st !== "preparing" && (
+				<View style={s.progTrack}>
+					<View style={[s.progFill, { width: `${pct}%` as any, backgroundColor: S.dot }]} />
+				</View>
+			)}
 
-					{order.items.map((item, idx) => {
-						// firedRef gives us the status we just sent so the button
-						// label/visibility is correct even before Zustand propagates.
-						const effectiveStatus =
-							firedRef.current[item.id] ?? item.status;
-						const next = NEXT_STATUS[effectiveStatus];
-						// Only show the action button if this item's CURRENT (server)
-						// status matches the tab we're on. This prevents the wrong
-						// next-button from flashing after an override is applied.
-						const canAct =
-							!actionableStatus || item.status === actionableStatus;
+			{/* ── EXPANDED ── */}
+			{open && (
+				<View style={s.body}>
+					<View style={s.sep} />
 
-						return (
-							<View
-								key={`${item.id}-${idx}`}
-								style={styles.itemRow}
-							>
-								<View style={styles.itemIdxWrap}>
-									<Text style={styles.itemIdx}>{idx + 1}</Text>
-								</View>
-								<Text style={styles.itemName} numberOfLines={1}>
-									{item.name}
-								</Text>
-								<Text style={styles.itemQty}>
-									{item.qty} X ₹
-									{item.price_per_unit.toLocaleString("en-IN")}
-								</Text>
-								{next && !readOnly && canAct && (
-									<TouchableOpacity
-										style={styles.actionChip}
-										onPress={() => {
-											firedRef.current[item.id] = next.next;
-											onUpdateStatus?.(item.id, next.next);
-										}}
-										activeOpacity={0.75}
-									>
-										<Text style={styles.actionChipText}>
-											{next.action}
-										</Text>
-									</TouchableOpacity>
-								)}
-								{readOnly && !hideStatus && (
-									<View
-										style={[
-											styles.statusBadge,
-											{
-												backgroundColor:
-													STATUS_BADGE[item.status]?.bg,
-											},
-										]}
-									>
-										<Text
-											style={[
-												styles.statusBadgeText,
-												{ color: STATUS_BADGE[item.status]?.color },
-											]}
-										>
-											{STATUS_BADGE[item.status]?.label ?? item.status}
-										</Text>
+					{/* status summary */}
+					{Object.keys(counts).length > 1 && (
+						<View style={s.sumRow}>
+							{Object.entries(counts).map(([k, v]) => {
+								const c = stMap[k]; if (!c) return null;
+								return (
+									<View key={k} style={[s.sumChip, { backgroundColor: c.bg }]}>
+										<View style={[s.sumDot, { backgroundColor: c.dot }]} />
+										<Text style={[s.sumT, { color: c.text }]}>{c.label} {v}</Text>
 									</View>
-								)}
+								);
+							})}
+						</View>
+					)}
+
+					{/* items */}
+					{items.map((item, i) => {
+						const ef = fired.current[item.id] ?? item.status;
+						const next = NEXT_ACTION[ef];
+						const can = !actionableStatus || item.status === actionableStatus;
+						const c = stMap[item.status] ?? ST.pending;
+						return (
+							<View key={`${item.id}-${i}`} style={[s.iRow, i === items.length - 1 && { borderBottomWidth: 0 }]}>
+								<View style={[s.iBar, { backgroundColor: c.dot }]} />
+								<View style={s.iBody}>
+									<View style={s.iTop}>
+										<Text style={s.iName} numberOfLines={1}>{item.name}</Text>
+										<Text style={[s.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+										{readOnly && !hideStatus && (
+											<View style={[s.iBadge, { backgroundColor: c.bg }]}>
+												<Text style={[s.iBadgeT, { color: c.text }]}>{c.label}</Text>
+											</View>
+										)}
+										{next && !readOnly && can && (
+											<TouchableOpacity
+												style={[s.iBtn, { backgroundColor: c.dot }]}
+												onPress={() => { fired.current[item.id] = next.next; onUpdateStatus?.(item.id, next.next); }}
+												activeOpacity={0.7}
+											>
+												<MaterialCommunityIcons name={next.icon} size={11} color="#fff" />
+												<Text style={s.iBtnT}>{next.label}</Text>
+											</TouchableOpacity>
+										)}
+									</View>
+								</View>
 							</View>
 						);
 					})}
 
-					{/* Add Items + Bill buttons */}
-					{!readOnly && !isInvoiced && (
-						<View style={styles.actionsRow}>
-							{!isPaid && (
-								<TouchableOpacity
-									style={styles.addBtn}
-									onPress={() => onAddItems?.(order)}
-									activeOpacity={0.85}
-								>
-									<MaterialCommunityIcons
-										name="plus"
-										size={16}
-										color={theme.colors.primary}
-									/>
-									<Text style={styles.addBtnText}>Add Items</Text>
+					{/* actions */}
+					{!readOnly && !invoiced && (
+						<View style={s.actions}>
+							{!paid && (
+								<TouchableOpacity style={s.addBtn} onPress={() => onAddItems?.(order)} activeOpacity={0.8}>
+									<MaterialCommunityIcons name="plus" size={16} color={theme.colors.primary} />
+									<Text style={s.addBtnT}>Add</Text>
 								</TouchableOpacity>
 							)}
 							<TouchableOpacity
-								style={[styles.billBtn, !allServed && styles.billBtnAlt]}
+								style={[s.billBtn, paid && { backgroundColor: "#10B981", shadowColor: "#10B981" }]}
 								onPress={() => onBillOrder?.(order)}
-								activeOpacity={0.85}
+								activeOpacity={0.8}
 							>
-								<MaterialCommunityIcons
-									name="cash-register"
-									size={16}
-									color={allServed ? "#fff" : theme.colors.primary}
-								/>
-								<Text
-									style={[
-										styles.billBtnText,
-										!allServed && styles.billBtnTextAlt,
-									]}
-								>
-									{allServed ? "Generate Bill" : "Bill This Order"}
-								</Text>
+								<MaterialCommunityIcons name={paid ? "receipt" : "cash-register"} size={16} color="#fff" />
+								<Text style={s.billBtnT}>{paid ? "View Bill" : allDone ? "Generate Bill" : "Bill Order"}</Text>
 							</TouchableOpacity>
+						</View>
+					)}
+
+					{paid && !readOnly && (
+						<View style={[s.paidBar, { backgroundColor: P.bg }]}>
+							<MaterialCommunityIcons name="check-decagram" size={14} color={P.dot} />
+							<Text style={[s.paidBarT, { color: P.text }]}>Payment Completed</Text>
 						</View>
 					)}
 				</View>
@@ -265,206 +226,198 @@ export default memo(function OrderCard({
 	);
 });
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
+	// card
 	card: {
-		backgroundColor: "#fff",
-		borderRadius: theme.radius.lg,
+		backgroundColor: "#FFFFFF",
+		borderRadius: 18,
 		marginHorizontal: 12,
 		marginVertical: 5,
-		borderWidth: 1,
-		borderColor: theme.colors.borderLight,
+		borderWidth: 0,
 		overflow: "hidden",
-		...theme.shadow.sm,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.06,
+		shadowRadius: 8,
+		elevation: 3,
 	},
-	header: {
+	cardOpen: {
+		shadowOpacity: 0.12,
+		shadowRadius: 16,
+		elevation: 8,
+	},
+
+	// header row
+	row: {
 		flexDirection: "row",
 		justifyContent: "space-between",
-		alignItems: "center",
-		padding: 14,
+		alignItems: "flex-start",
+		paddingHorizontal: 14,
+		paddingTop: 12,
+		paddingBottom: 8,
 	},
-	headerLeft: {
+	left: {
 		flexDirection: "row",
-		alignItems: "center",
+		alignItems: "flex-start",
 		gap: 10,
 		flex: 1,
 	},
-	orderNumBadge: {
-		backgroundColor: theme.colors.primaryLight,
-		borderRadius: theme.radius.sm,
+	right: {
+		alignItems: "flex-end",
+		gap: 5,
+		marginLeft: 8,
+	},
+
+	// order number
+	numWrap: {
+		borderRadius: 8,
 		paddingHorizontal: 10,
 		paddingVertical: 6,
+		alignItems: "center",
+		justifyContent: "center",
+		minWidth: 56,
 	},
-	orderNum: {
-		color: theme.colors.primary,
-		fontSize: 14,
-		fontWeight: "900",
+	num: {
+		fontSize: 13,
+		fontWeight: "800",
+		letterSpacing: 0.2,
 	},
-	metaRow: {
+
+	// meta info
+	meta: { flex: 1, gap: 4 },
+	chips: { flexDirection: "row", gap: 4, flexWrap: "wrap" },
+	chip: {
 		flexDirection: "row",
-		gap: 6,
-		flexWrap: "wrap",
+		alignItems: "center",
+		gap: 3,
+		borderRadius: 20,
+		paddingHorizontal: 7,
+		paddingVertical: 2,
+		maxWidth: 110,
 	},
+	chipT: { fontSize: 10, fontWeight: "700", flexShrink: 1 },
 	tableChip: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 4,
-		backgroundColor: theme.colors.primaryLight,
-		borderRadius: theme.radius.full,
-		paddingHorizontal: 8,
-		paddingVertical: 3,
-		maxWidth: 140,
+		borderRadius: 8,
+		paddingHorizontal: 10,
+		paddingVertical: 5,
 	},
-	tableChipText: {
-		color: theme.colors.primary,
-		fontSize: 11,
-		fontWeight: "700",
-		flexShrink: 1,
-	},
-	custChipText: {
-		color: theme.colors.textSecondary,
-		fontSize: 10,
-		fontWeight: "600",
-		marginTop: 2,
-		maxWidth: 90,
-	},
-	walkinChip: {
+	tableChipT: { fontSize: 12, fontWeight: "800", flexShrink: 1 },
+	infoRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+	infoT: { fontSize: 10, fontWeight: "500", color: "#9CA3AF" },
+	infoDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#D1D5DB" },
+
+	// price + status
+	price: { fontSize: 16, fontWeight: "900", color: "#111827", letterSpacing: 0.2 },
+	pill: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 4,
-		backgroundColor: theme.colors.surfaceTertiary,
-		borderRadius: theme.radius.full,
+		borderRadius: 20,
 		paddingHorizontal: 8,
 		paddingVertical: 3,
 	},
-	walkinChipText: {
-		color: theme.colors.textMuted,
-		fontSize: 11,
-		fontWeight: "600",
-	},
-	itemCount: {
-		color: theme.colors.textMuted,
-		fontSize: 11,
-		marginTop: 2,
-	},
-	headerRight: {
-		alignItems: "flex-end",
+	pillDot: { width: 5, height: 5, borderRadius: 2.5 },
+	pillT: { fontSize: 9, fontWeight: "700" },
+
+	// progress
+	progTrack: { height: 2, backgroundColor: "#F3F4F6", marginHorizontal: 14, marginBottom: 6 },
+	progFill: { height: "100%", borderRadius: 1 },
+
+	// payment badge (collapsed)
+	payBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
 		gap: 4,
-	},
-	totalAmount: {
-		color: theme.colors.textPrimary,
-		fontSize: 16,
-		fontWeight: "900",
-	},
-	body: {
-		paddingHorizontal: 14,
-		paddingBottom: 14,
-	},
-	bodyDivider: {
-		height: 1,
-		backgroundColor: theme.colors.borderLight,
+		marginHorizontal: 14,
 		marginBottom: 10,
+		borderRadius: 8,
+		paddingVertical: 5,
 	},
-	itemRow: {
+	payBadgeT: { fontSize: 10, fontWeight: "700" },
+
+	// expanded body
+	body: { paddingHorizontal: 14, paddingBottom: 14 },
+	sep: { height: 1, backgroundColor: "#F0F0F0", marginBottom: 10 },
+
+	// status summary
+	sumRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginBottom: 10 },
+	sumChip: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3 },
+	sumDot: { width: 4, height: 4, borderRadius: 2 },
+	sumT: { fontSize: 9, fontWeight: "700" },
+
+	// item row
+	iRow: {
 		flexDirection: "row",
-		alignItems: "center",
-		gap: 10,
-		paddingVertical: 8,
+		paddingVertical: 7,
 		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.borderLight,
+		borderBottomColor: "#F5F5F5",
 	},
-	itemIdx: {
-		width: 22,
-		height: 22,
-		borderRadius: 11,
-		backgroundColor: theme.colors.surfaceTertiary,
-		textAlign: "center",
-		lineHeight: 22,
-		fontSize: 11,
-		fontWeight: "700",
-		color: theme.colors.textSecondary,
-	},
-	itemName: {
-		flex: 1,
-		color: theme.colors.textPrimary,
-		fontSize: 13,
-		fontWeight: "600",
-	},
-	itemQty: {
-		color: theme.colors.textSecondary,
-		fontSize: 11,
-		fontWeight: "600",
-		textAlign: "center",
-	},
-	itemIdxWrap: {
+	iBar: { width: 3, borderRadius: 1.5, marginRight: 8 },
+	iBody: { flex: 1, gap: 3 },
+	iTop: { flexDirection: "row", alignItems: "center", gap: 4 },
+	iName: { fontSize: 13, fontWeight: "600", color: "#1F2937" },
+	iBadge: { borderRadius: 20, paddingHorizontal: 6, paddingVertical: 1 },
+	iBadgeT: { fontSize: 8, fontWeight: "700" },
+	iBot: { flexDirection: "row", alignItems: "center", gap: 8 },
+	iQty: { fontSize: 12, fontWeight: "800", color: "#374151" },
+	iPrice: { fontSize: 11, fontWeight: "500", color: "#9CA3AF" },
+	iTotal: { fontSize: 11, fontWeight: "700", color: "#374151" },
+	iBtn: {
 		flexDirection: "row",
 		alignItems: "center",
+		gap: 4,
+		paddingHorizontal: 12,
+		paddingVertical: 5,
+		borderRadius: 20,
+		marginLeft: "auto",
 	},
-	actionChip: {
-		backgroundColor: theme.colors.primary,
-		paddingHorizontal: 10,
-		paddingVertical: 4,
-		borderRadius: theme.radius.full,
-	},
-	actionChipText: {
-		color: "#fff",
-		fontSize: 11,
-		fontWeight: "700",
-	},
-	statusBadge: {
-		paddingHorizontal: 10,
-		paddingVertical: 4,
-		borderRadius: theme.radius.full,
-	},
-	statusBadgeText: {
-		fontSize: 11,
-		fontWeight: "700",
-	},
-	actionsRow: {
-		flexDirection: "row",
-		gap: 8,
-		marginTop: 12,
-	},
+	iBtnT: { color: "#fff", fontSize: 11, fontWeight: "700" },
+
+	// action buttons
+	actions: { flexDirection: "row", gap: 8, marginTop: 12 },
 	addBtn: {
 		flex: 1,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		gap: 6,
-		backgroundColor: theme.colors.primaryLight,
+		gap: 5,
+		backgroundColor: "#FFF4F5",
 		borderWidth: 1.5,
-		borderColor: theme.colors.primary,
-		borderRadius: theme.radius.md,
-		paddingVertical: 12,
+		borderColor: "#F0555F",
+		borderRadius: 10,
+		paddingVertical: 11,
 	},
-	addBtnText: {
-		color: theme.colors.primary,
-		fontSize: 14,
-		fontWeight: "800",
-	},
+	addBtnT: { color: "#F0555F", fontSize: 13, fontWeight: "800" },
 	billBtn: {
-		flex: 1,
+		flex: 1.3,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		gap: 8,
-		backgroundColor: theme.colors.primary,
-		paddingVertical: 12,
-		borderRadius: theme.radius.md,
-		...theme.shadow.lg,
+		gap: 6,
+		backgroundColor: "#F0555F",
+		borderRadius: 10,
+		paddingVertical: 11,
+		shadowColor: "#F0555F",
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.2,
+		shadowRadius: 8,
+		elevation: 4,
 	},
-	billBtnAlt: {
-		backgroundColor: theme.colors.primaryLight,
-		borderWidth: 1.5,
-		borderColor: theme.colors.primary,
-		shadowColor: "transparent",
-		elevation: 0,
+	billBtnT: { color: "#fff", fontSize: 13, fontWeight: "800" },
+
+	// paid bar
+	paidBar: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 5,
+		marginTop: 10,
+		borderRadius: 10,
+		paddingVertical: 7,
 	},
-	billBtnText: {
-		color: "#fff",
-		fontSize: 14,
-		fontWeight: "800",
-	},
-	billBtnTextAlt: {
-		color: theme.colors.primary,
-	},
+	paidBarT: { fontSize: 11, fontWeight: "700" },
 });

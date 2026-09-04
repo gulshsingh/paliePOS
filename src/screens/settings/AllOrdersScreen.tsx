@@ -66,7 +66,7 @@ export default function AllOrdersScreen({
 
 	const renderOrder = useCallback(
 		({ item }: { item: Order }) => (
-			<OrderCard order={item} readOnly  hideStatus />
+			<OrderCard order={item} readOnly hideStatus  />
 		),
 		[],
 	);

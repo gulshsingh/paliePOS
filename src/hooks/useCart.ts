@@ -9,19 +9,17 @@ export function useCart() {
 	const clearCart = useCartStore((s) => s.clearCart);
 	const activeOrderId = useOrderStore((s) => s.activeOrderId);
 	const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
-	const orders = useOrderStore((s) => s.orders);
 	const addOrder = useOrderStore((s) => s.addOrder);
 
 	const onBillOrder = useCallback(
 		(order: Order) => {
+			const { orders } = useOrderStore.getState();
 			const fullOrder = orders.find((o) => o.id === order.id);
 			if (!fullOrder) {
 				addOrder(order);
 			}
 			const src = fullOrder ?? order;
 			clearCart();
-			// Merge duplicate product lines across KOTs so the bill shows one
-			// combined line per item (e.g. Roti 5 + Roti 5 -> Roti 10).
 			setCart(
 				mergeOrderItems(src.items).map((i) => ({
 					...i,
@@ -30,7 +28,7 @@ export function useCart() {
 			);
 			setActiveOrder(order.id);
 		},
-		[orders, addOrder, clearCart, setCart, setActiveOrder],
+		[addOrder, clearCart, setCart, setActiveOrder],
 	);
 
 	return {

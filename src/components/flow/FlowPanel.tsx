@@ -43,35 +43,12 @@ function isToday(dateStr?: string): boolean {
 	);
 }
 
-const STATUS_BADGE: Record<
-	string,
-	{ label: string; color: string; bg: string }
-> = {
-	pending: {
-		label: "Pending",
-		color: theme.colors.warning,
-		bg: theme.colors.warningLight,
-	},
-	preparing: {
-		label: "Kitchen",
-		color: theme.colors.info,
-		bg: theme.colors.infoLight,
-	},
-	ready: {
-		label: "Serving",
-		color: theme.colors.success,
-		bg: theme.colors.successLight,
-	},
-	served: {
-		label: "Served",
-		color: theme.colors.textSecondary,
-		bg: theme.colors.surfaceTertiary,
-	},
-	cancelled: {
-		label: "Cancelled",
-		color: theme.colors.danger,
-		bg: theme.colors.dangerLight,
-	},
+const ST = {
+	pending:   { dot: "#F59E0B", bg: "#FEF3C7", text: "#92400E", label: "Pending" },
+	preparing: { dot: "#3B82F6", bg: "#DBEAFE", text: "#1E40AF", label: "Kitchen" },
+	ready:     { dot: "#10B981", bg: "#D1FAE5", text: "#065F46", label: "Ready" },
+	served:    { dot: "#6B7280", bg: "#F3F4F6", text: "#374151", label: "Served" },
+	cancelled: { dot: "#EF4444", bg: "#FEE2E2", text: "#991B1B", label: "Cancelled" },
 };
 
 interface Props {
@@ -89,6 +66,7 @@ export default function FlowPanel({ onResume, onPayOrder }: Props) {
 	const setSelectedCustomer = useCustomerStore((s) => s.setSelectedCustomer);
 	const sessionOrders = useOrderStore((s) => s.orders);
 	const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
+	const addOrder = useOrderStore((s) => s.addOrder);
 	const itemStatusOverrides = useOrderStore((s) => s.itemStatusOverrides);
 
 	const { data, isLoading } = useOrders();
@@ -140,6 +118,7 @@ export default function FlowPanel({ onResume, onPayOrder }: Props) {
 
 	const handleSelectOrder = (order: Order) => {
 		clearCart();
+		addOrder(order);
 		setActiveOrder(order.id);
 		if (order.table_id && order.table_name) {
 			setSelectedTable({
@@ -251,104 +230,89 @@ function OrderCard({
 	order: Order;
 	onPress: (order: Order) => void;
 }) {
-	const [expanded, setExpanded] = useState(false);
-	const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
+	const [open, setOpen] = useState(false);
+	const items = order.items;
+	const totalQty = items.reduce((s, i) => s + i.qty, 0);
+	const st = (order.status?.toLowerCase?.() ?? "pending") as keyof typeof ST;
+	const S = ST[st] ?? ST.pending;
 
 	return (
 		<TouchableOpacity
-			style={styles.orderCard}
-			onPress={() => setExpanded(!expanded)}
-			activeOpacity={0.95}
+			style={[styles.card, open && styles.cardOpen]}
+			onPress={() => setOpen(!open)}
+			activeOpacity={0.96}
 		>
-			{/* Header */}
-			<View style={styles.orderHeader}>
-				<View style={styles.orderHeaderLeft}>
-					<View style={styles.orderNumBadge}>
-						<Text style={styles.orderNumText}>#{order.order_number}</Text>
-						{order.customer_name && (
-								<Text style={styles.custText} numberOfLines={1}>
-									{order.customer_name}
-								</Text>
-							)}
-					</View>
-					<View style={styles.orderMeta}>
-						<View style={styles.metaRow}>
-							{order.table_name ? (
-								<View style={styles.tableChip}>
-									<MaterialCommunityIcons
-										name="table-furniture"
-										size={12}
-										color={theme.colors.primary}
-									/>
-									<Text style={styles.tableChipText} numberOfLines={1}>
-										{order.table_name}
+			<View style={styles.cardInner}>
+				<View style={[styles.accentStripe, { backgroundColor: S.dot }]} />
+				<View style={styles.content}>
+					{/* Header */}
+					<View style={styles.row}>
+						<View style={styles.left}>
+							<View style={[styles.numWrap, { backgroundColor: "#FEF2F2" }]}>
+								<Text style={[styles.num, { color: "#DC2626" }]}>#{order.order_number}</Text>
+							</View>
+							<View style={styles.meta}>
+								<View style={styles.chips}>
+									{order.customer_name ? (
+										<View style={[styles.chip, { backgroundColor: "#FFF1F2" }]}>
+											<MaterialCommunityIcons name="account" size={10} color="#E11D48" />
+											<Text style={[styles.chipT, { color: "#E11D48" }]} numberOfLines={1}>{order.customer_name}</Text>
+										</View>
+									) : null}
+								</View>
+								<View style={styles.infoRow}>
+									<Text style={styles.infoT} numberOfLines={1}>
+										{items[0]?.name ?? ""}{items.length > 1 ? ` +${items.length - 1}` : ""}
 									</Text>
-								</View>
-							) : (
-								<View style={styles.walkinChip}>
-									<MaterialCommunityIcons
-										name="account-outline"
-										size={12}
-										color={theme.colors.textMuted}
-									/>
-									<Text style={styles.walkinChipText}>Walk-in</Text>
-								</View>
-							)}
-							
-						</View>
-						<Text style={styles.itemCount}>
-							{totalQty} {totalQty === 1 ? "Item" : "Items"}
-						</Text>
-					</View>
-				</View>
-				<View style={styles.orderHeaderRight}>
-					<Text style={styles.totalAmount}>
-						₹{order.total.toLocaleString("en-IN")}
-					</Text>
-					<MaterialCommunityIcons
-						name={expanded ? "chevron-up" : "chevron-down"}
-						size={18}
-						color={theme.colors.textMuted}
-					/>
-				</View>
-			</View>
-
-			{/* Items */}
-			{expanded && (
-				<View style={styles.orderBody}>
-					<View style={styles.bodyDivider} />
-					{order.items.map((item, idx) => {
-						const badge = STATUS_BADGE[item.status] ?? STATUS_BADGE.pending;
-						return (
-							<View key={`${item.id}-${idx}`} style={styles.itemRow}>
-								<View style={styles.itemIdxWrap}>
-									<Text style={styles.itemIdx}>{idx + 1}</Text>
-								</View>
-								<Text style={styles.itemName} numberOfLines={1}>
-									{item.name}
-								</Text>
-								<Text style={styles.itemQty}>
-									{item.qty} X ₹
-									{item.price_per_unit.toLocaleString("en-IN")}
-								</Text>
-								<View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-									<Text style={[styles.statusBadgeText, { color: badge.color }]}>
-										{badge.label}
-									</Text>
+									<View style={styles.infoDot} />
+									<Text style={styles.infoT}>{timeAgo(new Date(order.created_at ?? Date.now()).getTime())}</Text>
 								</View>
 							</View>
-						);
-					})}
-					<TouchableOpacity
-						style={styles.payOrderBtn}
-						onPress={() => onPress(order)}
-						activeOpacity={0.8}
-					>
-						<MaterialCommunityIcons name="cash-register" size={16} color="#fff" />
-						<Text style={styles.payOrderText}>Pay This Order</Text>
-					</TouchableOpacity>
+						</View>
+						<View style={styles.right}>
+							{order.table_name ? (
+								<View style={[styles.tableChip, { backgroundColor: "#FEF2F2" }]}>
+									<MaterialCommunityIcons name="table-furniture" size={14} color="#DC2626" />
+									<Text style={[styles.tableChipT, { color: "#DC2626" }]} numberOfLines={1}>{order.table_name}</Text>
+								</View>
+							) : null}
+							<Text style={styles.price}>₹{order.total.toLocaleString("en-IN")}</Text>
+						</View>
+					</View>
+
+					{/* Items */}
+					{open && (
+						<View style={styles.body}>
+							<View style={styles.divider} />
+							{items.map((item, i) => {
+								const badge = ST[item.status] ?? ST.pending;
+								return (
+									<View key={`${item.id}-${i}`} style={[styles.iRow, i === items.length - 1 && { borderBottomWidth: 0 }]}>
+										<View style={[styles.iBar, { backgroundColor: badge.dot }]} />
+										<View style={styles.iContent}>
+											<View style={styles.iTop}>
+												<Text style={styles.iName} numberOfLines={1}>{item.name}</Text>
+												<Text style={[styles.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+												<View style={[styles.iBadge, { backgroundColor: badge.bg }]}>
+													<Text style={[styles.iBadgeT, { color: badge.text }]}>{badge.label}</Text>
+												</View>
+											</View>
+										</View>
+									</View>
+								);
+							})}
+							<TouchableOpacity
+								style={styles.payBtn}
+								onPress={() => onPress(order)}
+								activeOpacity={0.8}
+							>
+								<MaterialCommunityIcons name="cash-register" size={16} color="#fff" />
+								<Text style={styles.payBtnT}>Pay This Order</Text>
+							</TouchableOpacity>
+						</View>
+					)}
 				</View>
-			)}
+			</View>
 		</TouchableOpacity>
 	);
 }
@@ -362,117 +326,96 @@ function DraftCard({
 	onPress: (draft: FlowDraft) => void;
 	onRemove: (id: string) => void;
 }) {
-	const [expanded, setExpanded] = useState(false);
+	const [open, setOpen] = useState(false);
 	const total = draft.items.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
 	const qty = draft.items.reduce((s, i) => s + i.qty, 0);
 
 	return (
 		<TouchableOpacity
-			style={styles.orderCard}
-			onPress={() => setExpanded(!expanded)}
-			activeOpacity={0.95}
+			style={[styles.card, open && styles.cardOpen]}
+			onPress={() => setOpen(!open)}
+			activeOpacity={0.96}
 		>
-			<View style={styles.orderHeader}>
-				<View style={styles.orderHeaderLeft}>
-					<View style={styles.draftBadge}>
-						<Text style={styles.draftBadgeText}>DRAFT</Text>
-					</View>
-					<View style={styles.orderMeta}>
-						<View style={styles.metaRow}>
-							{draft.table_name ? (
-								<View style={styles.tableChip}>
-									<MaterialCommunityIcons
-										name="table-furniture"
-										size={12}
-										color={theme.colors.primary}
-									/>
-									<Text style={styles.tableChipText} numberOfLines={1}>
-										{draft.table_name}
+			<View style={styles.cardInner}>
+				<View style={[styles.accentStripe, { backgroundColor: "#F59E0B" }]} />
+				<View style={styles.content}>
+					{/* Header */}
+					<View style={styles.row}>
+						<View style={styles.left}>
+							<View style={[styles.numWrap, { backgroundColor: "#FEF3C7" }]}>
+								<Text style={[styles.num, { color: "#92400E", fontSize: 10 }]}>DRAFT</Text>
+							</View>
+							<View style={styles.meta}>
+								<View style={styles.chips}>
+									{draft.customer_name ? (
+										<View style={[styles.chip, { backgroundColor: "#FFF1F2" }]}>
+											<MaterialCommunityIcons name="account" size={10} color="#E11D48" />
+											<Text style={[styles.chipT, { color: "#E11D48" }]} numberOfLines={1}>{draft.customer_name}</Text>
+										</View>
+									) : null}
+								</View>
+								<View style={styles.infoRow}>
+									<Text style={styles.infoT} numberOfLines={1}>
+										{draft.items[0]?.name ?? ""}{draft.items.length > 1 ? ` +${draft.items.length - 1}` : ""}
 									</Text>
-								</View>
-							) : (
-								<View style={styles.walkinChip}>
-									<MaterialCommunityIcons
-										name="account-outline"
-										size={12}
-										color={theme.colors.textMuted}
-									/>
-									<Text style={styles.walkinChipText}>Walk-in</Text>
-								</View>
-							)}
-							{draft.customer_name && (
-								<Text style={styles.custText} numberOfLines={1}>
-									{draft.customer_name}
-								</Text>
-							)}
-						</View>
-						<Text style={styles.itemCount}>
-							{qty} {qty === 1 ? "Item" : "Items"} · {timeAgo(draft.updated_at)}
-						</Text>
-					</View>
-				</View>
-				<View style={styles.orderHeaderRight}>
-					<Text style={styles.totalAmount}>
-						₹{total.toLocaleString("en-IN")}
-					</Text>
-					<MaterialCommunityIcons
-						name={expanded ? "chevron-up" : "chevron-down"}
-						size={18}
-						color={theme.colors.textMuted}
-					/>
-				</View>
-			</View>
-
-			{expanded && (
-				<View style={styles.orderBody}>
-					<View style={styles.bodyDivider} />
-					{draft.items.map((item, idx) => {
-						const badge = item.sentToKitchen
-							? STATUS_BADGE.preparing
-							: STATUS_BADGE.pending;
-						return (
-							<View key={`${item.id}-${idx}`} style={styles.itemRow}>
-								<View style={styles.itemIdxWrap}>
-									<Text style={styles.itemIdx}>{idx + 1}</Text>
-								</View>
-								<Text style={styles.itemName} numberOfLines={1}>
-									{item.name}
-								</Text>
-								<Text style={styles.itemQty}>
-									{item.qty} X ₹
-									{item.price_per_unit.toLocaleString("en-IN")}
-								</Text>
-								<View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-									<Text style={[styles.statusBadgeText, { color: badge.color }]}>
-										{badge.label}
-									</Text>
+									<View style={styles.infoDot} />
+									<Text style={styles.infoT}>{timeAgo(draft.updated_at)}</Text>
 								</View>
 							</View>
-						);
-					})}
-					<View style={styles.draftActions}>
-						<TouchableOpacity
-							style={styles.openOrderBtn}
-							onPress={() => onPress(draft)}
-							activeOpacity={0.8}
-						>
-							<MaterialCommunityIcons name="play" size={16} color="#fff" />
-							<Text style={styles.openOrderText}>Resume</Text>
-						</TouchableOpacity>
-						<TouchableOpacity
-							style={styles.removeBtn}
-							onPress={() => onRemove(draft.id)}
-							activeOpacity={0.8}
-						>
-							<MaterialCommunityIcons
-								name="trash-can-outline"
-								size={16}
-								color={theme.colors.danger}
-							/>
-						</TouchableOpacity>
+						</View>
+						<View style={styles.right}>
+							{draft.table_name ? (
+								<View style={[styles.tableChip, { backgroundColor: "#FEF2F2" }]}>
+									<MaterialCommunityIcons name="table-furniture" size={14} color="#DC2626" />
+									<Text style={[styles.tableChipT, { color: "#DC2626" }]} numberOfLines={1}>{draft.table_name}</Text>
+								</View>
+							) : null}
+							<Text style={styles.price}>₹{total.toLocaleString("en-IN")}</Text>
+						</View>
 					</View>
+
+					{/* Items */}
+					{open && (
+						<View style={styles.body}>
+							<View style={styles.divider} />
+							{draft.items.map((item, i) => {
+								const badge = item.sentToKitchen ? ST.preparing : ST.pending;
+								return (
+									<View key={`${item.id}-${i}`} style={[styles.iRow, i === draft.items.length - 1 && { borderBottomWidth: 0 }]}>
+										<View style={[styles.iBar, { backgroundColor: badge.dot }]} />
+										<View style={styles.iContent}>
+											<View style={styles.iTop}>
+												<Text style={styles.iName} numberOfLines={1}>{item.name}</Text>
+												<Text style={[styles.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+												<View style={[styles.iBadge, { backgroundColor: badge.bg }]}>
+													<Text style={[styles.iBadgeT, { color: badge.text }]}>{badge.label}</Text>
+												</View>
+											</View>
+										</View>
+									</View>
+								);
+							})}
+							<View style={styles.draftActions}>
+								<TouchableOpacity
+									style={styles.resumeBtn}
+									onPress={() => onPress(draft)}
+									activeOpacity={0.8}
+								>
+									<MaterialCommunityIcons name="play" size={16} color="#fff" />
+									<Text style={styles.resumeBtnT}>Resume</Text>
+								</TouchableOpacity>
+								<TouchableOpacity
+									style={styles.deleteBtn}
+									onPress={() => onRemove(draft.id)}
+									activeOpacity={0.8}
+								>
+									<MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
+								</TouchableOpacity>
+							</View>
+						</View>
+					)}
 				</View>
-			)}
+			</View>
 		</TouchableOpacity>
 	);
 }
@@ -515,192 +458,200 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 14,
 		marginBottom: 6,
 	},
-	orderCard: {
+
+	// ── Card ──
+	card: {
 		backgroundColor: "#fff",
-		borderRadius: theme.radius.lg,
+		borderRadius: 18,
 		marginHorizontal: 12,
 		marginVertical: 5,
-		borderWidth: 1,
-		borderColor: theme.colors.borderLight,
+		borderWidth: 0,
 		overflow: "hidden",
-		...theme.shadow.sm,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.06,
+		shadowRadius: 8,
+		elevation: 3,
 	},
-	orderHeader: {
+	cardOpen: {
+		shadowOpacity: 0.12,
+		shadowRadius: 16,
+		elevation: 8,
+	},
+	cardInner: {
+		flexDirection: "row",
+	},
+	accentStripe: {
+		width: 4,
+	},
+	content: {
+		flex: 1,
+	},
+
+	// ── Header ──
+	row: {
 		flexDirection: "row",
 		justifyContent: "space-between",
-		alignItems: "center",
-		padding: 14,
+		alignItems: "flex-start",
+		paddingHorizontal: 14,
+		paddingTop: 12,
+		paddingBottom: 8,
 	},
-	orderHeaderLeft: {
+	left: {
 		flexDirection: "row",
-		alignItems: "center",
+		alignItems: "flex-start",
 		gap: 10,
 		flex: 1,
 	},
-	orderNumBadge: {
-		backgroundColor: theme.colors.primaryLight,
-		borderRadius: theme.radius.sm,
+	right: {
+		alignItems: "flex-end",
+		gap: 5,
+		marginLeft: 8,
+	},
+	numWrap: {
+		borderRadius: 8,
 		paddingHorizontal: 10,
 		paddingVertical: 6,
-	},
-	orderNumText: {
-		color: theme.colors.primary,
-		fontSize: 14,
-		fontWeight: "900",
-	},
-	draftBadge: {
-		backgroundColor: theme.colors.warningLight,
-		borderRadius: theme.radius.sm,
-		paddingHorizontal: 10,
-		paddingVertical: 6,
-	},
-	draftBadgeText: {
-		color: theme.colors.warning,
-		fontSize: 12,
-		fontWeight: "900",
-	},
-	orderMeta: {
-		flex: 1,
-	},
-	metaRow: {
-		flexDirection: "row",
-		gap: 6,
-		flexWrap: "wrap",
 		alignItems: "center",
+		justifyContent: "center",
+		minWidth: 56,
+	},
+	num: {
+		fontSize: 13,
+		fontWeight: "800",
+		letterSpacing: 0.2,
+	},
+	meta: {
+		flex: 1,
+		gap: 4,
+	},
+	chips: {
+		flexDirection: "row",
+		gap: 4,
+		flexWrap: "wrap",
+	},
+	chip: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 3,
+		borderRadius: 20,
+		paddingHorizontal: 7,
+		paddingVertical: 2,
+		maxWidth: 110,
+	},
+	chipT: {
+		fontSize: 10,
+		fontWeight: "700",
+		flexShrink: 1,
+	},
+	infoRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 4,
+	},
+	infoT: {
+		fontSize: 10,
+		fontWeight: "500",
+		color: "#9CA3AF",
+	},
+	infoDot: {
+		width: 3,
+		height: 3,
+		borderRadius: 1.5,
+		backgroundColor: "#D1D5DB",
 	},
 	tableChip: {
 		flexDirection: "row",
 		alignItems: "center",
 		gap: 4,
-		backgroundColor: theme.colors.primaryLight,
-		borderRadius: theme.radius.full,
-		paddingHorizontal: 8,
-		paddingVertical: 3,
-		maxWidth: 140,
+		borderRadius: 8,
+		paddingHorizontal: 10,
+		paddingVertical: 5,
 	},
-	tableChipText: {
-		color: theme.colors.primary,
-		fontSize: 11,
-		fontWeight: "700",
+	tableChipT: {
+		fontSize: 12,
+		fontWeight: "800",
 		flexShrink: 1,
 	},
-	walkinChip: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 4,
-		backgroundColor: theme.colors.surfaceTertiary,
-		borderRadius: theme.radius.full,
-		paddingHorizontal: 8,
-		paddingVertical: 3,
-	},
-	walkinChipText: {
-		color: theme.colors.textMuted,
-		fontSize: 11,
-		fontWeight: "600",
-	},
-	custText: {
-		color: theme.colors.textSecondary,
-		fontSize: 10,
-		fontWeight: "600",
-	},
-	itemCount: {
-		color: theme.colors.textMuted,
-		fontSize: 11,
-		marginTop: 2,
-	},
-	orderHeaderRight: {
-		alignItems: "flex-end",
-		gap: 4,
-	},
-	totalAmount: {
-		color: theme.colors.textPrimary,
+	price: {
 		fontSize: 16,
 		fontWeight: "900",
+		color: "#111827",
+		letterSpacing: 0.2,
 	},
-	orderBody: {
+
+	// ── Body ──
+	body: {
 		paddingHorizontal: 14,
 		paddingBottom: 14,
 	},
-	bodyDivider: {
+	divider: {
 		height: 1,
-		backgroundColor: theme.colors.borderLight,
+		backgroundColor: "#F0F0F0",
 		marginBottom: 10,
 	},
-	itemRow: {
+
+	// ── Items ──
+	iRow: {
 		flexDirection: "row",
-		alignItems: "center",
-		gap: 10,
-		paddingVertical: 8,
+		alignItems: "stretch",
+		paddingVertical: 7,
 		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.borderLight,
+		borderBottomColor: "#F5F5F5",
 	},
-	itemIdxWrap: {
+	iBar: {
+		width: 3,
+		borderRadius: 1.5,
+		marginRight: 8,
+	},
+	iContent: {
+		flex: 1,
+		gap: 3,
+	},
+	iTop: {
 		flexDirection: "row",
 		alignItems: "center",
+		gap: 4,
 	},
-	itemIdx: {
-		width: 22,
-		height: 22,
-		borderRadius: 11,
-		backgroundColor: theme.colors.surfaceTertiary,
-		textAlign: "center",
-		lineHeight: 22,
-		fontSize: 11,
-		fontWeight: "700",
-		color: theme.colors.textSecondary,
-	},
-	itemName: {
+	iName: {
 		flex: 1,
-		color: theme.colors.textPrimary,
 		fontSize: 13,
 		fontWeight: "600",
+		color: "#1F2937",
 	},
-	itemQty: {
-		color: theme.colors.textSecondary,
-		fontSize: 11,
-		fontWeight: "600",
-		textAlign: "center",
-	},
-	statusBadge: {
-		paddingHorizontal: 10,
-		paddingVertical: 4,
-		borderRadius: theme.radius.full,
-	},
-	statusBadgeText: {
-		fontSize: 11,
-		fontWeight: "700",
-	},
-	openOrderBtn: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 6,
-		backgroundColor: theme.colors.primary,
-		borderRadius: theme.radius.md,
-		paddingVertical: 16,
-		paddingHorizontal: 20,
-		marginTop: 12,
-		...theme.shadow.sm,
-	},
-	openOrderText: {
-		color: "#fff",
-		fontSize: 14,
+	iQty: {
+		fontSize: 12,
 		fontWeight: "800",
 	},
-	payOrderBtn: {
+	iBadge: {
+		borderRadius: 20,
+		paddingHorizontal: 6,
+		paddingVertical: 1,
+	},
+	iBadgeT: {
+		fontSize: 8,
+		fontWeight: "700",
+	},
+
+	// ── Buttons ──
+	payBtn: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 6,
-		backgroundColor: theme.colors.success,
-		borderRadius: theme.radius.md,
-		paddingVertical: 12,
+		backgroundColor: "#10B981",
+		borderRadius: 10,
+		paddingVertical: 11,
 		marginTop: 12,
-		...theme.shadow.sm,
+		shadowColor: "#10B981",
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.2,
+		shadowRadius: 8,
+		elevation: 4,
 	},
-	payOrderText: {
+	payBtnT: {
 		color: "#fff",
-		fontSize: 14,
+		fontSize: 13,
 		fontWeight: "800",
 	},
 	draftActions: {
@@ -708,24 +659,49 @@ const styles = StyleSheet.create({
 		gap: 8,
 		marginTop: 12,
 	},
-	removeBtn: {
+	resumeBtn: {
+		flex: 1,
+		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		backgroundColor: theme.colors.dangerLight,
-		borderRadius: theme.radius.md,
-		paddingVertical: 12,
+		gap: 6,
+		backgroundColor: "#F0555F",
+		borderRadius: 10,
+		paddingVertical: 11,
+		shadowColor: "#F0555F",
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.2,
+		shadowRadius: 8,
+		elevation: 4,
+	},
+	resumeBtnT: {
+		color: "#fff",
+		fontSize: 13,
+		fontWeight: "800",
+	},
+	deleteBtn: {
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: "#FEF2F2",
+		borderRadius: 10,
+		paddingVertical: 11,
 		paddingHorizontal: 16,
 		borderWidth: 1.5,
-		borderColor: theme.colors.danger,
+		borderColor: "#FECACA",
 	},
+
+	// ── Skeleton ──
 	skeletonCard: {
 		backgroundColor: "#fff",
-		borderRadius: theme.radius.lg,
+		borderRadius: 18,
 		marginHorizontal: 12,
 		marginVertical: 5,
 		padding: 14,
-		borderWidth: 1,
-		borderColor: theme.colors.borderLight,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.06,
+		shadowRadius: 8,
+		elevation: 3,
 	},
 	skeletonHeader: {
 		flexDirection: "row",
