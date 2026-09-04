@@ -9,6 +9,7 @@ interface Props {
 	onBillOrder?: (order: Order) => void;
 	onAddItems?: (order: Order) => void;
 	onUpdateStatus?: (itemId: string, status: ApiOrderItemStatus) => void;
+	onBulkSendToKitchen?: (itemIds: string[]) => void;
 	readOnly?: boolean;
 	actionableStatus?: string;
 	hideAmount?: boolean;
@@ -38,20 +39,14 @@ const PAY = {
 	UNPAID:         { dot: "#EF4444", bg: "#FEE2E2", text: "#991B1B", label: "Unpaid" },
 };
 
-function elapsed(dateStr?: string): string {
-	if (!dateStr) return "";
-	const m = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
-	if (m < 1) return "now";
-	if (m < 60) return `${m}m`;
-	const h = Math.floor(m / 60);
-	return h < 24 ? `${h}h ${m % 60}m` : `${Math.floor(h / 24)}d`;
-}
+
 
 export default memo(function OrderCard({
 	order,
 	onBillOrder,
 	onAddItems,
 	onUpdateStatus,
+	onBulkSendToKitchen,
 	readOnly = false,
 	actionableStatus,
 	hideAmount = false,
@@ -68,6 +63,8 @@ export default memo(function OrderCard({
 	const paid = order.paymentStatus === "PAID";
 	const invoiced = order.invoice === true;
 	const st = order.status?.toLowerCase?.() ?? "pending";
+	const pendingItems = items.filter((i) => i.status === "pending");
+	const hasPendingItems = pendingItems.length > 0;
 
 	const counts = useMemo(() => {
 		const c: Record<string, number> = {};
@@ -95,22 +92,21 @@ export default memo(function OrderCard({
 				<View style={s.left}>
 					<View style={[s.numWrap, { backgroundColor: "#FEF2F2" }]}>
 						<Text style={[s.num, { color: "#DC2626" }]}>#{order.order_number}</Text>
-					</View>
-					<View style={s.meta}>
 						<View style={s.chips}>
 							{order.customer_name ? (
-								<View style={[s.chip, { backgroundColor: "#FFF1F2" }]}>
-									<MaterialCommunityIcons name="account" size={10} color="#E11D48" />
+								
 									<Text style={[s.chipT, { color: "#E11D48" }]} numberOfLines={1}>{order.customer_name}</Text>
-								</View>
+								
 							) : null}
 						</View>
+					</View>
+					<View style={s.meta}>
+						
 						<View style={s.infoRow}>
 							<Text style={s.infoT} numberOfLines={1}>
 								{items[0]?.name ?? ""}{items.length > 1 ? ` +${items.length - 1}` : ""}
 							</Text>
 							<View style={s.infoDot} />
-							<Text style={s.infoT}>{elapsed(order.created_at)}</Text>
 						</View>
 					</View>
 				</View>
@@ -165,6 +161,7 @@ export default memo(function OrderCard({
 						const next = NEXT_ACTION[ef];
 						const can = !actionableStatus || item.status === actionableStatus;
 						const c = stMap[item.status] ?? ST.pending;
+						const isPendingItem = item.status === "pending";
 						return (
 							<View key={`${item.id}-${i}`} style={[s.iRow, i === items.length - 1 && { borderBottomWidth: 0 }]}>
 								<View style={[s.iBar, { backgroundColor: c.dot }]} />
@@ -177,7 +174,7 @@ export default memo(function OrderCard({
 												<Text style={[s.iBadgeT, { color: c.text }]}>{c.label}</Text>
 											</View>
 										)}
-										{next && !readOnly && can && (
+										{!readOnly && !isPendingItem && next && can && (
 											<TouchableOpacity
 												style={[s.iBtn, { backgroundColor: c.dot }]}
 												onPress={() => { fired.current[item.id] = next.next; onUpdateStatus?.(item.id, next.next); }}
@@ -187,11 +184,31 @@ export default memo(function OrderCard({
 												<Text style={s.iBtnT}>{next.label}</Text>
 											</TouchableOpacity>
 										)}
+										{!readOnly && isPendingItem && (
+											<View style={[s.iBadge, { backgroundColor: c.bg }]}>
+												<Text style={[s.iBadgeT, { color: c.text }]}>{c.label}</Text>
+											</View>
+										)}
 									</View>
 								</View>
 							</View>
 						);
 					})}
+
+					{/* bulk send to kitchen button */}
+					{!readOnly && hasPendingItems && (
+						<TouchableOpacity
+							style={s.bulkBtn}
+							onPress={() => {
+								pendingItems.forEach((item) => { fired.current[item.id] = "preparing"; });
+								onBulkSendToKitchen?.(pendingItems.map((i) => i.id));
+							}}
+							activeOpacity={0.8}
+						>
+							<MaterialCommunityIcons name="silverware-fork-knife" size={16} color="#fff" />
+							<Text style={s.bulkBtnT}>Send to Kitchen ({pendingItems.length})</Text>
+						</TouchableOpacity>
+					)}
 
 					{/* actions */}
 					{!readOnly && !invoiced && (
@@ -407,6 +424,24 @@ const s = StyleSheet.create({
 		elevation: 4,
 	},
 	billBtnT: { color: "#fff", fontSize: 13, fontWeight: "800" },
+
+	// bulk send to kitchen
+	bulkBtn: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 6,
+		backgroundColor: "#9268f3c7",
+		borderRadius: 10,
+		paddingVertical: 11,
+		marginTop: 12,
+		shadowColor: "#c7b7eb",
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.2,
+		shadowRadius: 8,
+		elevation: 4,
+	},
+	bulkBtnT: { color: "#fff", fontSize: 13, fontWeight: "800" },
 
 	// paid bar
 	paidBar: {

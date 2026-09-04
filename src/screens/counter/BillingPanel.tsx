@@ -368,8 +368,9 @@ const newOrder: Order = {
 					product_id: i.product_id ?? i.id,
 					quantity: i.qty,
 					price: i.price_per_unit,
-					total: i.price_per_unit * i.qty,
 				})),
+				tax_amount: deltaTax,
+				discount_amount: 0,
 			});
 
 			// Replace the entire order's item list with the server's canonical

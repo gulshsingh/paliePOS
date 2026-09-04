@@ -29,8 +29,12 @@ export const createOrder = (data: CreateOrderPayload) =>
 
 export const addOrderItems = (
 	orderId: string,
-	items: CreateOrderPayload["items"],
-) => api.post<ApiResponse<ApiOrder>>(`/orders/${orderId}/items/`, { items });
+	payload: {
+		items: { product_id: string; quantity: number; price: number }[];
+		tax_amount?: number;
+		discount_amount?: number;
+	},
+) => api.post<ApiResponse<ApiOrder>>(`/orders/${orderId}/items/`, payload);
 
 export const updateItemStatus = ({
 	item_id,

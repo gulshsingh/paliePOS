@@ -249,22 +249,19 @@ function OrderCard({
 						<View style={styles.left}>
 							<View style={[styles.numWrap, { backgroundColor: "#FEF2F2" }]}>
 								<Text style={[styles.num, { color: "#DC2626" }]}>#{order.order_number}</Text>
+								
+									{order.customer_name ? (
+										<Text style={[styles.chipT, { color: "#E11D48" }]} numberOfLines={1}>{order.customer_name}</Text>
+									) : null}
+								
 							</View>
 							<View style={styles.meta}>
-								<View style={styles.chips}>
-									{order.customer_name ? (
-										<View style={[styles.chip, { backgroundColor: "#FFF1F2" }]}>
-											<MaterialCommunityIcons name="account" size={10} color="#E11D48" />
-											<Text style={[styles.chipT, { color: "#E11D48" }]} numberOfLines={1}>{order.customer_name}</Text>
-										</View>
-									) : null}
-								</View>
+								
 								<View style={styles.infoRow}>
 									<Text style={styles.infoT} numberOfLines={1}>
 										{items[0]?.name ?? ""}{items.length > 1 ? ` +${items.length - 1}` : ""}
 									</Text>
 									<View style={styles.infoDot} />
-									<Text style={styles.infoT}>{timeAgo(new Date(order.created_at ?? Date.now()).getTime())}</Text>
 								</View>
 							</View>
 						</View>

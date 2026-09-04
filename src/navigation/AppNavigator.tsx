@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	createContext,
 	useCallback,
@@ -20,6 +21,12 @@ import RunningOrdersScreen from "../screens/orders/RunningOrdersScreen";
 import ProductFormScreen from "../screens/products/ProductFormScreen";
 import TableFormScreen from "../screens/tables/TableFormScreen";
 import { theme } from "../theme";
+import { STORAGE_KEYS } from "../constants/storage";
+import { useOrderStore } from "../store/orderStore";
+import { useCartStore } from "../store/cartStore";
+import { useFlowStore } from "../store/flowStore";
+import { useCustomerStore } from "../store/customerStore";
+import { useTableStore } from "../store/tableStore";
 import AuthNavigator from "./AuthNavigator";
 import MainTabNavigator from "./MainTabNavigator";
 
@@ -112,6 +119,7 @@ function isTokenExpired(token: string | null): boolean {
 export default function AppNavigator() {
 	const [token, setToken] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
+	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		AsyncStorage.getItem("token").then((t) => {
@@ -130,12 +138,21 @@ export default function AppNavigator() {
 		if (!newToken) return;
 		await AsyncStorage.setItem("token", newToken);
 		setToken(newToken);
-	}, []);
+		queryClient.clear();
+		useOrderStore.setState({ orders: [], activeOrderId: null, itemStatusOverrides: {} });
+		useCartStore.setState({ cart: [] });
+		useFlowStore.setState({ drafts: [], activeDraftId: null });
+		useCustomerStore.setState({ selectedCustomer: null });
+		useTableStore.setState({ selectedTable: null });
+		await AsyncStorage.removeItem(STORAGE_KEYS.CART);
+		await AsyncStorage.removeItem("palie-flow-drafts");
+	}, [queryClient]);
 
 	const signOut = useCallback(async () => {
 		await AsyncStorage.removeItem("token");
 		setToken(null);
-	}, []);
+		queryClient.clear();
+	}, [queryClient]);
 
 	// Register logout handler for API interceptor
 	useEffect(() => {

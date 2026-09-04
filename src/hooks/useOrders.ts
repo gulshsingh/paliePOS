@@ -47,10 +47,14 @@ export function useAddOrderItems() {
 		mutationFn: ({
 			orderId,
 			items,
+			tax_amount,
+			discount_amount,
 		}: {
 			orderId: string;
 			items: CreateOrderPayload["items"];
-		}) => addOrderItems(orderId, items),
+			tax_amount?: number;
+			discount_amount?: number;
+		}) => addOrderItems(orderId, { items, tax_amount, discount_amount }),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ["orders"] });
 		},

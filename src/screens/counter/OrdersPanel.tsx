@@ -100,6 +100,15 @@ export default function OrdersPanel({
 		[onBillOrder, onBillToCart],
 	);
 
+	const handleBulkSendToKitchen = useCallback(
+		(itemIds: string[]) => {
+			itemIds.forEach((itemId) => {
+				updateItemStatusLocally(itemId, "preparing");
+			});
+		},
+		[updateItemStatusLocally],
+	);
+
 	const renderOrder = useCallback(
 		({ item }: { item: Order }) => (
 			<OrderCard
@@ -107,11 +116,12 @@ export default function OrdersPanel({
 				onBillOrder={handleBillOrder}
 				onAddItems={handleBillOrder}
 				onUpdateStatus={updateItemStatusLocally}
+				onBulkSendToKitchen={handleBulkSendToKitchen}
 				actionableStatus={TAB_ITEM_STATUS[activeTab]}
 				hideAmount
 			/>
 		),
-		[handleBillOrder, updateItemStatusLocally, activeTab],
+		[handleBillOrder, updateItemStatusLocally, handleBulkSendToKitchen, activeTab],
 	);
 
 	const orders = useMemo(() => {
