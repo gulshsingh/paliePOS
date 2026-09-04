@@ -232,7 +232,6 @@ function OrderCard({
 }) {
 	const [open, setOpen] = useState(false);
 	const items = order.items;
-	const totalQty = items.reduce((s, i) => s + i.qty, 0);
 	const st = (order.status?.toLowerCase?.() ?? "pending") as keyof typeof ST;
 	const S = ST[st] ?? ST.pending;
 
@@ -291,8 +290,10 @@ function OrderCard({
 										<View style={[styles.iBar, { backgroundColor: badge.dot }]} />
 										<View style={styles.iContent}>
 											<View style={styles.iTop}>
-												<Text style={styles.iName} numberOfLines={1}>{item.name}</Text>
-												<Text style={[styles.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+												<View style={styles.itemNameQty}>
+													<Text style={styles.iName} numberOfLines={1}>{item.name}</Text>
+													<Text style={[styles.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+												</View>
 												<View style={[styles.iBadge, { backgroundColor: badge.bg }]}>
 													<Text style={[styles.iBadgeT, { color: badge.text }]}>{badge.label}</Text>
 												</View>
@@ -328,7 +329,6 @@ function DraftCard({
 }) {
 	const [open, setOpen] = useState(false);
 	const total = draft.items.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
-	const qty = draft.items.reduce((s, i) => s + i.qty, 0);
 
 	return (
 		<TouchableOpacity
@@ -385,8 +385,10 @@ function DraftCard({
 										<View style={[styles.iBar, { backgroundColor: badge.dot }]} />
 										<View style={styles.iContent}>
 											<View style={styles.iTop}>
-												<Text style={styles.iName} numberOfLines={1}>{item.name}</Text>
-												<Text style={[styles.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+												<View style={styles.itemNameQty}>
+													<Text style={styles.iName} numberOfLines={1}>{item.name}</Text>
+													<Text style={[styles.iQty, { color: "#DC2626" }]}>× {item.qty}</Text>
+												</View>
 												<View style={[styles.iBadge, { backgroundColor: badge.bg }]}>
 													<Text style={[styles.iBadgeT, { color: badge.text }]}>{badge.label}</Text>
 												</View>
@@ -611,25 +613,32 @@ const styles = StyleSheet.create({
 	iTop: {
 		flexDirection: "row",
 		alignItems: "center",
-		gap: 4,
+	},
+	itemNameQty: {
+		flex: 1,
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0,
 	},
 	iName: {
-		flex: 1,
+		flexShrink: 1,
 		fontSize: 13,
 		fontWeight: "600",
 		color: "#1F2937",
 	},
 	iQty: {
+		flexShrink: 0,
 		fontSize: 12,
 		fontWeight: "800",
 	},
 	iBadge: {
 		borderRadius: 20,
-		paddingHorizontal: 6,
-		paddingVertical: 1,
+		paddingHorizontal: 10,
+		paddingVertical: 4,
 	},
 	iBadgeT: {
-		fontSize: 8,
+		fontSize: 11,
 		fontWeight: "700",
 	},
 

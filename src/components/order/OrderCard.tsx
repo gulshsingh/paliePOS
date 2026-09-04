@@ -63,7 +63,6 @@ export default memo(function OrderCard({
 	if (prevId.current !== order.id) { prevId.current = order.id; fired.current = {}; }
 
 	const items = order.items;
-	const qty = items.reduce((s, i) => s + i.qty, 0);
 	const total = items.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
 	const allDone = items.every((i) => i.status === "served");
 	const paid = order.paymentStatus === "PAID";
