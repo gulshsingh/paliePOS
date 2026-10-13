@@ -10,6 +10,7 @@ import {
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import SubscriptionSection from "./SubscriptionSection";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { getCompany } from "../../api/services/companies";
 import { styles } from "./ConfigurationScreen.styles";
@@ -333,7 +334,7 @@ export default function ConfigurationScreen() {
 				)}
 
 				{/* ── Profile ── */}
-				{screen === "profile" && (
+					{screen === "profile" && (
 					<>
 						{/* Profile card */}
 						<View style={styles.card}>
@@ -372,6 +373,9 @@ export default function ConfigurationScreen() {
 								</View>
 							))}
 						</View>
+
+						{/* Subscription */}
+						<SubscriptionSection />
 					</>
 				)}
 			</ScrollView>

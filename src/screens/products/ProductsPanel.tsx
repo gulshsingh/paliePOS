@@ -177,25 +177,29 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 				</View>
 			</View>
 
-			{/* Results count */}
+						{/* Results count — New Order tabhi jab cart me item ho */}
 			{!isLoading && (
 				<View style={styles.resultsRow}>
 					<Text style={styles.resultsText}>
 						{filtered.length} {filtered.length === 1 ? "item" : "items"}
 						{search ? ` for "${search}"` : " on menu"}
 					</Text>
-					<TouchableOpacity
-						style={styles.newOrderBtn}
-						onPress={handleNewOrder}
-						activeOpacity={0.8}
-					>
-						<MaterialCommunityIcons
-							name="plus"
-							size={14}
-							color={theme.colors.primary}
-						/>
-						<Text style={styles.newOrderText}>New Order</Text>
-					</TouchableOpacity>
+					{cartCount > 0 ? (
+						<TouchableOpacity
+							style={styles.newOrderBtn}
+							onPress={handleNewOrder}
+							activeOpacity={0.8}
+						>
+							<MaterialCommunityIcons
+								name="plus"
+								size={14}
+								color={theme.colors.primary}
+							/>
+							<Text style={styles.newOrderText}>New Order</Text>
+						</TouchableOpacity>
+					) : (
+						<View />
+					)}
 				</View>
 			)}
 

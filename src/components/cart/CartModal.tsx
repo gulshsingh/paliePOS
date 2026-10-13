@@ -85,6 +85,19 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 
 	const handleSendToKitchen = async () => {
 		if (cart.length === 0 || submittingRef.current) return;
+
+		if (!selectedTable) {
+			Alert.alert(
+				"Table Required",
+				"Please select a table before sending the order to kitchen.",
+				[
+					{ text: "Cancel", style: "cancel" },
+					{ text: "Select Table", onPress: () => setTableModal(true) },
+				],
+			);
+			return;
+		}
+
 		submittingRef.current = true;
 		try {
 			const res = await createOrder.mutateAsync({
