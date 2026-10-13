@@ -18,7 +18,7 @@ import { loginSchema } from "../../schemas/auth/loginSchema";
 import { useQueryClient } from "@tanstack/react-query";
 import { theme } from "../../theme";
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: any) {
 	const { signIn } = useAuth();
 	const qc = useQueryClient();
 
@@ -217,6 +217,7 @@ export default function LoginScreen() {
 						<Text style={styles.forgotText}>Forgot Password?</Text>
 					</TouchableOpacity>
 
+					{/* Login button */}
 					<TouchableOpacity
 						style={[styles.button, loading && styles.buttonDisabled]}
 						onPress={handleLogin}
@@ -235,6 +236,26 @@ export default function LoginScreen() {
 								/>
 							</>
 						)}
+					</TouchableOpacity>
+
+					{/* Divider */}
+					<View style={styles.dividerRow}>
+						<View style={styles.dividerLine} />
+						<Text style={styles.dividerText}>or</Text>
+						<View style={styles.dividerLine} />
+					</View>
+
+					{/* Sign Up line */}
+					<TouchableOpacity
+						style={styles.signupRow}
+						onPress={() => navigation.navigate("Signup")}
+						disabled={loading}
+						activeOpacity={0.7}
+					>
+						<Text style={styles.signupText}>
+							Don't have an account?{" "}
+							<Text style={styles.signupLink}>Sign Up</Text>
+						</Text>
 					</TouchableOpacity>
 
 					<Text style={styles.version}>Version 1.0.0</Text>
@@ -353,6 +374,38 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "800",
 		letterSpacing: 0.5,
+	},
+	dividerRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginVertical: 20,
+		gap: 12,
+	},
+	dividerLine: {
+		flex: 1,
+		height: 1,
+		backgroundColor: theme.colors.border,
+	},
+	
+	dividerText: {
+		fontSize: 12,
+		color: theme.colors.textMuted,
+		fontWeight: "600",
+		textTransform: "uppercase",
+		letterSpacing: 1,
+	},
+	signupRow: {
+		alignItems: "center",
+		paddingVertical: 6,
+	},
+	signupText: {
+		fontSize: 14,
+		color: theme.colors.textMuted,
+	},
+	signupLink: {
+		color: theme.colors.primary,
+		fontWeight: "800",
+		fontSize: 14,
 	},
 	version: {
 		textAlign: "center",

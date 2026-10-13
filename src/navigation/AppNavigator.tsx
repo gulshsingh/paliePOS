@@ -39,6 +39,27 @@ export const useAuth = () => {
 
 const Stack = createNativeStackNavigator();
 
+// ── Deep link config ─────────────────────────────────────
+// Email link → supabase verify → https://palie-frontend.vercel.app/auth/confirm
+// → page redirects to palie://auth/callback?token_hash=...&type=signup
+// → app khulta hai aur CompleteProfile screen dikhti hai.
+const linking: any = {
+	prefixes: ["palie://", "https://palie-frontend.vercel.app"],
+	config: {
+		screens: {
+			Auth: {
+				screens: {
+					Login: "login",
+					Signup: "signup",
+					VerifyEmail: "verify",
+					CompleteProfile: "auth/callback",
+				},
+			},
+			Main: "main",
+		},
+	},
+};
+
 function useIdleTimer(onIdle: () => void) {
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const appStateRef = useRef(AppState.currentState);
@@ -156,7 +177,7 @@ export default function AppNavigator() {
 				onTouchMove={resetIdle}
 				onTouchEnd={resetIdle}
 			>
-				<NavigationContainer>
+				<NavigationContainer linking={linking} fallback={<Loader />}>
 					<Stack.Navigator
 						screenOptions={{
 							headerShown: false,
