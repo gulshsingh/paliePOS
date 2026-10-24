@@ -15,9 +15,12 @@ import {
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { signupSchema } from "../../schemas/auth/signupSchema";
 import { theme } from "../../theme";
-import { getGoogleAuthUrl, signup } from "../../api/services/auth";
+import { signup } from "../../api/services/auth";
+import { useAuth } from "../../navigation/AppNavigator";
+import { startGoogleSignIn } from "../../utils/googleAuth";
 
 export default function SignupScreen({ navigation }: any) {
+	const { signIn } = useAuth();
 	const [email, setEmail] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [googleLoading, setGoogleLoading] = useState(false);
@@ -106,40 +109,30 @@ export default function SignupScreen({ navigation }: any) {
 		}
 	};
 
-		// ── Google Sign-Up ─────────────────────────────────────
+	// ── Google Sign-Up (In-App Popup) ──────────────────────
+	const handleGoogleSignUp = async () => {
+		setGoogleLoading(true);
+		setErrors({});
+		setSuccessMsg(null);
 
-const handleGoogleSignUp = async () => {
-  setGoogleLoading(true);
-  setErrors({});
-  setSuccessMsg(null);
-
-  try {
-    const googleAuthUrl =
-      "https://palie-backend.up.railway.app/api/auth/google";
-
-    const supported = await Linking.canOpenURL(googleAuthUrl);
-
-    if (!supported) {
-      setErrors({
-        general: "Google sign-in link open nahi ho raha.",
-      });
-      return;
-    }
-
-    await Linking.openURL(googleAuthUrl);
-  } catch (error: any) {
-    console.log(
-      "[google] error:",
-      error?.message ?? error,
-    );
-
-    setErrors({
-      general: "Google sign-in open nahi ho paya. Please try again.",
-    });
-  } finally {
-    setGoogleLoading(false);
-  }
-};
+		try {
+			const res = await startGoogleSignIn();
+			if (res.success && res.token) {
+				await signIn(res.token);
+			} else if (res.canceled) {
+				// User closed the popup modal - no action needed
+			} else if (res.error) {
+				setErrors({ general: res.error });
+			}
+		} catch (error: any) {
+			console.log("[google] error:", error?.message ?? error);
+			setErrors({
+				general: "Google sign-in open nahi ho paya. Please try again.",
+			});
+		} finally {
+			setGoogleLoading(false);
+		}
+	};
 
 	return (
 		<KeyboardAvoidingView

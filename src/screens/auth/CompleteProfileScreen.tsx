@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
@@ -27,6 +27,15 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 	const email = route?.params?.email ?? "";
 	const tokenHash = route?.params?.token_hash ?? route?.params?.token ?? "";
 	const type = route?.params?.type ?? "";
+
+	// Handle auto-login when arriving from Google OAuth callback deep link with access_token
+	useEffect(() => {
+		const accessToken = route?.params?.access_token;
+		if (accessToken) {
+			qc.clear();
+			signIn(accessToken);
+		}
+	}, [route?.params?.access_token, signIn, qc]);
 
 	const [fullName, setFullName] = useState("");
 	const [phone, setPhone] = useState("");

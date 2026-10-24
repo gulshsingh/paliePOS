@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, getStateFromPath } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import {
 	createContext,
@@ -57,6 +57,14 @@ const linking: any = {
 			},
 			Main: "main",
 		},
+	},
+	getStateFromPath(path: string, options: any) {
+		let cleanPath = path;
+		if (cleanPath.includes("#")) {
+			const [pathname, fragment] = cleanPath.split("#");
+			cleanPath = `${pathname}${pathname.includes("?") ? "&" : "?"}${fragment}`;
+		}
+		return getStateFromPath(cleanPath, options);
 	},
 };
 
