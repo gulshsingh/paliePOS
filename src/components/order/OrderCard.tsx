@@ -170,7 +170,7 @@ export default memo(function OrderCard({
 
 						return (
 							<View
-								key={`${item.id}-${idx}`}
+								key={item.id}
 								style={styles.itemRow}
 							>
 								<View style={styles.itemIdxWrap}>

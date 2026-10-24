@@ -39,4 +39,4 @@ export const completeProfile = (payload: CompleteProfilePayload) =>
 	api.get<ApiResponse<GoogleAuthResponse>>("/auth/google");
 
 export const getProfile = () =>
-	api.get<ApiResponse<LoginResponse["user"]>>("/auth/profile");
+	api.get<ApiResponse<LoginResponse["user"]>>("/auth/me");

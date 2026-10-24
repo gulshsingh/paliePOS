@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { ENV } from "../config/env";
 
 export const api = axios.create({
-	baseURL: "https://palie-backend.up.railway.app/api",
+	baseURL: ENV.API_BASE_URL,
 	headers: { "Content-Type": "application/json" },
 });
 
@@ -19,6 +20,7 @@ api.interceptors.request.use(async (config) => {
 const AUTH_ERROR_CODES = [
 	"AUTH_TOKEN_MISSING",
 	"AUTH_TOKEN_INVALID",
+	"AUTH_INVALID_TOKEN",
 	"AUTH_TOKEN_EXPIRED",
 	"TOKEN_EXPIRED",
 	"UNAUTHORIZED",
