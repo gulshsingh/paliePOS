@@ -17,6 +17,7 @@ import { useAuth } from "../../navigation/AppNavigator";
 import { loginSchema } from "../../schemas/auth/loginSchema";
 import { useQueryClient } from "@tanstack/react-query";
 import { theme } from "../../theme";
+import { startGoogleSignIn } from "../../utils/googleAuth";
 
 export default function LoginScreen({ navigation }: any) {
 	const { signIn } = useAuth();
@@ -26,6 +27,7 @@ export default function LoginScreen({ navigation }: any) {
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [googleLoading, setGoogleLoading] = useState(false);
 	const [focusedField, setFocusedField] = useState<string | null>(null);
 
 	// Field-level errors
@@ -74,6 +76,31 @@ export default function LoginScreen({ navigation }: any) {
 			setErrors({ general: msg });
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	// ── Google Login (In-App Popup) ────────────────────────
+	const handleGoogleLogin = async () => {
+		setGoogleLoading(true);
+		setErrors({});
+
+		try {
+			const res = await startGoogleSignIn();
+			if (res.success && res.token) {
+				qc.clear();
+				await signIn(res.token);
+			} else if (res.canceled) {
+				// User closed popup
+			} else if (res.error) {
+				setErrors({ general: res.error });
+			}
+		} catch (error: any) {
+			console.log("[google login] error:", error?.message ?? error);
+			setErrors({
+				general: "Google login open nahi ho paya. Please try again.",
+			});
+		} finally {
+			setGoogleLoading(false);
 		}
 	};
 
@@ -238,6 +265,32 @@ export default function LoginScreen({ navigation }: any) {
 						)}
 					</TouchableOpacity>
 
+					{/* Google Login */}
+					<TouchableOpacity
+						style={[styles.button, styles.buttonGoogle]}
+						onPress={handleGoogleLogin}
+						disabled={googleLoading || loading}
+						activeOpacity={0.85}
+					>
+						{googleLoading ? (
+							<ActivityIndicator
+								color={theme.colors.primary}
+								size="small"
+							/>
+						) : (
+							<>
+								<MaterialCommunityIcons
+									name="google"
+									size={20}
+									color="#DB4437"
+								/>
+								<Text style={styles.buttonGoogleText}>
+									Continue with Google
+								</Text>
+							</>
+						)}
+					</TouchableOpacity>
+
 					{/* Divider */}
 					<View style={styles.dividerRow}>
 						<View style={styles.dividerLine} />
@@ -374,6 +427,20 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "800",
 		letterSpacing: 0.5,
+	},
+	buttonGoogle: {
+		backgroundColor: theme.colors.surfaceSecondary,
+		borderWidth: 1.5,
+		borderColor: theme.colors.border,
+		marginTop: 12,
+		shadowOpacity: 0,
+		elevation: 0,
+	},
+	buttonGoogleText: {
+		color: theme.colors.textPrimary,
+		fontSize: 15,
+		fontWeight: "800",
+		letterSpacing: 0.3,
 	},
 	dividerRow: {
 		flexDirection: "row",
