@@ -7,8 +7,7 @@ interface Props {
 	onClear: () => void;
 }
 
-// 3-column grid; last row = Clear + Backspace (null = spacer for symmetry).
-const ROWS: (string | null)[][] = [
+const ROWS = [
 	["1", "2", "3"],
 	["4", "5", "6"],
 	["7", "8", "9"],
@@ -20,14 +19,14 @@ export default function BillingKeypad({ onKeyPress, onDelete, onClear }: Props) 
 	return (
 		<View style={styles.container}>
 			<View style={styles.keys}>
-				{ROWS.map((row, ri) => (
-					<View key={ri} style={styles.row}>
-						{row.map((key, ki) =>
+				{ROWS.map((row) => (
+					<View key={`row-${row.filter(Boolean).join('-')}`} style={styles.row}>
+						{row.map((key) =>
 							key === null ? (
-								<View key={ki} style={[styles.key, styles.spacer]} />
+								<View key="spacer" style={[styles.key, styles.spacer]} />
 							) : (
 								<TouchableOpacity
-									key={ki}
+									key={`btn-${key}`}
 									style={styles.key}
 									onPress={
 										key === "C"
@@ -40,8 +39,7 @@ export default function BillingKeypad({ onKeyPress, onDelete, onClear }: Props) 
 									<Text
 										style={[
 											styles.keyText,
-											key === "C" && { color: theme.colors.danger },
-											key === "⌫" && { color: theme.colors.warning },
+											(key === "C" || key === "⌫") && styles.actionKeyText,
 										]}
 									>
 										{key}
@@ -58,26 +56,23 @@ export default function BillingKeypad({ onKeyPress, onDelete, onClear }: Props) 
 
 const styles = StyleSheet.create({
 	container: {
-		flex: 1,
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderRadius: 8,
+		backgroundColor: theme.colors.surface,
+		borderRadius: theme.radius.lg,
 		padding: 8,
-		borderWidth: 1,
-		borderColor: theme.colors.border,
+		...theme.shadow.sm,
 	},
 	keys: {
-		flex: 1,
 		gap: 6,
 	},
 	row: {
-		flex: 1,
 		flexDirection: "row",
 		gap: 6,
 	},
 	key: {
 		flex: 1,
-		backgroundColor: theme.colors.surfaceTertiary,
-		borderRadius: 6,
+		height: 52,
+		backgroundColor: theme.colors.surfaceSecondary,
+		borderRadius: theme.radius.md,
 		alignItems: "center",
 		justifyContent: "center",
 	},
@@ -85,8 +80,12 @@ const styles = StyleSheet.create({
 		backgroundColor: "transparent",
 	},
 	keyText: {
-		color: theme.colors.textPrimary,
-		fontSize: 20,
+		fontSize: 18,
 		fontWeight: "600",
+		color: theme.colors.textPrimary,
+	},
+	actionKeyText: {
+		color: theme.colors.primary,
+		fontWeight: "700",
 	},
 });

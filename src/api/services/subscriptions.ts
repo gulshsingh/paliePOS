@@ -1,4 +1,4 @@
-import type { ApiResponse, PaginatedResponse } from "../../types/api";
+import type { ApiResponse } from "../../types/api";
 import type {
 	PlanIdPayload,
 	Subscription,

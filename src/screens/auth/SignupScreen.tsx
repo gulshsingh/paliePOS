@@ -10,7 +10,6 @@ import {
 	TextInput,
 	TouchableOpacity,
 	View,
-	Linking,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { signupSchema } from "../../schemas/auth/signupSchema";

@@ -17,6 +17,7 @@ import { verifyEmail, verifyOtp } from '../../api/services/auth';
 import { theme } from '../../theme';
 
 const OTP_LENGTH = 6;
+const OTP_SLOTS = ['slot-0', 'slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5'];
 
 export default function VerifyEmailScreen({ navigation, route }: any) {
   const email = route?.params?.email ?? '';
@@ -40,7 +41,7 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
     if (value.length > 1) {
       const cleaned = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
       const arr = Array(OTP_LENGTH).fill('');
-      cleaned.split('').forEach((c, i) => (arr[i] = c));
+      cleaned.split('').forEach((c, i) => { arr[i] = c; });
       setOtp(arr);
       setError(null);
       const next = Math.min(cleaned.length, OTP_LENGTH - 1);
@@ -223,9 +224,11 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
 
           {/* OTP boxes */}
           <View style={styles.otpRow}>
-            {otp.map((digit, i) => (
+            {OTP_SLOTS.map((slotId, i) => {
+            const digit = otp[i];
+            return (
               <TextInput
-                key={i}
+                key={slotId}
                 ref={r => {
                   inputs.current[i] = r;
                 }}
@@ -244,7 +247,8 @@ export default function VerifyEmailScreen({ navigation, route }: any) {
                 textAlign="center"
                 selectionColor={theme.colors.primary}
               />
-            ))}
+            );
+          })}
           </View>
 
           {/* Verify button */}

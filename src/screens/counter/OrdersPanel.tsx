@@ -163,7 +163,7 @@ export default function OrdersPanel({
 		});
 		if (confirmed.length > 0) {
 			const store = useOrderStore.getState();
-			confirmed.forEach((id) => store.clearItemStatusOverride(id));
+			confirmed.forEach((id) => { store.clearItemStatusOverride(id); });
 		}
 	}, [data]);
 

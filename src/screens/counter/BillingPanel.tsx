@@ -201,8 +201,6 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		setActiveOrder,
 		setSelectedCustomer,
 		setSelectedTable,
-		setAutofilledFor,
-		setLoadedForOrder,
 	]);
 
 	const handleSendToKitchen = async () => {
