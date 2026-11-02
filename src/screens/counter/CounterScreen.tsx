@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FlowPanel from "../../components/flow/FlowPanel";
+import { useRolePermissions } from "../../hooks/useRolePermissions";
 import { useCurrentSubscription } from "../../hooks/useSubscription";
 import { theme } from "../../theme";
 import ProductsPanel from "../products/ProductsPanel";
@@ -29,6 +30,7 @@ export default function CounterScreen() {
 
 	// Immediately fetch current subscription on POS / login alongside products
 	useCurrentSubscription();
+	useRolePermissions();
 
 	const handleBillToCart = () => {
 		setActiveTab("products");

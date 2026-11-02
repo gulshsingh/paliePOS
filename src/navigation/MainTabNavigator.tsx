@@ -11,6 +11,7 @@ import {
 	View,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { useRolePermissions } from "../hooks/useRolePermissions";
 import CounterScreen from "../screens/counter/CounterScreen";
 import ProductsScreen from "../screens/products/ProductsScreen";
 import ConfigurationScreen from "../screens/settings/ConfigurationScreen";
@@ -150,6 +151,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
 // ── Navigator ─────────────────────────────────────────────
 export default function MainTabNavigator() {
+	useRolePermissions();
 	return (
 		<Tab.Navigator tabBar={CustomTabBar} screenOptions={{ headerShown: false }}>
 			{TAB_CONFIG.map(({ name, component }) => (
