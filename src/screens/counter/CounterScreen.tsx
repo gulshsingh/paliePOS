@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FlowPanel from "../../components/flow/FlowPanel";
+import { useCurrentSubscription } from "../../hooks/useSubscription";
 import { theme } from "../../theme";
 import ProductsPanel from "../products/ProductsPanel";
 import OrdersPanel from "./OrdersPanel";
@@ -25,6 +26,9 @@ export default function CounterScreen() {
 	const insets = useSafeAreaInsets();
 	const [activeTab, setActiveTab] = useState<Tab>("products");
 	const [openCartSignal, setOpenCartSignal] = useState(0);
+
+	// Immediately fetch current subscription on POS / login alongside products
+	useCurrentSubscription();
 
 	const handleBillToCart = () => {
 		setActiveTab("products");
@@ -97,7 +101,9 @@ export default function CounterScreen() {
 				{activeTab === "orders" && (
 					<OrdersPanel onBillToCart={handleBillToCart} />
 				)}
-				{activeTab === "products" && <ProductsPanel openCartSignal={openCartSignal} />}
+				{activeTab === "products" && (
+					<ProductsPanel openCartSignal={openCartSignal} />
+				)}
 				{activeTab === "flow" && (
 					<FlowPanel
 						onResume={() => setActiveTab("products")}

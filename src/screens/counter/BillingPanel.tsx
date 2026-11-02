@@ -1,15 +1,15 @@
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-	Alert,
-	SectionList,
-	View,
-} from "react-native";
+import { Alert, SectionList, View } from "react-native";
 import BillingItem from "../../components/billing/BillingItem";
 import CustomerModal from "../../components/customer/CustomerModal";
 import TableModal from "../../components/table/TableModal";
 import { useCustomers } from "../../hooks/useCustomers";
-import { useAddOrderItems, useCreateOrder, useUpdateItemStatus } from "../../hooks/useOrders";
+import {
+	useAddOrderItems,
+	useCreateOrder,
+	useUpdateItemStatus,
+} from "../../hooks/useOrders";
 import { useTables } from "../../hooks/useTables";
 import { useCartStore } from "../../store/cartStore";
 import { useCustomerStore } from "../../store/customerStore";
@@ -30,6 +30,11 @@ import {
 	BillingSelectionRow,
 	BillingSummary,
 } from "./BillingPanel.components";
+import {
+	buildCartSections,
+	buildNewOrderObject,
+	calculateBillingTotals,
+} from "./BillingPanel.helpers";
 import { styles } from "./BillingPanel.styles";
 
 interface Props {
@@ -64,8 +69,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const updateItemStatusRemote = useUpdateItemStatus();
 
 	const customers = useMemo(
-		() =>
-			customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
+		() => customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
 		[customersData],
 	);
 
@@ -113,34 +117,10 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const isBillingExisting = activeOrderId != null;
 
 	// Sections: locked existing items + editable new additions.
-	const cartSections = useMemo(() => {
-		if (!isBillingExisting) return [{ key: "all", data: cart }];
-		const existingItems = cart.filter((i) => i.sentToKitchen);
-		const newItems = cart.filter((i) => !i.sentToKitchen);
-		const sections: {
-			key: string;
-			title?: string;
-			locked?: boolean;
-			data: CartItem[];
-		}[] = [];
-		if (existingItems.length > 0) {
-			sections.push({
-				key: "existing",
-				title: "Existing Items",
-				locked: true,
-				data: existingItems,
-			});
-		}
-		if (newItems.length > 0) {
-			sections.push({
-				key: "new",
-				title: "New Items",
-				locked: false,
-				data: newItems,
-			});
-		}
-		return sections;
-	}, [cart, isBillingExisting]);
+	const cartSections = useMemo(
+		() => buildCartSections(cart, isBillingExisting),
+		[cart, isBillingExisting],
+	);
 
 	// ── Auto-fill customer & table from the order being billed ──
 	const [autofilledFor, setAutofilledFor] = useState<string | null>(null);
@@ -155,7 +135,6 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			? tables.find((tt) => tt.id === existingOrder.table_id)
 			: null;
 
-		
 		const customersLoaded = customers.length > 0;
 		const tablesLoaded = tables.length > 0;
 		if (existingOrder.account_id && !customerFound && !customersLoaded) return;
@@ -163,7 +142,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 
 		if (customerFound) setSelectedCustomer(customerFound);
 		if (tableFound) setSelectedTable(tableFound);
-	
+
 		setAutofilledFor(existingOrder.id);
 	}, [
 		existingOrder,
@@ -174,20 +153,11 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		setSelectedCustomer,
 	]);
 
-	const { subtotal, taxTotal, grandTotal } = useMemo(() => {
-		const sub = cart.reduce((s, i) => s + i.price_per_unit * i.qty, 0);
-		// Existing order: tax already computed by backend (items carry tax=0),
-		// so use the order's tax_amount + tax on newly added lines.
-		const existingTax = isBillingExisting
-			? Number(existingOrder?.tax_amount) || 0
-			: 0;
-		const additionsTax = additions.reduce(
-			(s, i) => s + (i.price_per_unit * i.qty * i.tax) / 100,
-			0,
-		);
-		const tax = existingTax + additionsTax;
-		return { subtotal: sub, taxTotal: tax, grandTotal: sub + tax };
-	}, [cart, additions, isBillingExisting, existingOrder]);
+	const { subtotal, taxTotal, grandTotal } = useMemo(
+		() =>
+			calculateBillingTotals(cart, additions, isBillingExisting, existingOrder),
+		[cart, additions, isBillingExisting, existingOrder],
+	);
 
 	const handleClearAll = useCallback(() => {
 		clearCart();
@@ -196,12 +166,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		setSelectedTable(null);
 		setAutofilledFor(null);
 		setLoadedForOrder(null);
-	}, [
-		clearCart,
-		setActiveOrder,
-		setSelectedCustomer,
-		setSelectedTable,
-	]);
+	}, [clearCart, setActiveOrder, setSelectedCustomer, setSelectedTable]);
 
 	const handleSendToKitchen = async () => {
 		if (cart.length === 0 || submittingRef.current) return;
@@ -237,40 +202,14 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			// Use server-returned item IDs (real order-item UUIDs). If the
 			// response includes items, map them directly so we never store
 			// a product_id where an order-item UUID is required.
-const newOrder: Order = {
-			id: o?.id,
-			order_number: o?.order_number,
-			items:
-				(o?.items ?? []).length > 0
-					? mapApiItemsToCart(o.items, { status: "preparing", sentToKitchen: true, kotNo: 1 })
-					: cart.map((i) => ({
-							...i,
-							status: "preparing" as const,
-							sentToKitchen: true,
-							kotNo: 1,
-						})),
-				total: grandTotal,
-				tax_amount: taxTotal,
-				status: "PREPARING",
-				paymentStatus: "UNPAID",
-				table_id: selectedTable?.id ?? null,
-				account_id: selectedCustomer?.id ?? null,
-				table_name: selectedTable?.name,
-				customer_name: selectedCustomer?.name,
-				kots: [
-					{
-						kotNo: 1,
-						items: cart.map(({ id, name, qty, price_per_unit }) => ({
-							id,
-							name,
-							qty,
-							price_per_unit,
-						})),
-						createdAt: new Date().toISOString(),
-					},
-				],
-				nextKotNo: 2,
-			};
+			const newOrder = buildNewOrderObject({
+				serverOrder: o,
+				cart,
+				grandTotal,
+				taxTotal,
+				selectedTable,
+				selectedCustomer,
+			});
 
 			addOrder(newOrder);
 
@@ -343,12 +282,14 @@ const newOrder: Order = {
 				...(order.kots ?? []),
 				{
 					kotNo,
-					items: sentAdditions.map(({ name, qty, price_per_unit, product_id, id }) => ({
-						id: product_id ?? id,
-						name,
-						qty,
-						price_per_unit,
-					})),
+					items: sentAdditions.map(
+						({ name, qty, price_per_unit, product_id, id }) => ({
+							id: product_id ?? id,
+							name,
+							qty,
+							price_per_unit,
+						}),
+					),
 					createdAt: new Date().toISOString(),
 				},
 			],
@@ -447,8 +388,9 @@ const newOrder: Order = {
 	);
 
 	const renderSectionHeader = useCallback(
-		({ section }: { section: any }) =>
-			<BillingSectionHeader section={section} />,
+		({ section }: { section: any }) => (
+			<BillingSectionHeader section={section} />
+		),
 		[],
 	);
 
@@ -538,4 +480,3 @@ const newOrder: Order = {
 		</View>
 	);
 }
-

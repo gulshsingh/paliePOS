@@ -7,7 +7,6 @@ import {
 	Platform,
 	ScrollView,
 	StatusBar,
-	StyleSheet,
 	Text,
 	TextInput,
 	TouchableOpacity,
@@ -25,6 +24,7 @@ import {
 	customerSchema,
 } from "../../schemas/customers/customerSchema";
 import { theme } from "../../theme";
+import { styles } from "./CustomerFormScreen.styles";
 
 type FieldErrors = Partial<Record<keyof CustomerFormData, string>>;
 
@@ -332,171 +332,3 @@ export default function CustomerFormScreen(): React.JSX.Element {
 		</KeyboardAvoidingView>
 	);
 }
-
-const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		backgroundColor: theme.colors.surfaceSecondary,
-		paddingTop: 0,
-	},
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		paddingHorizontal: 16,
-		paddingVertical: 12,
-		backgroundColor: "#fff",
-		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.borderLight,
-	},
-	headerCenter: { flex: 1, alignItems: "center" },
-	backBtn: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		backgroundColor: theme.colors.surfaceSecondary,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	headerTitle: {
-		fontSize: 17,
-		fontWeight: "800",
-		color: theme.colors.textPrimary,
-		textAlign: "center",
-	},
-	headerSub: {
-		fontSize: 12,
-		color: theme.colors.textMuted,
-		textAlign: "center",
-		marginTop: 1,
-	},
-	headerSpacer: { width: 36 },
-	deleteIconBtn: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		backgroundColor: theme.colors.dangerLight,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	scroll: { flex: 1 },
-	scrollContent: {
-		paddingHorizontal: 16,
-		paddingTop: 16,
-		paddingBottom: 24,
-		gap: 12,
-	},
-	avatarWrap: { alignItems: "center", paddingVertical: 8, gap: 8 },
-	avatar: {
-		width: 72,
-		height: 72,
-		borderRadius: 36,
-		backgroundColor: theme.colors.primaryLight,
-		justifyContent: "center",
-		alignItems: "center",
-		borderWidth: 2,
-		borderColor: `${theme.colors.primary}40`,
-	},
-	avatarName: {
-		fontSize: 15,
-		fontWeight: "700",
-		color: theme.colors.textPrimary,
-	},
-	card: {
-		backgroundColor: "#fff",
-		borderRadius: theme.radius.xl,
-		padding: 18,
-		borderWidth: 1,
-		borderColor: theme.colors.borderLight,
-		...theme.shadow.sm,
-	},
-	cardHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 8,
-		marginBottom: 14,
-	},
-	cardTitle: {
-		fontSize: 14,
-		fontWeight: "800",
-		color: theme.colors.textPrimary,
-	},
-	fieldWrap: { marginBottom: 12 },
-	label: {
-		fontSize: 12,
-		fontWeight: "700",
-		color: theme.colors.textSecondary,
-		marginBottom: 6,
-		letterSpacing: 0.3,
-	},
-	inputRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 10,
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderRadius: theme.radius.md,
-		borderWidth: 1.5,
-		borderColor: theme.colors.border,
-		paddingHorizontal: 12,
-		paddingVertical: 2,
-	},
-	inputMulti: { alignItems: "flex-start", paddingVertical: 10 },
-	inputFocused: {
-		borderColor: theme.colors.primary,
-		backgroundColor: theme.colors.primaryLight,
-	},
-	inputError: {
-		borderColor: theme.colors.danger,
-		backgroundColor: theme.colors.dangerLight,
-	},
-	input: {
-		flex: 1,
-		color: theme.colors.textPrimary,
-		fontSize: 14,
-		paddingVertical: 12,
-	},
-	addressInput: { height: 72, textAlignVertical: "top" as const },
-	iconTop: { marginTop: 2 },
-	fieldError: {
-		color: theme.colors.danger,
-		fontSize: 11,
-		fontWeight: "600",
-		marginTop: 4,
-	},
-	footer: {
-		flexDirection: "row",
-		gap: 10,
-		paddingHorizontal: 16,
-		paddingVertical: 14,
-		backgroundColor: "#fff",
-		borderTopWidth: 1,
-		borderTopColor: theme.colors.borderLight,
-	},
-	cancelBtn: {
-		flex: 1,
-		paddingVertical: 14,
-		borderRadius: theme.radius.md,
-		alignItems: "center",
-		backgroundColor: theme.colors.surfaceTertiary,
-		borderWidth: 1,
-		borderColor: theme.colors.border,
-	},
-	cancelBtnText: {
-		color: theme.colors.textSecondary,
-		fontSize: 14,
-		fontWeight: "700",
-	},
-	saveBtn: {
-		flex: 2,
-		flexDirection: "row",
-		paddingVertical: 14,
-		borderRadius: theme.radius.md,
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		backgroundColor: theme.colors.primary,
-		...theme.shadow.lg,
-	},
-	saveBtnText: { color: "#fff", fontSize: 14, fontWeight: "800" },
-	buttonDisabled: { opacity: 0.7 },
-});
