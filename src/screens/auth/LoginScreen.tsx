@@ -59,7 +59,14 @@ export default function LoginScreen({ navigation }: any) {
 			const res = await login({ email, password });
 			qc.clear();
 			const d = res.data as any;
-			const token = d?.data?.data?.session?.access_token;
+			const token =
+				d?.data?.data?.session?.access_token ||
+				d?.data?.session?.access_token ||
+				d?.data?.data?.access_token ||
+				d?.data?.access_token ||
+				d?.data?.token ||
+				d?.data?.data?.token ||
+				d?.token;
 			if (!token) {
 				setErrors({
 					general: "Invalid response from server — please try again",
@@ -70,9 +77,9 @@ export default function LoginScreen({ navigation }: any) {
 		} catch (e: any) {
 			const code = e.response?.data?.error_code;
 			const msg =
-				code === "LOGIN_FAILED"
+				code === "LOGIN_FAILED" || code === "AUTH_LOGIN_FAILED"
 					? "Please check your email and password"
-					: e.response?.data?.message || e.message || "Login failed";
+					: e.response?.data?.message || (e.message === "Network Error" ? "Network error: Phone ka internet connection check karein" : e.message) || "Login failed";
 			setErrors({ general: msg });
 		} finally {
 			setLoading(false);

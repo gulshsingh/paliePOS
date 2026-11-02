@@ -1,4 +1,4 @@
-import { useNavigation } from "@react-navigation/native";
+// import { useNavigation } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
 	FlatList,
@@ -49,7 +49,7 @@ const TILE_COLORS = [
 
 export default function ProductsScreen() {
 	const insets = useSafeAreaInsets();
-	const navigation = useNavigation<any>();
+	// const navigation = useNavigation<any>();
 	const [search, setSearch] = useState("");
 	const { data, isLoading } = useProducts();
 
@@ -65,41 +65,32 @@ export default function ProductsScreen() {
 			)
 		: allProducts;
 
-	const renderItem = useCallback(
-		({ item }: { item: Product }) => {
-			const emoji = EMOJIS[item.name.length % EMOJIS.length];
-			const tileBg = TILE_COLORS[item.name.length % TILE_COLORS.length];
-			return (
-				<TouchableOpacity
-					style={styles.card}
-					activeOpacity={0.88}
-					onPress={() => navigation.navigate("ProductForm", { product: item })}
-				>
-					<View style={[styles.emojiTile, { backgroundColor: tileBg }]}>
-						<Text style={styles.emoji}>{emoji}</Text>
-					</View>
+	const renderItem = useCallback(({ item }: { item: Product }) => {
+		const emoji = EMOJIS[item.name.length % EMOJIS.length];
+		const tileBg = TILE_COLORS[item.name.length % TILE_COLORS.length];
+		return (
+			<TouchableOpacity
+				style={styles.card}
+				activeOpacity={1}
+				// onPress={() => navigation.navigate("ProductForm", { product: item })}
+			>
+				<View style={[styles.emojiTile, { backgroundColor: tileBg }]}>
+					<Text style={styles.emoji}>{emoji}</Text>
+				</View>
 
-					<View style={styles.cardBody}>
-						<Text style={styles.name} numberOfLines={1}>
-							{item.name}
-						</Text>
-						<Text style={styles.price}>
-							₹{Number(item.price_per_unit).toLocaleString("en-IN")}
-						</Text>
-					</View>
+				<View style={styles.cardBody}>
+					<Text style={styles.name} numberOfLines={1}>
+						{item.name}
+					</Text>
+					<Text style={styles.price}>
+						₹{Number(item.price_per_unit).toLocaleString("en-IN")}
+					</Text>
+				</View>
 
-					<View style={styles.editIcon}>
-						<MaterialCommunityIcons
-							name="pencil-outline"
-							size={13}
-							color={theme.colors.primary}
-						/>
-					</View>
-				</TouchableOpacity>
-			);
-		},
-		[navigation],
-	);
+				{/* Edit icon disabled on mobile */}
+			</TouchableOpacity>
+		);
+	}, []);
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -111,14 +102,7 @@ export default function ProductsScreen() {
 					<Text style={styles.headerSub}>Menu</Text>
 					<Text style={styles.headerTitle}>Products</Text>
 				</View>
-				<TouchableOpacity
-					style={styles.addBtn}
-					onPress={() => navigation.navigate("ProductForm", {})}
-					activeOpacity={0.85}
-				>
-					<MaterialCommunityIcons name="plus" size={16} color="#fff" />
-					<Text style={styles.addBtnText}>Add Item</Text>
-				</TouchableOpacity>
+				{/* Add Product disabled on mobile */}
 			</View>
 
 			{/* Search */}

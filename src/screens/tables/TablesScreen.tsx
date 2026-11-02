@@ -1,4 +1,4 @@
-import { useNavigation } from "@react-navigation/native";
+// import { useNavigation } from "@react-navigation/native";
 import { useCallback } from "react";
 import {
 	Dimensions,
@@ -41,55 +41,52 @@ const STATUS_MAP: Record<
 
 export default function TablesScreen() {
 	const insets = useSafeAreaInsets();
-	const navigation = useNavigation<any>();
+	// const navigation = useNavigation<any>();
 	const { data, isLoading } = useTables();
 	const tables: RestaurantTable[] = (data as any)?.data?.data?.data ?? [];
 	const total = tables.length;
 	const available = tables.filter((t) => t.status === "available").length;
 	const occupied = tables.filter((t) => t.status === "occupied").length;
 
-	const renderCard = useCallback(
-		({ item }: { item: RestaurantTable }) => {
-			const st = STATUS_MAP[item.status] ?? STATUS_MAP.available;
-			return (
-				<TouchableOpacity
-					activeOpacity={0.9}
-					style={[styles.card, { borderTopColor: st.border }]}
-					onPress={() => navigation.navigate("TableForm", { table: item })}
-				>
-					{/* Table icon */}
-					<View style={[styles.tableIconWrap, { backgroundColor: st.bg }]}>
-						<MaterialCommunityIcons
-							name="table-furniture"
-							size={26}
-							color={st.color}
-						/>
-					</View>
+	const renderCard = useCallback(({ item }: { item: RestaurantTable }) => {
+		const st = STATUS_MAP[item.status] ?? STATUS_MAP.available;
+		return (
+			<TouchableOpacity
+				activeOpacity={1}
+				style={[styles.card, { borderTopColor: st.border }]}
+				// onPress={() => navigation.navigate("TableForm", { table: item })}
+			>
+				{/* Table icon */}
+				<View style={[styles.tableIconWrap, { backgroundColor: st.bg }]}>
+					<MaterialCommunityIcons
+						name="table-furniture"
+						size={26}
+						color={st.color}
+					/>
+				</View>
 
-					<Text style={styles.tableName} numberOfLines={1}>
-						{item.name}
+				<Text style={styles.tableName} numberOfLines={1}>
+					{item.name}
+				</Text>
+
+				<View style={styles.capacityRow}>
+					<MaterialCommunityIcons
+						name="account-multiple-outline"
+						size={13}
+						color={theme.colors.textMuted}
+					/>
+					<Text style={styles.capacityText}>{item.capacity} seats</Text>
+				</View>
+
+				<View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+					<MaterialCommunityIcons name={st.icon} size={11} color={st.color} />
+					<Text style={[styles.statusText, { color: st.color }]}>
+						{st.label}
 					</Text>
-
-					<View style={styles.capacityRow}>
-						<MaterialCommunityIcons
-							name="account-multiple-outline"
-							size={13}
-							color={theme.colors.textMuted}
-						/>
-						<Text style={styles.capacityText}>{item.capacity} seats</Text>
-					</View>
-
-					<View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-						<MaterialCommunityIcons name={st.icon} size={11} color={st.color} />
-						<Text style={[styles.statusText, { color: st.color }]}>
-							{st.label}
-						</Text>
-					</View>
-				</TouchableOpacity>
-			);
-		},
-		[navigation],
-	);
+				</View>
+			</TouchableOpacity>
+		);
+	}, []);
 
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
@@ -104,18 +101,7 @@ export default function TablesScreen() {
 					<Text style={styles.headerSub}>Floor plan</Text>
 					<Text style={styles.headerTitle}>Tables</Text>
 				</View>
-				<TouchableOpacity
-					style={styles.addBtn}
-					onPress={() => navigation.navigate("TableForm", {})}
-					activeOpacity={0.88}
-				>
-					<MaterialCommunityIcons
-						name="plus"
-						size={16}
-						color={theme.colors.textInverse}
-					/>
-					<Text style={styles.addBtnText}>Add table</Text>
-				</TouchableOpacity>
+				{/* Add Table disabled on mobile */}
 			</View>
 
 			{/* Stats row */}

@@ -6,7 +6,6 @@ import {
   cancelSubscription,
   extendSubscription,
   getSubscriptionHistory,
-  getCurrentSubscription,
   getPlans,
   subscribeToPlan,
 } from '../../api/services/subscriptions';
@@ -18,16 +17,14 @@ import {
   PlanItemCard,
   SubscriptionHistoryModal,
 } from './SubscriptionSection.components';
+import { useCurrentSubscription } from '../../hooks/useSubscription';
 import { styles } from './SubscriptionSection.styles';
 
 export default function SubscriptionSection() {
   const qc = useQueryClient();
   const [historyVisible, setHistoryVisible] = useState(false);
 
-  const { data: subRes, isLoading: subLoading } = useQuery({
-    queryKey: ['subscription'],
-    queryFn: () => getCurrentSubscription(),
-  });
+  const { data: subRes, isLoading: subLoading } = useCurrentSubscription();
 
   const { data: plansRes, isLoading: plansLoading } = useQuery({
     queryKey: ['plans'],

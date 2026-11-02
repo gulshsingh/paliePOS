@@ -4,7 +4,6 @@ import {
 	Alert,
 	FlatList,
 	Modal,
-	StyleSheet,
 	Text,
 	TouchableOpacity,
 	View,
@@ -24,6 +23,7 @@ import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import CustomerModal from "../customer/CustomerModal";
 import TableModal from "../table/TableModal";
+import { styles } from "./CartModal.styles";
 import CartModalItem from "./CartModalItem";
 
 export const CART_ITEM_HEIGHT = 70;
@@ -58,8 +58,7 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 	const updateItemStatusRemote = useUpdateItemStatus();
 
 	const customers = useMemo(
-		() =>
-			customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
+		() => customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
 		[customersData],
 	);
 
@@ -123,7 +122,11 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 				order_number: o?.order_number,
 				items:
 					(o?.items ?? []).length > 0
-						? mapApiItemsToCart(o.items, { status: "preparing", sentToKitchen: true, kotNo: 1 })
+						? mapApiItemsToCart(o.items, {
+								status: "preparing",
+								sentToKitchen: true,
+								kotNo: 1,
+							})
 						: cart.map((i) => ({
 								...i,
 								status: "preparing" as const,
@@ -175,7 +178,10 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			onClose();
 		} catch (e) {
 			console.error("Failed to create order", e);
-			Alert.alert("Error", "Could not send order to kitchen. Please try again.");
+			Alert.alert(
+				"Error",
+				"Could not send order to kitchen. Please try again.",
+			);
 		} finally {
 			submittingRef.current = false;
 		}
@@ -219,15 +225,21 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 			<View style={styles.totals}>
 				<View style={styles.totalRow}>
 					<Text style={styles.totalLabel}>Subtotal</Text>
-					<Text style={styles.totalValue}>₹{subtotal.toLocaleString("en-IN")}</Text>
+					<Text style={styles.totalValue}>
+						₹{subtotal.toLocaleString("en-IN")}
+					</Text>
 				</View>
 				<View style={styles.totalRow}>
 					<Text style={styles.totalLabel}>Tax</Text>
-					<Text style={styles.totalValue}>₹{taxTotal.toLocaleString("en-IN")}</Text>
+					<Text style={styles.totalValue}>
+						₹{taxTotal.toLocaleString("en-IN")}
+					</Text>
 				</View>
 				<View style={[styles.totalRow, styles.grandRow]}>
 					<Text style={styles.grandLabel}>Total</Text>
-					<Text style={styles.grandValue}>₹{grandTotal.toLocaleString("en-IN")}</Text>
+					<Text style={styles.grandValue}>
+						₹{grandTotal.toLocaleString("en-IN")}
+					</Text>
 				</View>
 			</View>
 		),
@@ -411,162 +423,3 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 		</Modal>
 	);
 }
-
-const styles = StyleSheet.create({
-	overlay: {
-		flex: 1,
-		backgroundColor: "rgba(0,0,0,0.5)",
-		justifyContent: "flex-end",
-	},
-	sheet: {
-		backgroundColor: "#fff",
-		borderTopLeftRadius: 24,
-		borderTopRightRadius: 24,
-		paddingHorizontal: 16,
-		paddingBottom: 28,
-		maxHeight: "85%",
-	},
-	handle: {
-		width: 40,
-		height: 4,
-		borderRadius: 2,
-		backgroundColor: theme.colors.border,
-		alignSelf: "center",
-		marginTop: 10,
-		marginBottom: 6,
-	},
-	header: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingVertical: 12,
-	},
-	title: { fontSize: 17, fontWeight: "800", color: theme.colors.textPrimary },
-	subtitle: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
-	closeBtn: {
-		width: 32,
-		height: 32,
-		borderRadius: 16,
-		backgroundColor: theme.colors.surfaceSecondary,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	empty: { alignItems: "center", paddingVertical: 40, gap: 8 },
-	emptyText: { fontSize: 14, color: theme.colors.textMuted, fontWeight: "600" },
-	selectionRow: {
-		flexDirection: "row",
-		gap: 8,
-		marginBottom: 8,
-	},
-	chip: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 6,
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderRadius: theme.radius.full,
-		borderWidth: 1.5,
-		borderColor: theme.colors.border,
-		paddingHorizontal: 12,
-		paddingVertical: 8,
-	},
-	chipActive: {
-		borderColor: theme.colors.primary,
-		backgroundColor: theme.colors.primaryLight,
-	},
-	chipText: {
-		flex: 1,
-		color: theme.colors.textMuted,
-		fontSize: 12,
-		fontWeight: "600",
-	},
-	chipTextActive: {
-		color: theme.colors.primary,
-	},
-	listContent: {
-		paddingHorizontal: 12,
-		paddingBottom: 12,
-	},
-	itemsHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingTop: 12,
-		paddingBottom: 6,
-	},
-	itemsHeaderText: {
-		fontSize: 13,
-		fontWeight: "700",
-		color: theme.colors.textSecondary,
-	},
-	clearText: {
-		fontSize: 13,
-		color: theme.colors.danger,
-		fontWeight: "700",
-	},
-	totals: {
-		borderTopWidth: 1,
-		borderTopColor: theme.colors.border,
-		paddingTop: 12,
-		gap: 8,
-	},
-	totalRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-	},
-	totalLabel: {
-		fontSize: 13,
-		color: theme.colors.textSecondary,
-		fontWeight: "600",
-	},
-	totalValue: {
-		fontSize: 13,
-		color: theme.colors.textPrimary,
-		fontWeight: "700",
-	},
-	grandRow: {
-		paddingTop: 8,
-		borderTopWidth: 1,
-		borderTopColor: theme.colors.borderLight,
-	},
-	grandLabel: {
-		fontSize: 16,
-		fontWeight: "900",
-		color: theme.colors.textPrimary,
-	},
-	grandValue: { fontSize: 18, fontWeight: "900", color: theme.colors.primary },
-	actions: {
-		marginTop: 10,
-		flexDirection: "row",
-		gap: 10,
-	},
-	actionBtn: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		paddingVertical: 15,
-		borderRadius: theme.radius.md,
-	},
-	kitchenBtn: {
-		backgroundColor: theme.colors.primaryLight,
-		borderWidth: 1.5,
-		borderColor: theme.colors.primary,
-	},
-	kitchenBtnText: {
-		color: theme.colors.primary,
-		fontSize: 13,
-		fontWeight: "800",
-	},
-	payBtn: {
-		backgroundColor: theme.colors.primary,
-		...theme.shadow.lg,
-	},
-	payBtnText: {
-		color: "#fff",
-		fontSize: 13,
-		fontWeight: "800",
-	},
-});

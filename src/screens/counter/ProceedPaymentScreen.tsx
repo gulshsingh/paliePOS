@@ -4,7 +4,6 @@ import {
 	Alert,
 	ScrollView,
 	StatusBar,
-	StyleSheet,
 	Text,
 	TouchableOpacity,
 	View,
@@ -22,6 +21,7 @@ import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { PaymentStatus } from "../../types/order";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
+import { styles } from "./ProceedPaymentScreen.styles";
 
 export default function ProceedPaymentScreen() {
 	const insets = useSafeAreaInsets();
@@ -158,9 +158,10 @@ export default function ProceedPaymentScreen() {
 					order_number: orderNumber,
 					items:
 						createdItems.length > 0
-							? mapApiItemsToCart(createdItems, { kotNo: 1 }).map(
-									(i) => ({ ...i, status: "served" as const }),
-								)
+							? mapApiItemsToCart(createdItems, { kotNo: 1 }).map((i) => ({
+									...i,
+									status: "served" as const,
+								}))
 							: cart.map((i) => ({
 									...i,
 									status: "served" as const,
@@ -243,7 +244,9 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.successHeader}>
 					<TouchableOpacity
 						style={styles.backBtn}
-						onPress={() => navigation.reset({ index: 0, routes: [{ name: "Counter" }] })}
+						onPress={() =>
+							navigation.reset({ index: 0, routes: [{ name: "Counter" }] })
+						}
 					>
 						<MaterialCommunityIcons
 							name="close"
@@ -266,7 +269,9 @@ export default function ProceedPaymentScreen() {
 				</ScrollView>
 				<TouchableOpacity
 					style={styles.doneBtn}
-					onPress={() => navigation.reset({ index: 0, routes: [{ name: "Counter" }] })}
+					onPress={() =>
+						navigation.reset({ index: 0, routes: [{ name: "Counter" }] })
+					}
 					activeOpacity={0.85}
 				>
 					<MaterialCommunityIcons name="home-outline" size={18} color="#fff" />
@@ -299,60 +304,64 @@ export default function ProceedPaymentScreen() {
 
 			{/* Context chips */}
 			{(customer || table) && (
-					<View style={styles.contextRow}>
-						{customer && (
-							<View style={styles.contextChip}>
-								<MaterialCommunityIcons
-									name="account-outline"
-									size={13}
-									color={theme.colors.textSecondary}
-								/>
-								<Text style={styles.contextChipText}>{customer.name}</Text>
-							</View>
-						)}
-						{table && (
-							<View style={styles.contextChip}>
-								<MaterialCommunityIcons
-									name="table-furniture"
-									size={13}
-									color={theme.colors.textSecondary}
-								/>
-								<Text style={styles.contextChipText}>{table.name}</Text>
-							</View>
-						)}
-					</View>
-				)}
-
-				{/* Bill summary card */}
-				<View style={styles.summaryCard}>
-					<View style={styles.summaryRow}>
-						<Text style={styles.summaryLabel}>Subtotal</Text>
-						<Text style={styles.summaryValue}>₹{subtotal.toLocaleString("en-IN")}</Text>
-					</View>
-					<View style={styles.summaryRow}>
-						<Text style={styles.summaryLabel}>Taxes & Charges</Text>
-						<Text style={styles.summaryValue}>₹{taxTotal.toLocaleString("en-IN")}</Text>
-					</View>
-					{Number(discount) > 0 && (
-						<View style={styles.summaryRow}>
-							<Text style={styles.summaryLabel}>Discount</Text>
-							<Text
-								style={[styles.summaryValue, { color: theme.colors.success }]}
-							>
-								− ₹{Number(discount).toLocaleString("en-IN")}
-							</Text>
+				<View style={styles.contextRow}>
+					{customer && (
+						<View style={styles.contextChip}>
+							<MaterialCommunityIcons
+								name="account-outline"
+								size={13}
+								color={theme.colors.textSecondary}
+							/>
+							<Text style={styles.contextChipText}>{customer.name}</Text>
 						</View>
 					)}
-					<View style={styles.totalDivider} />
+					{table && (
+						<View style={styles.contextChip}>
+							<MaterialCommunityIcons
+								name="table-furniture"
+								size={13}
+								color={theme.colors.textSecondary}
+							/>
+							<Text style={styles.contextChipText}>{table.name}</Text>
+						</View>
+					)}
+				</View>
+			)}
+
+			{/* Bill summary card */}
+			<View style={styles.summaryCard}>
+				<View style={styles.summaryRow}>
+					<Text style={styles.summaryLabel}>Subtotal</Text>
+					<Text style={styles.summaryValue}>
+						₹{subtotal.toLocaleString("en-IN")}
+					</Text>
+				</View>
+				<View style={styles.summaryRow}>
+					<Text style={styles.summaryLabel}>Taxes & Charges</Text>
+					<Text style={styles.summaryValue}>
+						₹{taxTotal.toLocaleString("en-IN")}
+					</Text>
+				</View>
+				{Number(discount) > 0 && (
 					<View style={styles.summaryRow}>
-						<Text style={styles.totalLabel}>Total Payable</Text>
-						<Text style={styles.totalValue}>
-							₹{totalPayable.toLocaleString("en-IN")}
+						<Text style={styles.summaryLabel}>Discount</Text>
+						<Text
+							style={[styles.summaryValue, { color: theme.colors.success }]}
+						>
+							− ₹{Number(discount).toLocaleString("en-IN")}
 						</Text>
 					</View>
+				)}
+				<View style={styles.totalDivider} />
+				<View style={styles.summaryRow}>
+					<Text style={styles.totalLabel}>Total Payable</Text>
+					<Text style={styles.totalValue}>
+						₹{totalPayable.toLocaleString("en-IN")}
+					</Text>
 				</View>
+			</View>
 
-{/* Entered amount display */}
+			{/* Entered amount display */}
 			<View style={styles.amountDisplay}>
 				<Text style={styles.amountLabel}>Cash Received</Text>
 				<Text
@@ -425,195 +434,3 @@ export default function ProceedPaymentScreen() {
 		</View>
 	);
 }
-
-const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		backgroundColor: theme.colors.surfaceSecondary,
-		paddingTop: 0,
-	},
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		paddingHorizontal: 16,
-		paddingVertical: 12,
-		backgroundColor: "#fff",
-		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.borderLight,
-	},
-	backBtn: {
-		width: 36,
-		height: 36,
-		borderRadius: 18,
-		backgroundColor: theme.colors.surfaceSecondary,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	headerTitle: {
-		fontSize: 17,
-		fontWeight: "800",
-		color: theme.colors.textPrimary,
-	},
-	contextRow: {
-		flexDirection: "row",
-		gap: 8,
-		paddingHorizontal: 16,
-		paddingVertical: 6,
-		backgroundColor: "#fff",
-		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.borderLight,
-	},
-	contextChip: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 5,
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderRadius: theme.radius.full,
-		paddingHorizontal: 12,
-		paddingVertical: 5,
-		borderWidth: 1,
-		borderColor: theme.colors.border,
-	},
-	contextChipText: {
-		fontSize: 12,
-		fontWeight: "600",
-		color: theme.colors.textSecondary,
-	},
-	summaryCard: {
-		backgroundColor: "#fff",
-		margin: 8,
-		borderRadius: theme.radius.lg,
-		padding: 12,
-		borderWidth: 1,
-		borderColor: theme.colors.borderLight,
-		...theme.shadow.sm,
-	},
-	summaryRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: 8,
-	},
-	summaryLabel: {
-		fontSize: 13,
-		color: theme.colors.textSecondary,
-	},
-	summaryValue: {
-		fontSize: 13,
-		fontWeight: "600",
-		color: theme.colors.textPrimary,
-	},
-	totalDivider: {
-		height: 1,
-		backgroundColor: theme.colors.borderLight,
-		marginVertical: 8,
-		borderStyle: "dashed",
-	},
-	totalLabel: {
-		fontSize: 15,
-		fontWeight: "800",
-		color: theme.colors.textPrimary,
-	},
-	totalValue: {
-		fontSize: 18,
-		fontWeight: "900",
-		color: theme.colors.primary,
-	},
-	amountDisplay: {
-		alignItems: "center",
-		paddingVertical: 4,
-		paddingHorizontal: 16,
-	},
-	amountLabel: {
-		fontSize: 12,
-		fontWeight: "700",
-		color: theme.colors.textMuted,
-		letterSpacing: 0.5,
-		textTransform: "uppercase",
-		marginBottom: 4,
-	},
-	amountValue: {
-		fontSize: 36,
-		fontWeight: "900",
-		color: theme.colors.textPrimary,
-		letterSpacing: 1,
-	},
-	amountPlaceholder: {
-		color: theme.colors.textMuted,
-	},
-	changeBadge: {
-		marginTop: 6,
-		borderRadius: theme.radius.full,
-		paddingHorizontal: 16,
-		paddingVertical: 5,
-	},
-	changeText: {
-		fontSize: 13,
-		fontWeight: "700",
-	},
-	completeBtn: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 10,
-		backgroundColor: theme.colors.success,
-		marginHorizontal: 12,
-		paddingVertical: 12,
-		borderRadius: theme.radius.lg,
-		...theme.shadow.md,
-	},
-	completeBtnDisabled: {
-		backgroundColor: theme.colors.textMuted,
-		shadowColor: "transparent",
-		elevation: 0,
-	},
-	completeBtnText: {
-		color: "#fff",
-		fontSize: 15,
-		fontWeight: "800",
-	},
-	// Receipt view
-	successHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		paddingHorizontal: 16,
-		paddingVertical: 12,
-		backgroundColor: "#fff",
-		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.borderLight,
-	},
-	successBadge: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 8,
-	},
-	successText: {
-		fontSize: 15,
-		fontWeight: "800",
-		color: theme.colors.success,
-	},
-	doneBtn: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		backgroundColor: theme.colors.primary,
-		margin: 12,
-		paddingVertical: 16,
-		borderRadius: theme.radius.lg,
-		...theme.shadow.lg,
-	},
-	doneBtnText: {
-		color: "#fff",
-		fontSize: 15,
-		fontWeight: "800",
-	},
-	headerSpacer: {
-		width: 36,
-	},
-	receiptScroll: {
-		paddingBottom: 24,
-	},
-});
