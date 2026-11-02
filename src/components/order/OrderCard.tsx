@@ -159,8 +159,7 @@ export default memo(function OrderCard({
 					{order.items.map((item, idx) => {
 						// firedRef gives us the status we just sent so the button
 						// label/visibility is correct even before Zustand propagates.
-						const effectiveStatus =
-							firedRef.current[item.id] ?? item.status;
+						const effectiveStatus = firedRef.current[item.id] ?? item.status;
 						const next = NEXT_STATUS[effectiveStatus];
 						// Only show the action button if this item's CURRENT (server)
 						// status matches the tab we're on. This prevents the wrong
@@ -169,10 +168,7 @@ export default memo(function OrderCard({
 							!actionableStatus || item.status === actionableStatus;
 
 						return (
-							<View
-								key={item.id}
-								style={styles.itemRow}
-							>
+							<View key={item.id} style={styles.itemRow}>
 								<View style={styles.itemIdxWrap}>
 									<Text style={styles.itemIdx}>{idx + 1}</Text>
 								</View>
@@ -180,8 +176,9 @@ export default memo(function OrderCard({
 									{item.name}
 								</Text>
 								<Text style={styles.itemQty}>
-									{item.qty} X ₹
-									{item.price_per_unit.toLocaleString("en-IN")}
+									{hideAmount
+										? `Qty: ${item.qty}`
+										: `${item.qty} X ₹${item.price_per_unit.toLocaleString("en-IN")}`}
 								</Text>
 								{next && !readOnly && canAct && (
 									<TouchableOpacity
@@ -192,9 +189,7 @@ export default memo(function OrderCard({
 										}}
 										activeOpacity={0.75}
 									>
-										<Text style={styles.actionChipText}>
-											{next.action}
-										</Text>
+										<Text style={styles.actionChipText}>{next.action}</Text>
 									</TouchableOpacity>
 								)}
 								{readOnly && !hideStatus && (
@@ -202,8 +197,7 @@ export default memo(function OrderCard({
 										style={[
 											styles.statusBadge,
 											{
-												backgroundColor:
-													STATUS_BADGE[item.status]?.bg,
+												backgroundColor: STATUS_BADGE[item.status]?.bg,
 											},
 										]}
 									>

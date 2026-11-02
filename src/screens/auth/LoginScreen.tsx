@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
 	ActivityIndicator,
@@ -5,7 +7,6 @@ import {
 	Platform,
 	ScrollView,
 	StatusBar,
-	StyleSheet,
 	Text,
 	TextInput,
 	TouchableOpacity,
@@ -15,9 +16,10 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { login } from "../../api/services/auth";
 import { useAuth } from "../../navigation/AppNavigator";
 import { loginSchema } from "../../schemas/auth/loginSchema";
-import { useQueryClient } from "@tanstack/react-query";
+import { usePermissionStore } from "../../store/permissionStore";
 import { theme } from "../../theme";
 import { startGoogleSignIn } from "../../utils/googleAuth";
+import { styles } from "./LoginScreen.styles";
 
 export default function LoginScreen({ navigation }: any) {
 	const { signIn } = useAuth();
@@ -73,13 +75,35 @@ export default function LoginScreen({ navigation }: any) {
 				});
 				return;
 			}
-			signIn(token);
+
+			// Extract role_id from login response (data.data.profile.role_id)
+			const roleId =
+				d?.data?.data?.profile?.role_id ||
+				d?.data?.profile?.role_id ||
+				d?.data?.data?.user?.role_id ||
+				d?.data?.user?.role_id;
+			const profile = d?.data?.data?.profile || d?.data?.profile;
+
+			await AsyncStorage.setItem("token", token);
+			if (roleId) {
+				await AsyncStorage.setItem("role_id", roleId);
+				usePermissionStore.getState().setRoleId(roleId);
+			}
+			if (profile) {
+				await AsyncStorage.setItem("user_profile", JSON.stringify(profile));
+			}
+
+			signIn(token, roleId);
 		} catch (e: any) {
 			const code = e.response?.data?.error_code;
 			const msg =
 				code === "LOGIN_FAILED" || code === "AUTH_LOGIN_FAILED"
 					? "Please check your email and password"
-					: e.response?.data?.message || (e.message === "Network Error" ? "Network error: Phone ka internet connection check karein" : e.message) || "Login failed";
+					: e.response?.data?.message ||
+						(e.message === "Network Error"
+							? "Network error: Phone ka internet connection check karein"
+							: e.message) ||
+						"Login failed";
 			setErrors({ general: msg });
 		} finally {
 			setLoading(false);
@@ -141,17 +165,15 @@ export default function LoginScreen({ navigation }: any) {
 					keyboardShouldPersistTaps="handled"
 					showsVerticalScrollIndicator={false}
 				>
-					<Text style={styles.heading}>Login to your account</Text>
-					<Text style={styles.subheading}>
-						Enter your credentials to continue
-					</Text>
+					<Text style={styles.heading}>Welcome back</Text>
+					<Text style={styles.subheading}>Sign in to your account</Text>
 
-					{/* General error */}
+					{/* General Error Banner */}
 					{errors.general ? (
 						<View style={styles.errorBox}>
 							<MaterialCommunityIcons
 								name="alert-circle-outline"
-								size={16}
+								size={18}
 								color={theme.colors.danger}
 							/>
 							<Text style={styles.errorBoxText}>{errors.general}</Text>
@@ -164,7 +186,7 @@ export default function LoginScreen({ navigation }: any) {
 						style={[
 							styles.inputRow,
 							focusedField === "email" && styles.inputFocused,
-							errors.email && styles.inputError,
+							Boolean(errors.email) && styles.inputError,
 						]}
 					>
 						<MaterialCommunityIcons
@@ -181,15 +203,18 @@ export default function LoginScreen({ navigation }: any) {
 						/>
 						<TextInput
 							style={styles.input}
-							placeholder="you@example.com"
+							placeholder="you@restaurant.com"
 							placeholderTextColor={theme.colors.textMuted}
 							value={email}
-							onChangeText={(v) => {
-								setEmail(v);
-								setErrors((p) => ({ ...p, email: undefined }));
+							onChangeText={(t) => {
+								setEmail(t);
+								if (errors.email)
+									setErrors((prev) => ({ ...prev, email: undefined }));
 							}}
 							keyboardType="email-address"
 							autoCapitalize="none"
+							autoCorrect={false}
+							editable={!loading}
 							onFocus={() => setFocusedField("email")}
 							onBlur={() => setFocusedField(null)}
 						/>
@@ -204,7 +229,7 @@ export default function LoginScreen({ navigation }: any) {
 						style={[
 							styles.inputRow,
 							focusedField === "password" && styles.inputFocused,
-							errors.password && styles.inputError,
+							Boolean(errors.password) && styles.inputError,
 						]}
 					>
 						<MaterialCommunityIcons
@@ -221,20 +246,22 @@ export default function LoginScreen({ navigation }: any) {
 						/>
 						<TextInput
 							style={styles.input}
-							placeholder="Enter your password"
+							placeholder="••••••••"
 							placeholderTextColor={theme.colors.textMuted}
 							value={password}
-							onChangeText={(v) => {
-								setPassword(v);
-								setErrors((p) => ({ ...p, password: undefined }));
+							onChangeText={(t) => {
+								setPassword(t);
+								if (errors.password)
+									setErrors((prev) => ({ ...prev, password: undefined }));
 							}}
 							secureTextEntry={!showPassword}
+							editable={!loading}
 							onFocus={() => setFocusedField("password")}
 							onBlur={() => setFocusedField(null)}
 						/>
 						<TouchableOpacity
-							onPress={() => setShowPassword(!showPassword)}
 							style={styles.eyeBtn}
+							onPress={() => setShowPassword(!showPassword)}
 						>
 							<MaterialCommunityIcons
 								name={showPassword ? "eye-off-outline" : "eye-outline"}
@@ -247,11 +274,16 @@ export default function LoginScreen({ navigation }: any) {
 						<Text style={styles.fieldError}>{errors.password}</Text>
 					) : null}
 
-					<TouchableOpacity style={styles.forgotBtn}>
+					{/* Forgot Password */}
+					<TouchableOpacity
+						style={styles.forgotBtn}
+						onPress={() => navigation.navigate("ForgotPassword")}
+						disabled={loading}
+					>
 						<Text style={styles.forgotText}>Forgot Password?</Text>
 					</TouchableOpacity>
 
-					{/* Login button */}
+					{/* Submit Button */}
 					<TouchableOpacity
 						style={[styles.button, loading && styles.buttonDisabled]}
 						onPress={handleLogin}
@@ -262,38 +294,37 @@ export default function LoginScreen({ navigation }: any) {
 							<ActivityIndicator color="#fff" size="small" />
 						) : (
 							<>
-								<Text style={styles.buttonText}>Login</Text>
+								<Text style={styles.buttonText}>Sign In</Text>
 								<MaterialCommunityIcons
 									name="arrow-right"
-									size={20}
+									size={18}
 									color="#fff"
 								/>
 							</>
 						)}
 					</TouchableOpacity>
 
-					{/* Google Login */}
+					{/* Google Login Button (Native Popup) */}
 					<TouchableOpacity
-						style={[styles.button, styles.buttonGoogle]}
+						style={[
+							styles.button,
+							styles.buttonGoogle,
+							googleLoading && styles.buttonDisabled,
+						]}
 						onPress={handleGoogleLogin}
-						disabled={googleLoading || loading}
+						disabled={loading || googleLoading}
 						activeOpacity={0.85}
 					>
 						{googleLoading ? (
-							<ActivityIndicator
-								color={theme.colors.primary}
-								size="small"
-							/>
+							<ActivityIndicator color={theme.colors.primary} size="small" />
 						) : (
 							<>
 								<MaterialCommunityIcons
 									name="google"
 									size={20}
-									color="#DB4437"
+									color="#EA4335"
 								/>
-								<Text style={styles.buttonGoogleText}>
-									Continue with Google
-								</Text>
+								<Text style={styles.buttonGoogleText}>Sign in with Google</Text>
 							</>
 						)}
 					</TouchableOpacity>
@@ -324,167 +355,3 @@ export default function LoginScreen({ navigation }: any) {
 		</KeyboardAvoidingView>
 	);
 }
-
-const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: theme.colors.primary },
-	hero: {
-		alignItems: "center",
-		paddingTop: 64,
-		paddingBottom: 32,
-		paddingHorizontal: 24,
-	},
-	logoWrap: {
-		width: 72,
-		height: 72,
-		borderRadius: 36,
-		backgroundColor: "rgba(255,255,255,0.2)",
-		justifyContent: "center",
-		alignItems: "center",
-		marginBottom: 14,
-	},
-	brand: { fontSize: 32, fontWeight: "900", color: "#fff", letterSpacing: 8 },
-	tagline: {
-		fontSize: 13,
-		color: "rgba(255,255,255,0.8)",
-		marginTop: 4,
-		letterSpacing: 1,
-	},
-	card: {
-		flex: 1,
-		backgroundColor: "#fff",
-		borderTopLeftRadius: 28,
-		borderTopRightRadius: 28,
-	},
-	scroll: { paddingHorizontal: 28, paddingTop: 32, paddingBottom: 40 },
-	heading: { fontSize: 22, fontWeight: "800", color: theme.colors.textPrimary },
-	subheading: {
-		fontSize: 14,
-		color: theme.colors.textMuted,
-		marginTop: 4,
-		marginBottom: 24,
-	},
-	errorBox: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 8,
-		backgroundColor: theme.colors.dangerLight,
-		borderRadius: theme.radius.sm,
-		paddingHorizontal: 14,
-		paddingVertical: 10,
-		marginBottom: 16,
-		borderLeftWidth: 3,
-		borderLeftColor: theme.colors.danger,
-	},
-	errorBoxText: { color: theme.colors.danger, fontSize: 13, flex: 1 },
-	label: {
-		fontSize: 13,
-		fontWeight: "700",
-		color: theme.colors.textSecondary,
-		marginBottom: 6,
-		letterSpacing: 0.3,
-	},
-	inputRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderRadius: theme.radius.md,
-		borderWidth: 1.5,
-		borderColor: theme.colors.border,
-		paddingHorizontal: 14,
-		marginBottom: 4,
-	},
-	inputFocused: {
-		borderColor: theme.colors.primary,
-		backgroundColor: theme.colors.primaryLight,
-	},
-	inputError: {
-		borderColor: theme.colors.danger,
-		backgroundColor: theme.colors.dangerLight,
-	},
-	inputIcon: { marginRight: 10 },
-	input: {
-		flex: 1,
-		color: theme.colors.textPrimary,
-		fontSize: 15,
-		paddingVertical: 14,
-	},
-	eyeBtn: { padding: 4 },
-	fieldError: {
-		color: theme.colors.danger,
-		fontSize: 11,
-		fontWeight: "600",
-		marginBottom: 12,
-		marginTop: 2,
-	},
-	forgotBtn: { alignSelf: "flex-end", marginBottom: 24, marginTop: 4 },
-	forgotText: { color: theme.colors.primary, fontSize: 13, fontWeight: "700" },
-	button: {
-		backgroundColor: theme.colors.primary,
-		paddingVertical: 16,
-		borderRadius: theme.radius.md,
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		...theme.shadow.lg,
-	},
-	buttonDisabled: { opacity: 0.7 },
-	buttonText: {
-		color: "#fff",
-		fontSize: 16,
-		fontWeight: "800",
-		letterSpacing: 0.5,
-	},
-	buttonGoogle: {
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderWidth: 1.5,
-		borderColor: theme.colors.border,
-		marginTop: 12,
-		shadowOpacity: 0,
-		elevation: 0,
-	},
-	buttonGoogleText: {
-		color: theme.colors.textPrimary,
-		fontSize: 15,
-		fontWeight: "800",
-		letterSpacing: 0.3,
-	},
-	dividerRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		marginVertical: 20,
-		gap: 12,
-	},
-	dividerLine: {
-		flex: 1,
-		height: 1,
-		backgroundColor: theme.colors.border,
-	},
-	
-	dividerText: {
-		fontSize: 12,
-		color: theme.colors.textMuted,
-		fontWeight: "600",
-		textTransform: "uppercase",
-		letterSpacing: 1,
-	},
-	signupRow: {
-		alignItems: "center",
-		paddingVertical: 6,
-	},
-	signupText: {
-		fontSize: 14,
-		color: theme.colors.textMuted,
-	},
-	signupLink: {
-		color: theme.colors.primary,
-		fontWeight: "800",
-		fontSize: 14,
-	},
-	version: {
-		textAlign: "center",
-		color: theme.colors.textMuted,
-		fontSize: 12,
-		marginTop: 32,
-	},
-});

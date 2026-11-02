@@ -1,5 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NavigationContainer, getStateFromPath } from "@react-navigation/native";
+import {
+	getStateFromPath,
+	NavigationContainer,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import {
 	createContext,
@@ -13,12 +16,14 @@ import { AppState, StyleSheet, View } from "react-native";
 import { setUnauthorizedHandler } from "../api/client";
 
 declare const atob: (encoded: string) => string;
+
 import Loader from "../components/common/Loader";
 import ProceedPaymentScreen from "../screens/counter/ProceedPaymentScreen";
 import CustomerFormScreen from "../screens/customers/CustomerFormScreen";
 import RunningOrdersScreen from "../screens/orders/RunningOrdersScreen";
 import ProductFormScreen from "../screens/products/ProductFormScreen";
 import TableFormScreen from "../screens/tables/TableFormScreen";
+import { usePermissionStore } from "../store/permissionStore";
 import { theme } from "../theme";
 import AuthNavigator from "./AuthNavigator";
 import MainTabNavigator from "./MainTabNavigator";
@@ -26,7 +31,7 @@ import MainTabNavigator from "./MainTabNavigator";
 const IDLE_TIMEOUT = 30 * 60 * 1000;
 
 interface AuthContextType {
-	signIn: (token: string) => void;
+	signIn: (token: string, roleId?: string) => void;
 	signOut: () => void;
 }
 
@@ -146,29 +151,41 @@ export default function AppNavigator() {
 		AsyncStorage.getItem("token").then((t) => {
 			if (t && !isTokenExpired(t)) {
 				setToken(t);
+				AsyncStorage.getItem("role_id").then((rid) => {
+					if (rid) {
+						usePermissionStore.getState().setRoleId(rid);
+					}
+				});
 			} else {
-				// Expired/malformed token: drop it and go straight to login.
 				if (t) AsyncStorage.removeItem("token");
+				AsyncStorage.removeItem("role_id");
+				usePermissionStore.getState().clear();
 				setToken(null);
 			}
 			setLoading(false);
 		});
 	}, []);
 
-	const signIn = useCallback(async (newToken: string) => {
+	const signIn = useCallback(async (newToken: string, newRoleId?: string) => {
 		if (!newToken) return;
 		await AsyncStorage.setItem("token", newToken);
+		if (newRoleId) {
+			await AsyncStorage.setItem("role_id", newRoleId);
+			usePermissionStore.getState().setRoleId(newRoleId);
+		}
 		setToken(newToken);
 	}, []);
 
 	const signOut = useCallback(async () => {
 		await AsyncStorage.clear();
+		usePermissionStore.getState().clear();
 		setToken(null);
 	}, []);
 
 	// Register logout handler for API interceptor
 	useEffect(() => {
 		setUnauthorizedHandler(() => {
+			usePermissionStore.getState().clear();
 			setToken(null);
 		});
 	}, []);
