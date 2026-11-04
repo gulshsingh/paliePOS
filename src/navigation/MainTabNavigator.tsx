@@ -126,8 +126,13 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 						target: route.key,
 						canPreventDefault: true,
 					});
-					if (!focused && !event.defaultPrevented)
-						navigation.navigate(route.name);
+					if (!event.defaultPrevented) {
+						if (!focused) {
+							navigation.navigate(route.name, { resetToMenu: Date.now() });
+						} else if (route.name === "Settings") {
+							navigation.navigate(route.name, { resetToMenu: Date.now() });
+						}
+					}
 				};
 				const onLongPress = () => {
 					navigation.emit({ type: "tabLongPress", target: route.key });

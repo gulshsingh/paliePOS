@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { generateInvoice } from "../../api/services/invoices";
+import { generateInvoice, type Invoice } from "../../api/services/invoices";
 import { createPayment } from "../../api/services/payments";
 import { updateTable } from "../../api/services/tables";
 import BillingKeypad from "../../components/billing/BillingKeypad";
@@ -19,14 +19,29 @@ import { useCreateOrder } from "../../hooks/useOrders";
 import { useCartStore } from "../../store/cartStore";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
-import type { PaymentStatus } from "../../types/order";
+import type { CartItem } from "../../types/cart";
+import type { RootNavigationProp, RootRouteProp } from "../../types/navigation";
+import type { ApiOrder, ApiOrderItem, PaymentStatus } from "../../types/order";
+import { getErrorMessage } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import { styles } from "./ProceedPaymentScreen.styles";
 
+interface PaymentReceiptData {
+	orderNumber: string;
+	invoiceNumber?: string;
+	items: CartItem[];
+	subtotal: number;
+	taxTotal: number;
+	discount: number;
+	grandTotal: number;
+	amountPaid: number;
+	change: number;
+}
+
 export default function ProceedPaymentScreen() {
 	const insets = useSafeAreaInsets();
-	const route = useRoute<any>();
-	const navigation = useNavigation<any>();
+	const route = useRoute<RootRouteProp<"ProceedPayment">>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
 	const getTotals = useCartStore((s) => s.getTotals);
@@ -48,7 +63,7 @@ export default function ProceedPaymentScreen() {
 	const discount = "0";
 	const alreadyPaid = "0";
 	const [showReceipt, setShowReceipt] = useState(false);
-	const [result, setResult] = useState<any>(null);
+	const [result, setResult] = useState<PaymentReceiptData | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const totalPayable =
@@ -71,7 +86,7 @@ export default function ProceedPaymentScreen() {
 		try {
 			let orderId: string | null = activeOrderId;
 			let orderNumber = activeOrderId ? "N/A" : "NEW";
-			let createdItems: any[] = [];
+			let createdItems: ApiOrderItem[] = [];
 
 			// ② Create order first if this is a brand-new order (no Bill This Order)
 			if (!orderId) {
@@ -89,8 +104,8 @@ export default function ProceedPaymentScreen() {
 						total: i.price_per_unit * i.qty,
 					})),
 				});
-				const created = (res.data as any)?.data;
-				const o = created?.data ?? created;
+				const o: ApiOrder = res.data.data;
+
 				orderId = o?.id ?? null;
 				orderNumber = o?.order_number ?? "N/A";
 				// Capture the server-created item ids (UUIDs) so the local copy
@@ -116,8 +131,8 @@ export default function ProceedPaymentScreen() {
 
 			// ④ Create invoice for the order
 			const invoiceRes = await generateInvoice(orderId);
-			const invData = (invoiceRes.data as any)?.data;
-			const invoice = invData?.data ?? invData;
+			const invoice: Invoice = invoiceRes.data.data;
+
 			const invoiceId = invoice?.id;
 			const invoiceNumber = invoice?.invoice_number ?? orderNumber;
 
@@ -136,7 +151,7 @@ export default function ProceedPaymentScreen() {
 			await createPayment({
 				invoice_id: invoiceId,
 				paid_amount: totalPaid,
-				change_amount: change >= 0 ? change : 0,
+				change_amount: Math.max(change, 0),
 				payment_method: "cash",
 			});
 
@@ -224,11 +239,8 @@ export default function ProceedPaymentScreen() {
 			setActiveOrder(null);
 		} catch (e) {
 			console.error("Payment failed", e);
-			const msg =
-				(e as any)?.response?.data?.message ||
-				(e as any)?.response?.data?.error ||
-				(e as any)?.message ||
-				"Payment failed. Try again.";
+			const msg = getErrorMessage(e, "Payment failed. Try again.");
+
 			Alert.alert("Payment failed", msg);
 		} finally {
 			setIsSubmitting(false);
@@ -245,7 +257,10 @@ export default function ProceedPaymentScreen() {
 					<TouchableOpacity
 						style={styles.backBtn}
 						onPress={() =>
-							navigation.reset({ index: 0, routes: [{ name: "Counter" }] })
+							navigation.reset({
+								index: 0,
+								routes: [{ name: "Main", params: { screen: "Counter" } }],
+							})
 						}
 					>
 						<MaterialCommunityIcons
@@ -270,7 +285,10 @@ export default function ProceedPaymentScreen() {
 				<TouchableOpacity
 					style={styles.doneBtn}
 					onPress={() =>
-						navigation.reset({ index: 0, routes: [{ name: "Counter" }] })
+						navigation.reset({
+							index: 0,
+							routes: [{ name: "Main", params: { screen: "Counter" } }],
+						})
 					}
 					activeOpacity={0.85}
 				>

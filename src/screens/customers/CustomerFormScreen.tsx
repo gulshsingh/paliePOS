@@ -9,6 +9,7 @@ import {
 	StatusBar,
 	Text,
 	TextInput,
+	type TextInputProps,
 	TouchableOpacity,
 	View,
 } from "react-native";
@@ -25,13 +26,15 @@ import {
 } from "../../schemas/customers/customerSchema";
 import { theme } from "../../theme";
 import { styles } from "./CustomerFormScreen.styles";
+import type { RootNavigationProp, RootRouteProp } from "../../types/navigation";
+import { getErrorMessage } from "../../utils/apiHelpers";
 
 type FieldErrors = Partial<Record<keyof CustomerFormData, string>>;
 
 export default function CustomerFormScreen(): React.JSX.Element {
 	const insets = useSafeAreaInsets();
-	const route = useRoute<any>();
-	const navigation = useNavigation<any>();
+	const route = useRoute<RootRouteProp<"CustomerForm">>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const customer = route.params?.customer;
 	const isEdit = !!customer;
 
@@ -52,10 +55,10 @@ export default function CustomerFormScreen(): React.JSX.Element {
 
 	const validate = (): boolean => {
 		const result = customerSchema.safeParse({
-			name,
-			email: email || undefined,
-			phone: phone || undefined,
-			address,
+			name: name.trim(),
+			email: email.trim() || undefined,
+			phone: phone.trim() || undefined,
+			address: address.trim() || undefined,
 		});
 		if (!result.success) {
 			const fe: FieldErrors = {};
@@ -72,33 +75,48 @@ export default function CustomerFormScreen(): React.JSX.Element {
 
 	const handleSave = async (): Promise<void> => {
 		if (!validate()) return;
-		const data = {
+		const payload: Record<string, any> = {
 			name: name.trim(),
-			email: email.trim(),
-			phone: phone.trim(),
-			address: address.trim(),
+			account_type: "customer",
 		};
+		if (email.trim()) payload.email = email.trim();
+		else if (isEdit) payload.email = null;
+
+		if (phone.trim()) payload.phone = phone.trim();
+		else if (isEdit) payload.phone = null;
+
+		if (address.trim()) payload.address = address.trim();
+		else if (isEdit) payload.address = null;
+
 		try {
 			if (isEdit) {
-				await updateCustomer.mutateAsync({ id: customer.id, data });
+				await updateCustomer.mutateAsync({ id: customer.id, data: payload });
 			} else {
-				await createCustomer.mutateAsync(data);
+				await createCustomer.mutateAsync(payload);
 			}
 			navigation.goBack();
 		} catch (e) {
 			console.error("Failed to save customer", e);
+			const errorMsg = getErrorMessage(e, "Failed to save customer");
+			Alert.alert("Customer Save Failed", errorMsg);
 		}
 	};
 
 	const handleDelete = (): void => {
+		if (!customer) return;
 		Alert.alert("Delete Customer", `Remove "${customer.name}" permanently?`, [
 			{ text: "Cancel", style: "cancel" },
 			{
 				text: "Delete",
 				style: "destructive",
-				onPress: () => {
-					deleteCustomer.mutate(customer.id);
-					navigation.goBack();
+				onPress: async () => {
+					try {
+						await deleteCustomer.mutateAsync(customer.id);
+						navigation.goBack();
+					} catch (e) {
+						const errorMsg = getErrorMessage(e, "Failed to delete customer");
+						Alert.alert("Delete Failed", errorMsg);
+					}
 				},
 			},
 		]);
@@ -111,7 +129,7 @@ export default function CustomerFormScreen(): React.JSX.Element {
 		value: string,
 		onChange: (v: string) => void,
 		fieldKey: keyof FieldErrors,
-		props: any = {},
+		props: TextInputProps = {},
 	) => (
 		<View style={styles.fieldWrap}>
 			<Text style={styles.label}>{label}</Text>
@@ -233,7 +251,7 @@ export default function CustomerFormScreen(): React.JSX.Element {
 					{inputRow(
 						"phone",
 						"phone-outline",
-						"Phone Number",
+						"Phone Number ",
 						phone,
 						setPhone,
 						"phone",
@@ -254,7 +272,7 @@ export default function CustomerFormScreen(): React.JSX.Element {
 					{inputRow(
 						"email",
 						"email-outline",
-						"Email Address",
+						"Email Address ",
 						email,
 						setEmail,
 						"email",
@@ -265,7 +283,7 @@ export default function CustomerFormScreen(): React.JSX.Element {
 						},
 					)}
 					<View style={styles.fieldWrap}>
-						<Text style={styles.label}>Address</Text>
+						<Text style={styles.label}>Address </Text>
 						<View
 							style={[
 								styles.inputRow,

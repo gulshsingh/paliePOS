@@ -4,6 +4,7 @@ import { theme } from "../../theme";
 import type { Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
 import { styles } from "./BillingPanel.styles";
+import type { CartSection } from "./BillingPanel.helpers";
 
 type NamedValue = { name?: string } | null | undefined;
 
@@ -145,7 +146,7 @@ export function BillingEmptyState() {
 	);
 }
 
-export function BillingSectionHeader({ section }: { section: any }) {
+export function BillingSectionHeader({ section }: { section: CartSection }) {
 	if (!section.title) return null;
 
 	return (

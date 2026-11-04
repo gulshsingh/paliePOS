@@ -1,36 +1,32 @@
+import { type RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+	ActivityIndicator,
 	Alert,
+	BackHandler,
 	ScrollView,
 	StatusBar,
 	Text,
-	TextInput,
 	TouchableOpacity,
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import SubscriptionSection from "./SubscriptionSection";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { getCompany } from "../../api/services/companies";
-import { styles } from "./ConfigurationScreen.styles";
-import {
-	useCategories,
-	useCreateCategory,
-	useDeleteCategory,
-} from "../../hooks/useCategories";
+import { useCategories, useDeleteCategory } from "../../hooks/useCategories";
 import { useAuth } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import type { Category } from "../../types/category";
+import type { MainTabNavProp, MainTabParamList } from "../../types/navigation";
+import { extractList } from "../../utils/apiHelpers";
 import CustomersScreen from "../customers/CustomersScreen";
 import ReportsScreen from "../reports/ReportsScreen";
 import AllOrdersScreen from "./AllOrdersScreen";
+import { styles } from "./ConfigurationScreen.styles";
+import SubscriptionSection from "./SubscriptionSection";
 
-type Section =
-	| "categories"
-	| "profile"
-	| "customers"
-	| "reports"
-	| "orders";
+type Section = "categories" | "profile" | "customers" | "reports" | "orders";
 
 const SECTIONS: Record<
 	Section,
@@ -75,10 +71,39 @@ const MENU_GROUPS: Section[][] = [
 
 export default function ConfigurationScreen() {
 	const insets = useSafeAreaInsets();
+	const navigation = useNavigation<MainTabNavProp>();
+	const route = useRoute<RouteProp<MainTabParamList, "Settings">>();
+
 	// ── All useState first — never interleave with other hooks ──
 	const [screen, setScreen] = useState<Section | "menu">("menu");
-	const [newCat, setNewCat] = useState("");
-	const [focused, setFocused] = useState<string | null>(null);
+
+	// Reset to main settings menu whenever Settings tab is pressed (from another tab or when active)
+	useEffect(() => {
+		const unsubscribe = navigation.addListener("tabPress", () => {
+			setScreen("menu");
+		});
+		return unsubscribe;
+	}, [navigation]);
+
+	// Reset to menu if route params specify resetToMenu
+	useEffect(() => {
+		if (route.params?.resetToMenu) {
+			setScreen("menu");
+		}
+	}, [route.params?.resetToMenu]);
+
+	// Hardware back button takes user back to settings menu if inside a subscreen
+	useEffect(() => {
+		if (screen === "menu") return;
+		const onBackPress = () => {
+			setScreen("menu");
+			return true;
+		};
+		const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+		return () => sub.remove();
+	}, [screen]);
+	// const [newCat, setNewCat] = useState("");
+	// const [focused, setFocused] = useState<string | null>(null);
 
 	// ── Other hooks after all state ──
 	const { signOut } = useAuth();
@@ -88,17 +113,25 @@ export default function ConfigurationScreen() {
 		queryFn: () => getCompany(),
 	});
 
-	const { data: categoriesData } = useCategories();
-	const categories = (categoriesData as any)?.data ?? [];
-	const createCategory = useCreateCategory();
+	const {
+		data: categoriesData,
+		hasNextPage,
+		isFetchingNextPage,
+		fetchNextPage,
+	} = useCategories();
+	const categories = useMemo(
+		() => extractList<Category>(categoriesData),
+		[categoriesData],
+	);
+	// const createCategory = useCreateCategory();
 	const deleteCategory = useDeleteCategory();
 
-	const handleAddCategory = () => {
-		if (newCat.trim()) {
-			createCategory.mutate({ name: newCat.trim() });
-			setNewCat("");
-		}
-	};
+	// const handleAddCategory = () => {
+	// 	if (newCat.trim()) {
+	// 		createCategory.mutate({ name: newCat.trim() });
+	// 		setNewCat("");
+	// 	}
+	// };
 
 	const handleLogout = () => {
 		Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -150,10 +183,7 @@ export default function ConfigurationScreen() {
 											activeOpacity={0.7}
 										>
 											<View
-												style={[
-													styles.menuIcon,
-													{ backgroundColor: s.bg },
-												]}
+												style={[styles.menuIcon, { backgroundColor: s.bg }]}
 											>
 												<MaterialCommunityIcons
 													name={s.icon}
@@ -193,10 +223,7 @@ export default function ConfigurationScreen() {
 									/>
 								</View>
 								<Text
-									style={[
-										styles.menuLabel,
-										{ color: theme.colors.danger },
-									]}
+									style={[styles.menuLabel, { color: theme.colors.danger }]}
 								>
 									Logout
 								</Text>
@@ -224,9 +251,7 @@ export default function ConfigurationScreen() {
 								color={theme.colors.textPrimary}
 							/>
 						</TouchableOpacity>
-						<Text style={styles.subHeaderTitle}>
-							{SECTIONS[screen].label}
-						</Text>
+						<Text style={styles.subHeaderTitle}>{SECTIONS[screen].label}</Text>
 						<View style={styles.backBtn} />
 					</View>
 
@@ -243,144 +268,179 @@ export default function ConfigurationScreen() {
 							showsVerticalScrollIndicator={false}
 							keyboardShouldPersistTaps="handled"
 						>
-				{/* ── Categories ── */}
-				{screen === "categories" && (
-					<View style={styles.card}>
-						<View style={styles.cardHeader}>
-							<MaterialCommunityIcons
-								name="shape-outline"
-								size={16}
-								color={theme.colors.primary}
-							/>
-							<Text style={styles.cardTitle}>Menu Categories</Text>
-						</View>
-
-						{/* Add row */}
-						<View style={styles.addRow}>
-							<View
-								style={[
-									styles.inputRow,
-									styles.addInput,
-									focused === "cat" && styles.inputFocused,
-								]}
-							>
-								<MaterialCommunityIcons
-									name="tag-outline"
-									size={16}
-									color={
-										focused === "cat"
-											? theme.colors.primary
-											: theme.colors.textMuted
-									}
-								/>
-								<TextInput
-									style={styles.input}
-									value={newCat}
-									onChangeText={setNewCat}
-									placeholder="New category name"
-									placeholderTextColor={theme.colors.textMuted}
-									onFocus={() => setFocused("cat")}
-									onBlur={() => setFocused(null)}
-									onSubmitEditing={handleAddCategory}
-									returnKeyType="done"
-								/>
-							</View>
-							<TouchableOpacity
-								style={styles.addBtn}
-								onPress={handleAddCategory}
-								activeOpacity={0.85}
-							>
-								<MaterialCommunityIcons name="plus" size={18} color="#fff" />
-							</TouchableOpacity>
-						</View>
-
-						{/* Category list */}
-						{categories.length === 0 ? (
-							<View style={styles.emptyCategories}>
-								<MaterialCommunityIcons
-									name="shape-plus"
-									size={32}
-									color={theme.colors.textMuted}
-								/>
-								<Text style={styles.emptyText}>No categories yet</Text>
-							</View>
-						) : (
-							categories.map((c: any, idx: number) => (
-								<View
-									key={c.id}
-									style={[
-										styles.categoryRow,
-										idx === categories.length - 1 && styles.categoryRowLast,
-									]}
-								>
-									<View style={styles.categoryLeft}>
-										<View style={styles.catDot} />
-										<Text style={styles.categoryName}>{c.name}</Text>
-									</View>
-									<TouchableOpacity
-										style={styles.deleteBtn}
-										onPress={() => deleteCategory.mutate(c.id)}
-									>
+							{/* ── Categories ── */}
+							{screen === "categories" && (
+								<View style={styles.card}>
+									<View style={styles.cardHeader}>
 										<MaterialCommunityIcons
-											name="trash-can-outline"
+											name="shape-outline"
 											size={16}
-											color={theme.colors.danger}
+											color={theme.colors.primary}
 										/>
-									</TouchableOpacity>
+										<Text style={styles.cardTitle}>Menu Categories</Text>
+									</View>
+
+									{/* Add Category disabled on mobile */}
+									{/*
+									<View style={styles.addRow}>
+										<View
+											style={[
+												styles.inputRow,
+												styles.addInput,
+												focused === "cat" && styles.inputFocused,
+											]}
+										>
+											<MaterialCommunityIcons
+												name="tag-outline"
+												size={16}
+												color={
+													focused === "cat"
+														? theme.colors.primary
+														: theme.colors.textMuted
+												}
+											/>
+											<TextInput
+												style={styles.input}
+												value={newCat}
+												onChangeText={setNewCat}
+												placeholder="New category name"
+												placeholderTextColor={theme.colors.textMuted}
+												onFocus={() => setFocused("cat")}
+												onBlur={() => setFocused(null)}
+												onSubmitEditing={handleAddCategory}
+												returnKeyType="done"
+											/>
+										</View>
+										<TouchableOpacity
+											style={styles.addBtn}
+											onPress={handleAddCategory}
+											activeOpacity={0.85}
+										>
+											<MaterialCommunityIcons
+												name="plus"
+												size={18}
+												color="#fff"
+											/>
+										</TouchableOpacity>
+									</View>
+									*/}
+
+									{/* Category list */}
+									{categories.length === 0 ? (
+										<View style={styles.emptyCategories}>
+											<MaterialCommunityIcons
+												name="shape-plus"
+												size={32}
+												color={theme.colors.textMuted}
+											/>
+											<Text style={styles.emptyText}>No categories yet</Text>
+										</View>
+									) : (
+										categories.map((c: Category, idx: number) => (
+											<View
+												key={c.id}
+												style={[
+													styles.categoryRow,
+													idx === categories.length - 1 &&
+														styles.categoryRowLast,
+												]}
+											>
+												<View style={styles.categoryLeft}>
+													<View style={styles.catDot} />
+													<Text style={styles.categoryName}>{c.name}</Text>
+												</View>
+												<TouchableOpacity
+													style={styles.deleteBtn}
+													onPress={() => deleteCategory.mutate(c.id)}
+												>
+													<MaterialCommunityIcons
+														name="trash-can-outline"
+														size={16}
+														color={theme.colors.danger}
+													/>
+												</TouchableOpacity>
+											</View>
+										))
+									)}
+									{hasNextPage && (
+										<TouchableOpacity
+											style={{
+												paddingVertical: 12,
+												alignItems: "center",
+												justifyContent: "center",
+											}}
+											onPress={() => fetchNextPage()}
+											disabled={isFetchingNextPage}
+										>
+											{isFetchingNextPage ? (
+												<ActivityIndicator
+													size="small"
+													color={theme.colors.primary}
+												/>
+											) : (
+												<Text
+													style={{
+														fontSize: 13,
+														fontWeight: "600",
+														color: theme.colors.primary,
+													}}
+												>
+													Load more categories...
+												</Text>
+											)}
+										</TouchableOpacity>
+									)}
 								</View>
-							))
-						)}
-					</View>
-				)}
+							)}
 
-				{/* ── Profile ── */}
-					{screen === "profile" && (
-					<>
-						{/* Profile card */}
-						<View style={styles.card}>
-							<View style={styles.profileAvatar}>
-								<MaterialCommunityIcons
-									name="store"
-									size={32}
-									color={theme.colors.primary}
-								/>
-							</View>
-							<Text style={styles.profileName}>
-								{company?.name ?? "Your Restaurant"}
-							</Text>
-							<Text style={styles.profileEmail}>
-								{company?.email ?? "Not set"}
-							</Text>
-						</View>
+							{/* ── Profile ── */}
+							{screen === "profile" && (
+								<>
+									{/* Profile card */}
+									<View style={styles.card}>
+										<View style={styles.profileAvatar}>
+											<MaterialCommunityIcons
+												name="store"
+												size={32}
+												color={theme.colors.primary}
+											/>
+										</View>
+										<Text style={styles.profileName}>
+											{company?.name ?? "Your Restaurant"}
+										</Text>
+										<Text style={styles.profileEmail}>
+											{company?.email ?? "Not set"}
+										</Text>
+									</View>
 
-						{/* Info rows */}
-						<View style={styles.card}>
-							<View style={styles.cardHeader}>
-								<MaterialCommunityIcons
-									name="information-outline"
-									size={16}
-									color={theme.colors.primary}
-								/>
-								<Text style={styles.cardTitle}>App Info</Text>
-							</View>
-							{[
-								{ label: "App Version", value: "1.0.0" },
-								{ label: "Platform", value: "PALIE POS" },
-							].map((row) => (
-								<View key={row.label} style={styles.infoRow}>
-									<Text style={styles.infoLabel}>{row.label}</Text>
-									<Text style={styles.infoValue}>{row.value}</Text>
-								</View>
-							))}
-						</View>
+									{/* Info rows */}
+									<View style={styles.card}>
+										<View style={styles.cardHeader}>
+											<MaterialCommunityIcons
+												name="information-outline"
+												size={16}
+												color={theme.colors.primary}
+											/>
+											<Text style={styles.cardTitle}>App Info</Text>
+										</View>
+										{[
+											{ label: "App Version", value: "1.0.0" },
+											{ label: "Platform", value: "PALIE POS" },
+										].map((row) => (
+											<View key={row.label} style={styles.infoRow}>
+												<Text style={styles.infoLabel}>{row.label}</Text>
+												<Text style={styles.infoValue}>{row.value}</Text>
+											</View>
+										))}
+									</View>
 
-						{/* Subscription */}
-						<SubscriptionSection />
-					</>
-				)}
-			</ScrollView>
-			)}
-			</>
+									{/* Subscription */}
+									<SubscriptionSection />
+								</>
+							)}
+						</ScrollView>
+					)}
+				</>
 			)}
 		</View>
 	);

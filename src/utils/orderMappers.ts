@@ -1,4 +1,5 @@
 import type { CartItem } from "../types/cart";
+import type { ApiOrderItem } from "../types/order";
 
 /**
  * Maps server API order items (ApiOrderItem) to local CartItem lines using the
@@ -7,21 +8,23 @@ import type { CartItem } from "../types/cart";
  * (product id instead of order-item UUID) and the backend rejects with 400.
  */
 export function mapApiItemsToCart(
-	apiItems: any[],
+	apiItems: ApiOrderItem[],
 	opts: {
 		status?: string;
 		sentToKitchen?: boolean;
 		kotNo?: number;
 	} = {},
 ): CartItem[] {
-	return (apiItems ?? []).map((i: any) => ({
+	return (apiItems ?? []).map((i: ApiOrderItem) => ({
 		id: i.id,
 		name: i.product?.name ?? i.product_name ?? "",
 		price: Number(i.total),
 		price_per_unit: Number(i.price),
 		qty: Number(i.quantity),
 		tax: 0,
-		status: (opts.sentToKitchen && opts.status ? opts.status : i.status ?? opts.status ?? "pending") as CartItem["status"],
+		status: (opts.sentToKitchen && opts.status
+			? opts.status
+			: i.status ?? opts.status ?? "pending") as CartItem["status"],
 		product_id: i.product_id,
 		sentToKitchen: opts.sentToKitchen ?? true,
 		kotNo: opts.kotNo ?? (Number(i.kot_no) || 1),

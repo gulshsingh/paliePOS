@@ -5,7 +5,7 @@ export const storage = {
 		const value = await AsyncStorage.getItem(key);
 		return value ? JSON.parse(value) : null;
 	},
-	set: async (key: string, value: unknown): Promise<void> => {
+	set: async <T>(key: string, value: T): Promise<void> => {
 		await AsyncStorage.setItem(key, JSON.stringify(value));
 	},
 	remove: async (key: string): Promise<void> => {

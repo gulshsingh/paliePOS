@@ -1,15 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import {
 	createCategory,
 	deleteCategory,
 	getCategories,
 	updateCategory,
 } from "../api/services/categories";
+import { extractNextCursor } from "../utils/apiHelpers";
 
-export function useCategories() {
-	return useQuery({
-		queryKey: ["categories"],
-		queryFn: () => getCategories(),
+export function useCategories(limit = 50) {
+	return useInfiniteQuery({
+		queryKey: ["categories", limit],
+		initialPageParam: null as string | null,
+		queryFn: ({ pageParam }) => getCategories(pageParam, limit),
+		getNextPageParam: (lastPage) => extractNextCursor(lastPage.data),
 		staleTime: 5 * 60 * 1000,
 	});
 }

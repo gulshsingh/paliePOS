@@ -44,10 +44,12 @@ const triggerLogout = async () => {
 api.interceptors.response.use(
 	(res) => {
 		// Check success=false + AUTH error code in 2xx responses
-		const data = res.data as any;
+		const data = res.data as
+			| { success?: boolean; error_code?: string }
+			| undefined;
 		if (
 			data?.success === false &&
-			AUTH_ERROR_CODES.includes(data?.error_code)
+			Boolean(data?.error_code && AUTH_ERROR_CODES.includes(data.error_code))
 		) {
 			triggerLogout();
 		}

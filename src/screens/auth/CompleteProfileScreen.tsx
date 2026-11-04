@@ -1,25 +1,44 @@
-import { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
 	Platform,
 	ScrollView,
 	StatusBar,
-	StyleSheet,
 	Text,
 	TextInput,
+	type TextInputProps,
 	TouchableOpacity,
 	View,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useQueryClient } from "@tanstack/react-query";
 import { completeProfile } from "../../api/services/auth";
 import { useAuth } from "../../navigation/AppNavigator";
 import { completeProfileSchema } from "../../schemas/auth/completeProfileSchema";
 import { theme } from "../../theme";
+import type {
+	AuthNavigationProp,
+	AuthRouteProp,
+} from "../../types/navigation";
+import { styles } from "./CompleteProfileScreen.styles";
 
-export default function CompleteProfileScreen({ navigation, route }: any) {
+export default function CompleteProfileScreen({
+	navigation,
+	route,
+}: {
+	navigation: AuthNavigationProp;
+	route: AuthRouteProp<"CompleteProfile"> & {
+		params?: {
+			access_token?: string;
+			email?: string;
+			token_hash?: string;
+			token?: string;
+			type?: string;
+		};
+	};
+}) {
 	const { signIn } = useAuth();
 	const qc = useQueryClient();
 
@@ -86,7 +105,21 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 				...(email ? { email } : {}),
 				...(tokenHash ? { token_hash: tokenHash, type } : {}),
 			});
-			const d = res.data as any;
+			const d = res.data as {
+				success?: boolean;
+				message?: string;
+				access_token?: string;
+				session?: { access_token?: string };
+				data?: {
+					error?: { message?: string };
+					access_token?: string;
+					session?: { access_token?: string };
+					data?: {
+						access_token?: string;
+						session?: { access_token?: string };
+					};
+				};
+			};
 
 			if (d?.success === false) {
 				setErrors({
@@ -98,10 +131,6 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 				return;
 			}
 
-			// ✅ Token path order fix + fallback:
-			// 1. Response me token (jaise verify-otp me aaya tha — data.data.access_token)
-			// 2. Session object ke andar
-			// 3. Fallback: VerifyEmailScreen jo token AsyncStorage me save kar chuka tha
 			const token =
 				d?.data?.data?.access_token ||
 				d?.data?.access_token ||
@@ -120,13 +149,24 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 
 			qc.clear();
 			signIn(token); // auto login → Main screen
-		} catch (e: any) {
-			const status = e.response?.status;
-			const code = e.response?.data?.error_code;
+		} catch (e) {
+			const err = e as {
+				response?: {
+					status?: number;
+					data?: {
+						error_code?: string;
+						message?: string;
+						error?: { message?: string };
+					};
+				};
+				message?: string;
+			};
+			const status = err.response?.status;
+			const code = err.response?.data?.error_code;
 			const msg =
-				e.response?.data?.message ||
-				e.response?.data?.error?.message ||
-				e.message;
+				err.response?.data?.message ||
+				err.response?.data?.error?.message ||
+				err.message;
 
 			if (code === "WEAK_PASSWORD") {
 				setErrors({
@@ -138,11 +178,10 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 					general: "Profile already completed — please login",
 				});
 			} else if (status === 400) {
-				// 400 pe field kaunsa hai backend message se pata nahi — general dikhao
 				setErrors({
 					general: msg || "Please check your details and try again",
 				});
-			} else if (!e.response) {
+			} else if (!err.response) {
 				setErrors({ general: "Network error — check your connection" });
 			} else {
 				setErrors({
@@ -161,7 +200,7 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 		icon: string,
 		value: string,
 		onChange: (v: string) => void,
-		props: any = {},
+		props: TextInputProps = {},
 	) => (
 		<>
 			<Text style={styles.label}>{label}</Text>
@@ -349,128 +388,3 @@ export default function CompleteProfileScreen({ navigation, route }: any) {
 		</KeyboardAvoidingView>
 	);
 }
-
-const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: theme.colors.primary },
-	hero: {
-		alignItems: "center",
-		paddingTop: 48,
-		paddingBottom: 24,
-		paddingHorizontal: 24,
-	},
-	logoWrap: {
-		width: 64,
-		height: 64,
-		borderRadius: 32,
-		backgroundColor: "rgba(255,255,255,0.2)",
-		justifyContent: "center",
-		alignItems: "center",
-		marginBottom: 12,
-	},
-	brand: { fontSize: 28, fontWeight: "900", color: "#fff", letterSpacing: 8 },
-	tagline: {
-		fontSize: 13,
-		color: "rgba(255,255,255,0.8)",
-		marginTop: 4,
-		letterSpacing: 1,
-	},
-	card: {
-		flex: 1,
-		backgroundColor: "#fff",
-		borderTopLeftRadius: 28,
-		borderTopRightRadius: 28,
-	},
-	scroll: { paddingHorizontal: 28, paddingTop: 28, paddingBottom: 40 },
-	heading: { fontSize: 22, fontWeight: "800", color: theme.colors.textPrimary },
-	subheading: {
-		fontSize: 13,
-		color: theme.colors.textMuted,
-		marginTop: 4,
-		marginBottom: 20,
-	},
-	errorBox: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 8,
-		backgroundColor: theme.colors.dangerLight,
-		borderRadius: theme.radius.sm,
-		paddingHorizontal: 14,
-		paddingVertical: 10,
-		marginBottom: 16,
-		borderLeftWidth: 3,
-		borderLeftColor: theme.colors.danger,
-	},
-	errorBoxText: { color: theme.colors.danger, fontSize: 13, flex: 1 },
-	label: {
-		fontSize: 13,
-		fontWeight: "700",
-		color: theme.colors.textSecondary,
-		marginBottom: 6,
-		letterSpacing: 0.3,
-		marginTop: 4,
-	},
-	inputRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		backgroundColor: theme.colors.surfaceSecondary,
-		borderRadius: theme.radius.md,
-		borderWidth: 1.5,
-		borderColor: theme.colors.border,
-		paddingHorizontal: 14,
-		marginBottom: 4,
-	},
-	inputFocused: {
-		borderColor: theme.colors.primary,
-		backgroundColor: theme.colors.primaryLight,
-	},
-	inputError: {
-		borderColor: theme.colors.danger,
-		backgroundColor: theme.colors.dangerLight,
-	},
-	inputIcon: { marginRight: 10 },
-	input: {
-		flex: 1,
-		color: theme.colors.textPrimary,
-		fontSize: 15,
-		paddingVertical: 14,
-	},
-	eyeBtn: { padding: 4 },
-	fieldError: {
-		color: theme.colors.danger,
-		fontSize: 11,
-		fontWeight: "600",
-		marginBottom: 12,
-		marginTop: 2,
-	},
-	button: {
-		backgroundColor: theme.colors.primary,
-		paddingVertical: 16,
-		borderRadius: theme.radius.md,
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 8,
-		marginTop: 20,
-		...theme.shadow.lg,
-	},
-	buttonDisabled: { opacity: 0.7 },
-	buttonText: {
-		color: "#fff",
-		fontSize: 16,
-		fontWeight: "800",
-		letterSpacing: 0.5,
-	},
-	loginLink: { alignItems: "center", marginTop: 18, paddingVertical: 6 },
-	loginLinkText: { color: theme.colors.textMuted, fontSize: 14 },
-	loginLinkBold: {
-		color: theme.colors.primary,
-		fontWeight: "800",
-		fontSize: 14,
-	},
-	version: {
-		textAlign: "center",
-		color: theme.colors.textMuted,
-		fontSize: 12,
-		marginTop: 28,
-	},
-});

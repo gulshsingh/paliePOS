@@ -9,6 +9,8 @@ import {
 	getProducts,
 	updateProduct,
 } from "../api/services/products";
+import type { Product } from "../types/product";
+import { extractNextCursor } from "../utils/apiHelpers";
 
 export function useProducts() {
 	return useInfiniteQuery({
@@ -16,8 +18,7 @@ export function useProducts() {
 		enabled: true,
 		initialPageParam: null as string | null,
 		queryFn: ({ pageParam }) => getProducts(pageParam),
-		getNextPageParam: (lastPage) =>
-			lastPage.data.pagination?.next_cursor ?? undefined,
+		getNextPageParam: (lastPage) => extractNextCursor(lastPage.data),
 		staleTime: 5 * 60 * 1000,
 		gcTime: 10 * 60 * 1000,
 	});
@@ -34,7 +35,7 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: ({ id, data }: { id: string; data: Partial<any> }) =>
+		mutationFn: ({ id, data }: { id: string; data: Partial<Product> }) =>
 			updateProduct(id, data),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
 	});

@@ -17,9 +17,11 @@ import { useFlowStore } from "../../store/flowStore";
 import { useOrderStore } from "../../store/orderStore";
 import { useTableStore } from "../../store/tableStore";
 import type { CartItem } from "../../types/cart";
-import type { Order } from "../../types/order";
+import type { Customer } from "../../types/customer";
+import type { RootNavigationProp } from "../../types/navigation";
+import type { ApiOrder, ApiOrderItem, Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
-import { extractList } from "../../utils/apiHelpers";
+import { extractList, getErrorMessage } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import {
 	BillingActions,
@@ -33,6 +35,7 @@ import {
 import {
 	buildCartSections,
 	buildNewOrderObject,
+	type CartSection,
 	calculateBillingTotals,
 } from "./BillingPanel.helpers";
 import { styles } from "./BillingPanel.styles";
@@ -42,7 +45,7 @@ interface Props {
 }
 
 export default function BillingPanel({ onRequestClose }: Props) {
-	const navigation = useNavigation<any>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
 	const addOrder = useOrderStore((s) => s.addOrder);
@@ -68,13 +71,13 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	const addOrderItems = useAddOrderItems();
 	const updateItemStatusRemote = useUpdateItemStatus();
 
-	const customers = useMemo(
-		() => customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
+	const customers: Customer[] = useMemo(
+		() => extractList<Customer>(customersData),
 		[customersData],
 	);
 
 	const tables: RestaurantTable[] = useMemo(
-		() => extractList(tablesData?.data),
+		() => extractList<RestaurantTable>(tablesData),
 		[tablesData],
 	);
 
@@ -196,8 +199,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				})),
 			});
 
-			const created = (res.data as any)?.data;
-			const o = created?.data ?? created;
+			const o: ApiOrder = res.data.data;
 
 			// Use server-returned item IDs (real order-item UUIDs). If the
 			// response includes items, map them directly so we never store
@@ -213,7 +215,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 
 			addOrder(newOrder);
 
-			const serverItems: any[] = o?.items ?? [];
+			const serverItems: ApiOrderItem[] = o?.items ?? [];
 			if (serverItems.length > 0) {
 				const store = useOrderStore.getState();
 				for (const item of serverItems) {
@@ -311,9 +313,8 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			// Replace the entire order's item list with the server's canonical
 			// items (real order-item UUIDs). This is the single source of truth —
 			// no fragile local ID-swap logic needed.
-			const d = (res.data as any)?.data;
-			const updatedOrder = d?.data ?? d;
-			const serverItems: any[] = updatedOrder?.items ?? [];
+			const updatedOrder: ApiOrder = res.data.data;
+			const serverItems: ApiOrderItem[] = updatedOrder?.items ?? [];
 
 			if (serverItems.length > 0) {
 				const mapped = mapApiItemsToCart(serverItems, {
@@ -328,7 +329,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				const additionProductIds = new Set(
 					sentAdditions.map((i) => i.product_id ?? i.id),
 				);
-				const newItems = serverItems.filter((si: any) =>
+				const newItems = serverItems.filter((si: ApiOrderItem) =>
 					additionProductIds.has(si.product_id),
 				);
 				for (const item of newItems) {
@@ -348,10 +349,10 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				nextKotNo: order.nextKotNo,
 				kots: order.kots,
 			});
-			const msg =
-				(e as any)?.response?.data?.message ??
-				(e as any)?.message ??
-				"Could not add items to order. Please try again.";
+			const msg = getErrorMessage(
+				e,
+				"Could not add items to order. Please try again.",
+			);
 			Alert.alert("Failed to send KOT", msg);
 			return;
 		}
@@ -381,14 +382,14 @@ export default function BillingPanel({ onRequestClose }: Props) {
 	// ── ALL hooks must be declared before any conditional return ──
 
 	const renderItem = useCallback(
-		({ item, section }: { item: CartItem; section: any }) => (
+		({ item, section }: { item: CartItem; section: CartSection }) => (
 			<BillingItem item={item} locked={section?.locked} />
 		),
 		[],
 	);
 
 	const renderSectionHeader = useCallback(
-		({ section }: { section: any }) => (
+		({ section }: { section: CartSection }) => (
 			<BillingSectionHeader section={section} />
 		),
 		[],

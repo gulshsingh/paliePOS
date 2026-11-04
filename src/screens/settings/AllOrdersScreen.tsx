@@ -15,7 +15,9 @@ import { useOrders } from "../../hooks/useOrders";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useTables } from "../../hooks/useTables";
 import { theme } from "../../theme";
-import type { Order } from "../../types/order";
+import type { Customer } from "../../types/customer";
+import type { ApiOrder, Order } from "../../types/order";
+import type { RestaurantTable } from "../../types/table";
 import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 
@@ -31,23 +33,23 @@ export default function AllOrdersScreen({
 	const customersData = useCustomers();
 
 	const tableMap = useMemo(() => {
-		const list = extractList(tablesData.data);
+		const list = extractList<RestaurantTable>(tablesData.data);
 		return new Map<string, string>(
-			(list ?? []).map((t: any) => [t.id, t.name]),
+			(list ?? []).map((t: RestaurantTable) => [t.id, t.name]),
 		);
 	}, [tablesData.data]);
 
 	const customerMap = useMemo(() => {
 		const list =
-			customersData.data?.pages.flatMap((p: any) => extractList(p.data)) ?? [];
-		return new Map<string, string>(list.map((c: any) => [c.id, c.name]));
+			customersData.data?.pages.flatMap((p) => extractList<Customer>(p.data)) ?? [];
+		return new Map<string, string>(list.map((c: Customer) => [c.id, c.name]));
 	}, [customersData.data]);
 
 	const orders: Order[] = useMemo(() => {
 		const apiOrders =
-			data?.pages.flatMap((p) => extractList(p.data)) ?? [];
+			data?.pages.flatMap((p) => extractList<ApiOrder>(p.data)) ?? [];
 
-		return apiOrders.map((o: any) => ({
+		return apiOrders.map((o) => ({
 			id: o.id,
 			order_number: o.order_number,
 			items: mapApiItemsToCart(o.items ?? [], {}),
@@ -58,9 +60,9 @@ export default function AllOrdersScreen({
 			paymentStatus: o.payment_status ?? "UNPAID",
 			table_id: o.table_id,
 			account_id: o.account_id,
-			table_name: o.table?.name ?? tableMap.get(o.table_id) ?? "",
+			table_name: o.table?.name ?? (o.table_id ? tableMap.get(o.table_id) : undefined) ?? "",
 			customer_name:
-				o.account?.name ?? customerMap.get(o.account_id) ?? "",
+				o.account?.name ?? (o.account_id ? customerMap.get(o.account_id) : undefined) ?? "",
 		}));
 	}, [data, tableMap, customerMap]);
 

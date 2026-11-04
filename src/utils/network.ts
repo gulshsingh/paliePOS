@@ -1,14 +1,22 @@
-export const isNetworkError = (error: unknown): boolean => {
-	const e = error as any;
-	return !e?.response && !!e?.request;
+import axios from "axios";
+
+export const isNetworkError = (
+	error: Error | object | string | null | undefined,
+): boolean => {
+	if (axios.isAxiosError(error)) {
+		return !error.response && !!error.request;
+	}
+	return false;
 };
 
-export const isUnauthorized = (error: unknown): boolean => {
-	const e = error as any;
-	return e?.response?.status === 401;
+export const isUnauthorized = (
+	error: Error | object | string | null | undefined,
+): boolean => {
+	return axios.isAxiosError(error) && error.response?.status === 401;
 };
 
-export const isBadRequest = (error: unknown): boolean => {
-	const e = error as any;
-	return e?.response?.status === 400;
+export const isBadRequest = (
+	error: Error | object | string | null | undefined,
+): boolean => {
+	return axios.isAxiosError(error) && error.response?.status === 400;
 };

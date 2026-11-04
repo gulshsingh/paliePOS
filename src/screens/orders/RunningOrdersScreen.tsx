@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import { useMemo } from "react";
 import {
+	ActivityIndicator,
 	FlatList,
 	StatusBar,
 	StyleSheet,
@@ -12,10 +13,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Skeleton from "../../components/common/Skeleton";
 import { useOrders } from "../../hooks/useOrders";
-import { useCartStore, mergeOrderItems } from "../../store/cartStore";
+import { mergeOrderItems, useCartStore } from "../../store/cartStore";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
-import type { Order } from "../../types/order";
+import type { RootNavigationProp } from "../../types/navigation";
+import type { ApiOrder, Order } from "../../types/order";
 import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 
@@ -43,19 +45,20 @@ function isToday(dateStr?: string): boolean {
 
 export default function RunningOrdersScreen() {
 	const insets = useSafeAreaInsets();
-	const navigation = useNavigation<any>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const sessionOrders = useOrderStore((s) => s.orders);
 	const setActiveOrder = useOrderStore((s) => s.setActiveOrder);
 	const setCart = useCartStore((s) => s.setCart);
 	const itemStatusOverrides = useOrderStore((s) => s.itemStatusOverrides);
 
-	const { data, isLoading } = useOrders();
+	const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+		useOrders();
 
 	const apiOrders = useMemo(() => {
-		const all = data?.pages.flatMap((p) => extractList(p.data)) ?? [];
+		const all = data?.pages.flatMap((p) => extractList<ApiOrder>(p.data)) ?? [];
 		return all
-			.filter((o: any) => isToday(o.created_at))
-			.map((o: any) => ({
+			.filter((o) => (o.created_at ? isToday(o.created_at) : false))
+			.map((o) => ({
 				id: o.id,
 				order_number: o.order_number,
 				items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
@@ -130,7 +133,9 @@ export default function RunningOrdersScreen() {
 
 				{/* Right: total + status */}
 				<View style={styles.cardRight}>
-					<Text style={styles.total}>₹{item.total.toLocaleString("en-IN")}</Text>
+					<Text style={styles.total}>
+						₹{item.total.toLocaleString("en-IN")}
+					</Text>
 					<View
 						style={[styles.statusPill, { backgroundColor: `${statusColor}18` }]}
 					>
@@ -180,7 +185,12 @@ export default function RunningOrdersScreen() {
 								<Skeleton width={70} height={32} borderRadius={8} />
 								<View style={styles.skeletonFlex}>
 									<Skeleton width="60%" height={14} borderRadius={6} />
-									<Skeleton width="35%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
+									<Skeleton
+										width="35%"
+										height={12}
+										borderRadius={6}
+										style={{ marginTop: 6 }}
+									/>
 								</View>
 								<Skeleton width={60} height={20} borderRadius={6} />
 							</View>
@@ -194,6 +204,17 @@ export default function RunningOrdersScreen() {
 					renderItem={renderItem}
 					contentContainerStyle={styles.listContent}
 					showsVerticalScrollIndicator={false}
+					onEndReached={() => {
+						if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+					}}
+					onEndReachedThreshold={0.4}
+					ListFooterComponent={
+						isFetchingNextPage ? (
+							<View style={{ paddingVertical: 12, alignItems: "center" }}>
+								<ActivityIndicator size="small" color={theme.colors.primary} />
+							</View>
+						) : null
+					}
 					ListEmptyComponent={
 						<View style={styles.emptyState}>
 							<MaterialCommunityIcons

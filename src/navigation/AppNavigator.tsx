@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
 	getStateFromPath,
+	type LinkingOptions,
 	NavigationContainer,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -25,6 +26,8 @@ import ProductFormScreen from "../screens/products/ProductFormScreen";
 import TableFormScreen from "../screens/tables/TableFormScreen";
 import { usePermissionStore } from "../store/permissionStore";
 import { theme } from "../theme";
+import type { RootStackParamList } from "../types/navigation";
+import { clearAllAppState } from "../utils/authSession";
 import AuthNavigator from "./AuthNavigator";
 import MainTabNavigator from "./MainTabNavigator";
 
@@ -42,13 +45,13 @@ export const useAuth = () => {
 	return ctx;
 };
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // ── Deep link config ─────────────────────────────────────
 // Email link → supabase verify → https://palie-frontend.vercel.app/auth/confirm
 // → page redirects to palie://auth/callback?token_hash=...&type=signup
 // → app khulta hai aur CompleteProfile screen dikhti hai.
-const linking: any = {
+const linking: LinkingOptions<RootStackParamList> = {
 	prefixes: ["palie://", "https://palie-frontend.vercel.app"],
 	config: {
 		screens: {
@@ -63,7 +66,7 @@ const linking: any = {
 			Main: "main",
 		},
 	},
-	getStateFromPath(path: string, options: any) {
+	getStateFromPath(path, options) {
 		let cleanPath = path;
 		if (cleanPath.includes("#")) {
 			const [pathname, fragment] = cleanPath.split("#");
@@ -148,18 +151,15 @@ export default function AppNavigator() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		AsyncStorage.getItem("token").then((t) => {
+		AsyncStorage.getItem("token").then(async (t) => {
 			if (t && !isTokenExpired(t)) {
 				setToken(t);
-				AsyncStorage.getItem("role_id").then((rid) => {
-					if (rid) {
-						usePermissionStore.getState().setRoleId(rid);
-					}
-				});
+				const rid = await AsyncStorage.getItem("role_id");
+				if (rid) {
+					usePermissionStore.getState().setRoleId(rid);
+				}
 			} else {
-				if (t) AsyncStorage.removeItem("token");
-				AsyncStorage.removeItem("role_id");
-				usePermissionStore.getState().clear();
+				await clearAllAppState();
 				setToken(null);
 			}
 			setLoading(false);
@@ -177,15 +177,14 @@ export default function AppNavigator() {
 	}, []);
 
 	const signOut = useCallback(async () => {
-		await AsyncStorage.clear();
-		usePermissionStore.getState().clear();
+		await clearAllAppState();
 		setToken(null);
 	}, []);
 
 	// Register logout handler for API interceptor
 	useEffect(() => {
-		setUnauthorizedHandler(() => {
-			usePermissionStore.getState().clear();
+		setUnauthorizedHandler(async () => {
+			await clearAllAppState();
 			setToken(null);
 		});
 	}, []);

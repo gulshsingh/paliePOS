@@ -58,6 +58,7 @@ export interface ApiOrderItem {
 	price: number;
 	total: number;
 	status: ApiOrderItemStatus;
+	kot_no?: number | string;
 	product?: {
 		id: string;
 		name: string;
@@ -79,6 +80,7 @@ export interface ApiOrder {
 	payment_status: PaymentStatus;
 	table_id?: string | null;
 	account_id?: string | null;
+	invoice?: boolean;
 	table?: { id: string; name: string };
 	account?: { id: string; name: string };
 	created_at?: string;

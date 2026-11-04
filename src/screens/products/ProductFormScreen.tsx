@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
@@ -8,6 +8,7 @@ import {
 	StatusBar,
 	Text,
 	TextInput,
+	type TextInputProps,
 	TouchableOpacity,
 	View,
 } from "react-native";
@@ -25,6 +26,10 @@ import {
 	productSchema,
 } from "../../schemas/products/productSchema";
 import { theme } from "../../theme";
+import type { Category } from "../../types/category";
+import type { RootNavigationProp, RootRouteProp } from "../../types/navigation";
+import type { Unit } from "../../types/unit";
+import { extractList } from "../../utils/apiHelpers";
 import { styles } from "./ProductFormScreen.styles";
 
 type FieldErrors = Partial<Record<keyof ProductFormData, string>>;
@@ -60,8 +65,8 @@ const TILE_COLORS = [
 
 export default function ProductFormScreen() {
 	const insets = useSafeAreaInsets();
-	const route = useRoute<any>();
-	const navigation = useNavigation<any>();
+	const route = useRoute<RootRouteProp<"ProductForm">>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const product = route.params?.product;
 	const isEdit = !!product;
 
@@ -82,9 +87,12 @@ export default function ProductFormScreen() {
 	const [errors, setErrors] = useState<FieldErrors>({});
 
 	const { data: categoriesData } = useCategories();
-	const categories = (categoriesData as any)?.data ?? [];
+	const categories = useMemo(
+		() => extractList<Category>(categoriesData),
+		[categoriesData],
+	);
 	const { data: unitsData } = useUnits();
-	const units = (unitsData as any)?.data ?? [];
+	const units = useMemo(() => extractList<Unit>(unitsData), [unitsData]);
 	const createProduct = useCreateProduct();
 	const updateProduct = useUpdateProduct();
 	const deleteProduct = useDeleteProduct();
@@ -147,7 +155,7 @@ export default function ProductFormScreen() {
 		label: string,
 		value: string,
 		onChange: (v: string) => void,
-		props: any = {},
+		props: TextInputProps = {},
 	) => (
 		<View style={styles.fieldWrap}>
 			<Text style={styles.label}>{label}</Text>
@@ -381,7 +389,7 @@ export default function ProductFormScreen() {
 									None
 								</Text>
 							</TouchableOpacity>
-							{categories.map((c: any) => (
+							{categories.map((c: Category) => (
 								<TouchableOpacity
 									key={c.id}
 									style={[
@@ -421,7 +429,7 @@ export default function ProductFormScreen() {
 									None
 								</Text>
 							</TouchableOpacity>
-							{units.map((u: any) => (
+							{units.map((u: Unit) => (
 								<TouchableOpacity
 									key={u.id}
 									style={[styles.chip, unitId === u.id && styles.chipActive]}

@@ -19,9 +19,14 @@ import { loginSchema } from "../../schemas/auth/loginSchema";
 import { usePermissionStore } from "../../store/permissionStore";
 import { theme } from "../../theme";
 import { startGoogleSignIn } from "../../utils/googleAuth";
+import type { AuthNavigationProp } from "../../types/navigation";
 import { styles } from "./LoginScreen.styles";
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen({
+	navigation,
+}: {
+	navigation: AuthNavigationProp;
+}) {
 	const { signIn } = useAuth();
 	const qc = useQueryClient();
 
@@ -60,7 +65,16 @@ export default function LoginScreen({ navigation }: any) {
 		try {
 			const res = await login({ email, password });
 			qc.clear();
-			const d = res.data as any;
+			type LoginDataShape = {
+				token?: string;
+				access_token?: string;
+				session?: { access_token?: string };
+				data?: LoginDataShape;
+				role_id?: string;
+				profile?: { role_id?: string };
+				user?: { role_id?: string };
+			};
+			const d = res.data as LoginDataShape;
 			const token =
 				d?.data?.data?.session?.access_token ||
 				d?.data?.session?.access_token ||
@@ -94,15 +108,19 @@ export default function LoginScreen({ navigation }: any) {
 			}
 
 			signIn(token, roleId);
-		} catch (e: any) {
-			const code = e.response?.data?.error_code;
+		} catch (e) {
+			const err = e as {
+				response?: { data?: { error_code?: string; message?: string } };
+				message?: string;
+			};
+			const code = err.response?.data?.error_code;
 			const msg =
 				code === "LOGIN_FAILED" || code === "AUTH_LOGIN_FAILED"
 					? "Please check your email and password"
-					: e.response?.data?.message ||
-						(e.message === "Network Error"
+					: err.response?.data?.message ||
+						(err.message === "Network Error"
 							? "Network error: Phone ka internet connection check karein"
-							: e.message) ||
+							: err.message) ||
 						"Login failed";
 			setErrors({ general: msg });
 		} finally {
@@ -125,8 +143,8 @@ export default function LoginScreen({ navigation }: any) {
 			} else if (res.error) {
 				setErrors({ general: res.error });
 			}
-		} catch (error: any) {
-			console.log("[google login] error:", error?.message ?? error);
+		} catch (error) {
+			console.log("[google login] error:", error instanceof Error ? error.message : String(error));
 			setErrors({
 				general: "Google login open nahi ho paya. Please try again.",
 			});

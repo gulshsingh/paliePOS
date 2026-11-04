@@ -9,14 +9,15 @@ import {
 	getCustomers,
 	updateCustomer,
 } from "../api/services/customers";
+import type { Customer } from "../types/customer";
+import { extractNextCursor } from "../utils/apiHelpers";
 
 export function useCustomers(search?: string) {
 	return useInfiniteQuery({
 		queryKey: ["customers", search],
 		initialPageParam: null as string | null,
 		queryFn: ({ pageParam }) => getCustomers(pageParam, search),
-		getNextPageParam: (lastPage) =>
-			lastPage.data.pagination?.next_cursor ?? undefined,
+		getNextPageParam: (lastPage) => extractNextCursor(lastPage.data),
 		staleTime: 5 * 60 * 1000,
 	});
 }
@@ -32,7 +33,7 @@ export function useCreateCustomer() {
 export function useUpdateCustomer() {
 	const qc = useQueryClient();
 	return useMutation({
-		mutationFn: ({ id, data }: { id: string; data: Partial<any> }) =>
+		mutationFn: ({ id, data }: { id: string; data: Partial<Customer> }) =>
 			updateCustomer(id, data),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
 	});
