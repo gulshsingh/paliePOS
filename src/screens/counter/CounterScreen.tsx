@@ -41,6 +41,10 @@ export default function CounterScreen() {
 		setActiveTab("products");
 	};
 
+	const handleConsumeCartSignal = () => {
+		setOpenCartSignal(0);
+	};
+
 	return (
 		<View style={[styles.container, { paddingTop: insets.top }]}>
 			<StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -104,7 +108,10 @@ export default function CounterScreen() {
 					<OrdersPanel onBillToCart={handleBillToCart} />
 				)}
 				{activeTab === "products" && (
-					<ProductsPanel openCartSignal={openCartSignal} />
+					<ProductsPanel
+						openCartSignal={openCartSignal}
+						onConsumeCartSignal={handleConsumeCartSignal}
+					/>
 				)}
 				{activeTab === "flow" && (
 					<FlowPanel

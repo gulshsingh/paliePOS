@@ -24,20 +24,27 @@ import BillingPanel from "../counter/BillingPanel";
 
 export default function ProductsPanel({
 	openCartSignal,
+	onConsumeCartSignal,
 }: {
 	openCartSignal?: number;
+	onConsumeCartSignal?: () => void;
 }) {
 	const [search, setSearch] = useState("");
 	const [cartOpen, setCartOpen] = useState(false);
+	const cart = useCartStore((s) => s.cart);
 
-	// Open cart externally (e.g. from FlowPanel "Pay This Order")
+	// Open cart externally only once when signal arrives and cart has items
 	useEffect(() => {
-		if (openCartSignal && openCartSignal > 0) setCartOpen(true);
-	}, [openCartSignal]);
+		if (openCartSignal && openCartSignal > 0) {
+			if (cart.length > 0) {
+				setCartOpen(true);
+			}
+			onConsumeCartSignal?.();
+		}
+	}, [openCartSignal, onConsumeCartSignal, cart.length]);
 	const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
 		useProducts();
 	const addToCart = useCartStore((s) => s.addToCart);
-	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
 	const saveDraft = useFlowStore((s) => s.saveDraft);
 	const updateDraft = useFlowStore((s) => s.updateDraft);
