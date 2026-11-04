@@ -28,6 +28,7 @@ import {
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import {
 	type PaymentReceiptData,
+	ProceedContextChips,
 	ProceedReceiptView,
 } from "./ProceedPaymentScreen.components";
 import { styles } from "./ProceedPaymentScreen.styles";
@@ -49,6 +50,10 @@ export default function ProceedPaymentScreen() {
 	const customer = route.params?.customer;
 	const table = route.params?.table;
 	const existingOrder = orders.find((o) => o.id === activeOrderId);
+	const resolvedCustomerName = customer?.name || existingOrder?.customer_name;
+	const resolvedTableName = table?.name || existingOrder?.table_name;
+	const hasCustomer = Boolean(customer || existingOrder?.customer_name);
+	const hasTable = Boolean(table || existingOrder?.table_name);
 	const { subtotal, taxTotal, grandTotal } = getTotals(
 		existingOrder?.tax_amount ?? 0,
 	);
@@ -310,31 +315,13 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.headerSpacer} />
 			</View>
 
-			{/* Context chips */}
-			{(customer || table) && (
-				<View style={styles.contextRow}>
-					{customer && (
-						<View style={styles.contextChip}>
-							<MaterialCommunityIcons
-								name="account-outline"
-								size={13}
-								color={theme.colors.textSecondary}
-							/>
-							<Text style={styles.contextChipText}>{customer.name}</Text>
-						</View>
-					)}
-					{table && (
-						<View style={styles.contextChip}>
-							<MaterialCommunityIcons
-								name="table-furniture"
-								size={13}
-								color={theme.colors.textSecondary}
-							/>
-							<Text style={styles.contextChipText}>{table.name}</Text>
-						</View>
-					)}
-				</View>
-			)}
+			{/* Context chips (Left: Customer, Right: Table matching POS UI) */}
+			<ProceedContextChips
+				customerName={resolvedCustomerName}
+				hasCustomer={hasCustomer}
+				tableName={resolvedTableName}
+				hasTable={hasTable}
+			/>
 
 			{/* Payment Mode Dropdown */}
 			<PaymentModeDropdown

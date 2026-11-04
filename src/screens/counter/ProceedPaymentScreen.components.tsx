@@ -67,3 +67,73 @@ export function ProceedReceiptView({
 		</View>
 	);
 }
+
+export function ProceedContextChips({
+	customerName,
+	hasCustomer,
+	tableName,
+	hasTable,
+}: {
+	customerName?: string;
+	hasCustomer: boolean;
+	tableName?: string;
+	hasTable: boolean;
+}) {
+	return (
+		<View style={styles.contextRow}>
+			<View
+				style={[styles.contextChip, hasCustomer && styles.contextChipActive]}
+			>
+				<View style={styles.contextChipLeft}>
+					<MaterialCommunityIcons
+						name="account-outline"
+						size={15}
+						color={hasCustomer ? theme.colors.primary : theme.colors.textMuted}
+					/>
+					<Text
+						style={[
+							styles.contextChipText,
+							hasCustomer && styles.contextChipTextActive,
+						]}
+						numberOfLines={1}
+					>
+						{customerName ?? "Walk-in Customer"}
+					</Text>
+				</View>
+				{hasCustomer && (
+					<MaterialCommunityIcons
+						name="check-circle"
+						size={14}
+						color={theme.colors.primary}
+					/>
+				)}
+			</View>
+
+			<View style={[styles.contextChip, hasTable && styles.contextChipActive]}>
+				<View style={styles.contextChipLeft}>
+					<MaterialCommunityIcons
+						name="table-furniture"
+						size={15}
+						color={hasTable ? theme.colors.primary : theme.colors.textMuted}
+					/>
+					<Text
+						style={[
+							styles.contextChipText,
+							hasTable && styles.contextChipTextActive,
+						]}
+						numberOfLines={1}
+					>
+						{tableName ?? "No Table"}
+					</Text>
+				</View>
+				{hasTable && (
+					<MaterialCommunityIcons
+						name="check-circle"
+						size={14}
+						color={theme.colors.primary}
+					/>
+				)}
+			</View>
+		</View>
+	);
+}
