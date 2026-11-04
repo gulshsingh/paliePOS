@@ -13,6 +13,7 @@ interface Props {
 	actionableStatus?: string;
 	hideAmount?: boolean;
 	hideStatus?: boolean;
+	hideBillActions?: boolean;
 }
 
 const NEXT_STATUS: Record<
@@ -64,6 +65,7 @@ export default memo(function OrderCard({
 	actionableStatus,
 	hideAmount = false,
 	hideStatus = false,
+	hideBillActions = false,
 }: Props) {
 	const [expanded, setExpanded] = useState(false);
 
@@ -215,7 +217,7 @@ export default memo(function OrderCard({
 			)}
 
 			{/* Add Items + Generate Bill buttons */}
-			{!readOnly && (
+			{!readOnly && !hideBillActions && actionableStatus !== "pending" && (
 				<View style={styles.actionsRow}>
 					<TouchableOpacity
 						style={styles.addBtn}
