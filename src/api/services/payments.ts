@@ -1,5 +1,19 @@
-import type { ApiResponse, CreatePaymentPayload } from "../../types/api";
+import type {
+	ApiResponse,
+	CreatePaymentPayload,
+	PaginationMeta,
+} from "../../types/api";
 import { api } from "../client";
+
+export interface PaymentCreateResult {
+	success: boolean;
+}
+
+export interface PaymentResponseData {
+	pagination?: PaginationMeta | null;
+	data?: PaymentCreateResult | boolean;
+	error?: string | null;
+}
 
 export interface Payment {
 	id: string;
@@ -12,9 +26,9 @@ export interface Payment {
 }
 
 export const createPayment = (data: CreatePaymentPayload) =>
-	api.post<ApiResponse<Payment>>("/payments", data);
+	api.post<ApiResponse<PaymentResponseData>>("/payments", data);
 
 export const getPayments = (orderId: string) =>
-	api.get<ApiResponse<Payment[]>>(`/payments`, {
+	api.get<ApiResponse<Payment[]>>("/payments", {
 		params: { order_id: orderId },
 	});

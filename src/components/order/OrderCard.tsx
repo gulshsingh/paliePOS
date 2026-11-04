@@ -13,6 +13,7 @@ interface Props {
 	actionableStatus?: string;
 	hideAmount?: boolean;
 	hideStatus?: boolean;
+	hideBillActions?: boolean;
 }
 
 const NEXT_STATUS: Record<
@@ -64,6 +65,7 @@ export default memo(function OrderCard({
 	actionableStatus,
 	hideAmount = false,
 	hideStatus = false,
+	hideBillActions = false,
 }: Props) {
 	const [expanded, setExpanded] = useState(false);
 
@@ -85,9 +87,6 @@ export default memo(function OrderCard({
 		firedRef.current = {};
 	}
 
-	const allServed = order.items.every((i) => i.status === "served");
-	const isPaid = order.paymentStatus === "PAID";
-	const isInvoiced = order.invoice === true;
 	const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
 
 	return (
@@ -215,41 +214,32 @@ export default memo(function OrderCard({
 						);
 					})}
 
-					{/* Add Items + Bill buttons */}
-					{!readOnly && !isInvoiced && (
+					{/* Add Items + Generate Bill buttons — only shown when touched/expanded in non-pending tabs */}
+					{!readOnly && !hideBillActions && actionableStatus !== "pending" && (
 						<View style={styles.actionsRow}>
-							{!isPaid && (
-								<TouchableOpacity
-									style={styles.addBtn}
-									onPress={() => onAddItems?.(order)}
-									activeOpacity={0.85}
-								>
-									<MaterialCommunityIcons
-										name="plus"
-										size={16}
-										color={theme.colors.primary}
-									/>
-									<Text style={styles.addBtnText}>Add Items</Text>
-								</TouchableOpacity>
-							)}
 							<TouchableOpacity
-								style={[styles.billBtn, !allServed && styles.billBtnAlt]}
+								style={styles.addBtn}
+								onPress={() => onAddItems?.(order)}
+								activeOpacity={0.85}
+							>
+								<MaterialCommunityIcons
+									name="plus"
+									size={16}
+									color={theme.colors.primary}
+								/>
+								<Text style={styles.addBtnText}>Add Items</Text>
+							</TouchableOpacity>
+							<TouchableOpacity
+								style={styles.billBtn}
 								onPress={() => onBillOrder?.(order)}
 								activeOpacity={0.85}
 							>
 								<MaterialCommunityIcons
 									name="cash-register"
 									size={16}
-									color={allServed ? "#fff" : theme.colors.primary}
+									color="#fff"
 								/>
-								<Text
-									style={[
-										styles.billBtnText,
-										!allServed && styles.billBtnTextAlt,
-									]}
-								>
-									{allServed ? "Generate Bill" : "Bill This Order"}
-								</Text>
+								<Text style={styles.billBtnText}>Generate Bill</Text>
 							</TouchableOpacity>
 						</View>
 					)}

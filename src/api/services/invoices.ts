@@ -18,6 +18,7 @@ export interface Invoice {
 export const getInvoices = (params?: {
 	cursor?: string | null;
 	limit?: number;
+	order_id?: string;
 }) =>
 	api.get<ApiResponse<{ data: Invoice[]; pagination: PaginationMeta }>>(
 		"/invoices",

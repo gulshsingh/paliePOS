@@ -15,12 +15,16 @@ const ROWS = [
 	["C", "⌫", null],
 ];
 
-export default function BillingKeypad({ onKeyPress, onDelete, onClear }: Props) {
+export default function BillingKeypad({
+	onKeyPress,
+	onDelete,
+	onClear,
+}: Props) {
 	return (
 		<View style={styles.container}>
 			<View style={styles.keys}>
 				{ROWS.map((row) => (
-					<View key={`row-${row.filter(Boolean).join('-')}`} style={styles.row}>
+					<View key={`row-${row.filter(Boolean).join("-")}`} style={styles.row}>
 						{row.map((key) =>
 							key === null ? (
 								<View key="spacer" style={[styles.key, styles.spacer]} />
@@ -70,7 +74,7 @@ const styles = StyleSheet.create({
 	},
 	key: {
 		flex: 1,
-		height: 52,
+		height: 46,
 		backgroundColor: theme.colors.surfaceSecondary,
 		borderRadius: theme.radius.md,
 		alignItems: "center",

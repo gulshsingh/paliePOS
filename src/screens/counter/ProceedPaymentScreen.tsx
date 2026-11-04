@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	Alert,
 	ScrollView,
@@ -10,33 +10,34 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { generateInvoice, type Invoice } from "../../api/services/invoices";
+import {
+	generateInvoice,
+	getInvoices,
+	type Invoice,
+} from "../../api/services/invoices";
+import type { PaymentMode } from "../../api/services/paymentModes";
 import { createPayment } from "../../api/services/payments";
 import { updateTable } from "../../api/services/tables";
 import BillingKeypad from "../../components/billing/BillingKeypad";
-import Receipt from "../../components/billing/Receipt";
 import { useCreateOrder } from "../../hooks/useOrders";
+import { usePaymentModes } from "../../hooks/usePaymentModes";
 import { useCartStore } from "../../store/cartStore";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
-import type { CartItem } from "../../types/cart";
 import type { RootNavigationProp, RootRouteProp } from "../../types/navigation";
 import type { ApiOrder, ApiOrderItem, PaymentStatus } from "../../types/order";
-import { getErrorMessage, unwrapApiData } from "../../utils/apiHelpers";
+import {
+	extractList,
+	getErrorMessage,
+	unwrapApiData,
+} from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
+import {
+	type PaymentReceiptData,
+	ProceedContextChips,
+	ProceedReceiptView,
+} from "./ProceedPaymentScreen.components";
 import { styles } from "./ProceedPaymentScreen.styles";
-
-interface PaymentReceiptData {
-	orderNumber: string;
-	invoiceNumber?: string;
-	items: CartItem[];
-	subtotal: number;
-	taxTotal: number;
-	discount: number;
-	grandTotal: number;
-	amountPaid: number;
-	change: number;
-}
 
 export default function ProceedPaymentScreen() {
 	const insets = useSafeAreaInsets();
@@ -55,6 +56,10 @@ export default function ProceedPaymentScreen() {
 	const customer = route.params?.customer;
 	const table = route.params?.table;
 	const existingOrder = orders.find((o) => o.id === activeOrderId);
+	const resolvedCustomerName = customer?.name || existingOrder?.customer_name;
+	const resolvedTableName = table?.name || existingOrder?.table_name;
+	const hasCustomer = Boolean(customer || existingOrder?.customer_name);
+	const hasTable = Boolean(table || existingOrder?.table_name);
 	const { subtotal, taxTotal, grandTotal } = getTotals(
 		existingOrder?.tax_amount ?? 0,
 	);
@@ -65,6 +70,33 @@ export default function ProceedPaymentScreen() {
 	const [showReceipt, setShowReceipt] = useState(false);
 	const [result, setResult] = useState<PaymentReceiptData | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const { paymentModes, isLoading: isLoadingModes } = usePaymentModes();
+	const [selectedPaymentMode, setSelectedPaymentMode] =
+		useState<PaymentMode | null>(null);
+	const [existingInvoice, setExistingInvoice] = useState<Invoice | null>(null);
+
+	useEffect(() => {
+		if (paymentModes.length > 0 && !selectedPaymentMode) {
+			const cash = paymentModes.find((m) => m.name.toLowerCase() === "cash");
+			setSelectedPaymentMode(cash ?? paymentModes[0]);
+		}
+	}, [paymentModes, selectedPaymentMode]);
+
+	useEffect(() => {
+		if (!activeOrderId) return;
+		let mounted = true;
+		getInvoices({ order_id: activeOrderId })
+			.then((res) => {
+				if (!mounted) return;
+				const list = extractList<Invoice>(res.data);
+				if (list.length > 0) setExistingInvoice(list[0]);
+			})
+			.catch((e) => console.warn("Invoice fetch on mount failed", e));
+		return () => {
+			mounted = false;
+		};
+	}, [activeOrderId]);
 
 	const totalPayable =
 		grandTotal - Number(discount || 0) - Number(alreadyPaid || 0);
@@ -129,12 +161,16 @@ export default function ProceedPaymentScreen() {
 				return;
 			}
 
-			// ④ Create invoice for the order
-			const invoiceRes = await generateInvoice(orderId);
-			const invoice = unwrapApiData<Invoice>(invoiceRes.data);
+			// ④ Use fetched invoice or create invoice for the order
+			let invoiceId = existingInvoice?.id;
+			let invoiceNumber = existingInvoice?.invoice_number ?? orderNumber;
 
-			const invoiceId = invoice?.id;
-			const invoiceNumber = invoice?.invoice_number ?? orderNumber;
+			if (!invoiceId) {
+				const invoiceRes = await generateInvoice(orderId);
+				const invoice = unwrapApiData<Invoice>(invoiceRes.data);
+				invoiceId = invoice?.id;
+				invoiceNumber = invoice?.invoice_number ?? orderNumber;
+			}
 
 			if (!invoiceId) {
 				Alert.alert(
@@ -144,16 +180,21 @@ export default function ProceedPaymentScreen() {
 				return;
 			}
 
-			// ⑤ Create payment linked to the invoice
+			// ⑤ Create payment linked to the invoice with selected payment mode
 			const totalPaid = amountPaid + Number(alreadyPaid || 0);
 			const payable = grandTotal - Number(discount || 0);
 			const balance = Math.max(payable - totalPaid, 0);
-			await createPayment({
+			const paymentRes = await createPayment({
 				invoice_id: invoiceId,
 				paid_amount: totalPaid,
 				change_amount: Math.max(change, 0),
-				payment_method: "cash",
+				payment_method: selectedPaymentMode?.name.toLowerCase() ?? "cash",
+				payment_mode_id: selectedPaymentMode?.id,
 			});
+
+			if (paymentRes.data && !paymentRes.data.success) {
+				throw new Error(paymentRes.data.message || "Payment creation failed");
+			}
 
 			// ③ Update local Zustand state immediately after payment succeeds —
 			// BEFORE updateTable so the UI reflects PAID even if table free fails.
@@ -250,52 +291,16 @@ export default function ProceedPaymentScreen() {
 	// ── Receipt view ──────────────────────────────────────────
 	if (showReceipt && result) {
 		return (
-			<View style={[styles.container, { paddingTop: insets.top }]}>
-				<StatusBar barStyle="dark-content" backgroundColor="#fff" />
-				{/* Success header */}
-				<View style={styles.successHeader}>
-					<TouchableOpacity
-						style={styles.backBtn}
-						onPress={() =>
-							navigation.reset({
-								index: 0,
-								routes: [{ name: "Main", params: { screen: "Counter" } }],
-							})
-						}
-					>
-						<MaterialCommunityIcons
-							name="close"
-							size={20}
-							color={theme.colors.textSecondary}
-						/>
-					</TouchableOpacity>
-					<View style={styles.successBadge}>
-						<MaterialCommunityIcons
-							name="check-circle"
-							size={22}
-							color={theme.colors.success}
-						/>
-						<Text style={styles.successText}>Payment Successful</Text>
-					</View>
-					<View style={styles.headerSpacer} />
-				</View>
-				<ScrollView contentContainerStyle={styles.receiptScroll}>
-					<Receipt {...result} orderNumber={result.orderNumber} />
-				</ScrollView>
-				<TouchableOpacity
-					style={styles.doneBtn}
-					onPress={() =>
-						navigation.reset({
-							index: 0,
-							routes: [{ name: "Main", params: { screen: "Counter" } }],
-						})
-					}
-					activeOpacity={0.85}
-				>
-					<MaterialCommunityIcons name="home-outline" size={18} color="#fff" />
-					<Text style={styles.doneBtnText}>Back to POS</Text>
-				</TouchableOpacity>
-			</View>
+			<ProceedReceiptView
+				topInset={insets.top}
+				result={result}
+				onDone={() =>
+					navigation.reset({
+						index: 0,
+						routes: [{ name: "Main", params: { screen: "Counter" } }],
+					})
+				}
+			/>
 		);
 	}
 
@@ -320,135 +325,135 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.headerSpacer} />
 			</View>
 
-			{/* Context chips */}
-			{(customer || table) && (
-				<View style={styles.contextRow}>
-					{customer && (
-						<View style={styles.contextChip}>
-							<MaterialCommunityIcons
-								name="account-outline"
-								size={13}
-								color={theme.colors.textSecondary}
-							/>
-							<Text style={styles.contextChipText}>{customer.name}</Text>
-						</View>
-					)}
-					{table && (
-						<View style={styles.contextChip}>
-							<MaterialCommunityIcons
-								name="table-furniture"
-								size={13}
-								color={theme.colors.textSecondary}
-							/>
-							<Text style={styles.contextChipText}>{table.name}</Text>
-						</View>
-					)}
-				</View>
-			)}
+			<ScrollView
+				style={styles.scrollArea}
+				contentContainerStyle={[
+					styles.scrollContent,
+					{ paddingBottom: insets.bottom + 16 },
+				]}
+				showsVerticalScrollIndicator={false}
+				keyboardShouldPersistTaps="handled"
+				bounces={true}
+			>
+				{/* Top bar: Left: Customer & Table stacked; Right: Payment Mode */}
+				<ProceedContextChips
+					customerName={resolvedCustomerName}
+					hasCustomer={hasCustomer}
+					tableName={resolvedTableName}
+					hasTable={hasTable}
+					paymentModes={paymentModes}
+					selectedPaymentMode={selectedPaymentMode}
+					onSelectPaymentMode={setSelectedPaymentMode}
+					isLoadingModes={isLoadingModes}
+				/>
 
-			{/* Bill summary card */}
-			<View style={styles.summaryCard}>
-				<View style={styles.summaryRow}>
-					<Text style={styles.summaryLabel}>Subtotal</Text>
-					<Text style={styles.summaryValue}>
-						₹{subtotal.toLocaleString("en-IN")}
-					</Text>
-				</View>
-				<View style={styles.summaryRow}>
-					<Text style={styles.summaryLabel}>Taxes & Charges</Text>
-					<Text style={styles.summaryValue}>
-						₹{taxTotal.toLocaleString("en-IN")}
-					</Text>
-				</View>
-				{Number(discount) > 0 && (
+				{/* Bill summary card */}
+				<View style={styles.summaryCard}>
 					<View style={styles.summaryRow}>
-						<Text style={styles.summaryLabel}>Discount</Text>
-						<Text
-							style={[styles.summaryValue, { color: theme.colors.success }]}
-						>
-							− ₹{Number(discount).toLocaleString("en-IN")}
+						<Text style={styles.summaryLabel}>Subtotal</Text>
+						<Text style={styles.summaryValue}>
+							₹{subtotal.toLocaleString("en-IN")}
 						</Text>
 					</View>
-				)}
-				<View style={styles.totalDivider} />
-				<View style={styles.summaryRow}>
-					<Text style={styles.totalLabel}>Total Payable</Text>
-					<Text style={styles.totalValue}>
-						₹{totalPayable.toLocaleString("en-IN")}
-					</Text>
+					<View style={styles.summaryRow}>
+						<Text style={styles.summaryLabel}>Taxes & Charges</Text>
+						<Text style={styles.summaryValue}>
+							₹{taxTotal.toLocaleString("en-IN")}
+						</Text>
+					</View>
+					{Number(discount) > 0 && (
+						<View style={styles.summaryRow}>
+							<Text style={styles.summaryLabel}>Discount</Text>
+							<Text
+								style={[styles.summaryValue, { color: theme.colors.success }]}
+							>
+								− ₹{Number(discount).toLocaleString("en-IN")}
+							</Text>
+						</View>
+					)}
+					<View style={styles.totalDivider} />
+					<View style={styles.summaryRow}>
+						<Text style={styles.totalLabel}>Total Payable</Text>
+						<Text style={styles.totalValue}>
+							₹{totalPayable.toLocaleString("en-IN")}
+						</Text>
+					</View>
 				</View>
-			</View>
 
-			{/* Entered amount display */}
-			<View style={styles.amountDisplay}>
-				<Text style={styles.amountLabel}>Cash Received</Text>
-				<Text
-					style={[styles.amountValue, !paidAmount && styles.amountPlaceholder]}
-				>
-					₹ {paidAmount || "0"}
-				</Text>
-				{paidAmount.length > 0 && (
-					<View
+				{/* Entered amount display */}
+				<View style={styles.amountDisplay}>
+					<Text style={styles.amountLabel}>
+						{selectedPaymentMode?.name ?? "Cash"} Received
+					</Text>
+					<Text
 						style={[
-							styles.changeBadge,
-							{
-								backgroundColor:
-									change >= 0
-										? theme.colors.successLight
-										: theme.colors.dangerLight,
-							},
+							styles.amountValue,
+							!paidAmount && styles.amountPlaceholder,
 						]}
 					>
-						<Text
+						₹ {paidAmount || "0"}
+					</Text>
+					{paidAmount.length > 0 && (
+						<View
 							style={[
-								styles.changeText,
+								styles.changeBadge,
 								{
-									color:
-										change >= 0 ? theme.colors.success : theme.colors.danger,
+									backgroundColor:
+										change >= 0
+											? theme.colors.successLight
+											: theme.colors.dangerLight,
 								},
 							]}
 						>
-							{change >= 0
-								? `Change: ₹${change.toLocaleString("en-IN")}`
-								: `Short by ₹${Math.abs(change).toLocaleString("en-IN")}`}
-						</Text>
-					</View>
-				)}
-			</View>
+							<Text
+								style={[
+									styles.changeText,
+									{
+										color:
+											change >= 0 ? theme.colors.success : theme.colors.danger,
+									},
+								]}
+							>
+								{change >= 0
+									? `Change: ₹${change.toLocaleString("en-IN")}`
+									: `Short by ₹${Math.abs(change).toLocaleString("en-IN")}`}
+							</Text>
+						</View>
+					)}
+				</View>
 
-			{/* Keypad — flex:1 so it fills the remaining space on any screen */}
-			<BillingKeypad
-				onKeyPress={handleKeyPress}
-				onDelete={handleDelete}
-				onClear={handleClear}
-			/>
+				{/* Keypad */}
+				<View style={styles.keypadWrapper}>
+					<BillingKeypad
+						onKeyPress={handleKeyPress}
+						onDelete={handleDelete}
+						onClear={handleClear}
+					/>
+				</View>
 
-			{/* CTA */}
-			<TouchableOpacity
-				style={[
-					styles.completeBtn,
-					!canPay && styles.completeBtnDisabled,
-					{ marginBottom: 12 + insets.bottom },
-				]}
-				onPress={handleCompleteOrder}
-				disabled={!canPay || isSubmitting}
-				activeOpacity={0.85}
-			>
-				<MaterialCommunityIcons
-					name={canPay ? "check-circle-outline" : "cash"}
-					size={20}
-					color="#fff"
-				/>
-				<Text style={styles.completeBtnText}>
-					{isSubmitting
-						? "Processing..."
-						: !paidAmount
-							? "Enter amount to pay"
-							: !canPay
-								? `Need ₹${(totalPayable - amountPaid).toLocaleString("en-IN")} more`
-								: "Complete Payment"}
-				</Text>
-			</TouchableOpacity>
+				{/* CTA */}
+				<TouchableOpacity
+					style={[styles.completeBtn, !canPay && styles.completeBtnDisabled]}
+					onPress={handleCompleteOrder}
+					disabled={!canPay || isSubmitting}
+					activeOpacity={0.85}
+				>
+					<MaterialCommunityIcons
+						name={canPay ? "check-circle-outline" : "cash"}
+						size={20}
+						color="#fff"
+					/>
+					<Text style={styles.completeBtnText}>
+						{isSubmitting
+							? "Processing..."
+							: !paidAmount
+								? "Enter amount to pay"
+								: !canPay
+									? `Need ₹${(totalPayable - amountPaid).toLocaleString("en-IN")} more`
+									: "Complete Payment"}
+					</Text>
+				</TouchableOpacity>
+			</ScrollView>
 		</View>
 	);
 }

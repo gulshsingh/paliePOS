@@ -18,8 +18,8 @@ import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
 import type { Customer } from "../../types/customer";
 import type { ApiOrder, ApiOrderItem, Order } from "../../types/order";
-import type { RestaurantTable } from "../../types/table";
 import { ORDER_TABS, type OrderTab } from "../../types/order-status";
+import type { RestaurantTable } from "../../types/table";
 import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 
@@ -90,7 +90,8 @@ export default function OrdersPanel({
 
 	const customerMap = useMemo(() => {
 		const list =
-			customersData.data?.pages.flatMap((p) => extractList<Customer>(p.data)) ?? [];
+			customersData.data?.pages.flatMap((p) => extractList<Customer>(p.data)) ??
+			[];
 		return new Map<string, string>(list.map((c: Customer) => [c.id, c.name]));
 	}, [customersData.data]);
 
@@ -110,6 +111,7 @@ export default function OrdersPanel({
 				onAddItems={handleBillOrder}
 				onUpdateStatus={updateItemStatusLocally}
 				actionableStatus={TAB_ITEM_STATUS[activeTab]}
+				hideBillActions={activeTab === "PENDING"}
 				hideAmount
 			/>
 		),
@@ -124,22 +126,28 @@ export default function OrdersPanel({
 		const apiMapped: Order[] = apiOrders
 			.filter((o) => (o.created_at ? isToday(o.created_at) : false))
 			.map((o) => ({
-			id: o.id,
-			order_number: o.order_number,
-			items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
-				...item,
-				status: itemStatusOverrides[item.id] ?? item.status,
-			})),
-			total: Number(o.grand_total),
-			tax_amount: Number(o.tax_amount) || 0,
-			status: o.status,
-			invoice: o.invoice === true,
-			paymentStatus: o.payment_status ?? "UNPAID",
-			table_id: o.table_id,
-			account_id: o.account_id,
-			table_name: o.table?.name ?? (o.table_id ? tableMap.get(o.table_id) : undefined) ?? "",
-			customer_name: o.account?.name ?? (o.account_id ? customerMap.get(o.account_id) : undefined) ?? "",
-		}));
+				id: o.id,
+				order_number: o.order_number,
+				items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
+					...item,
+					status: itemStatusOverrides[item.id] ?? item.status,
+				})),
+				total: Number(o.grand_total),
+				tax_amount: Number(o.tax_amount) || 0,
+				status: o.status,
+				invoice: o.invoice === true,
+				paymentStatus: o.payment_status ?? "UNPAID",
+				table_id: o.table_id,
+				account_id: o.account_id,
+				table_name:
+					o.table?.name ??
+					(o.table_id ? tableMap.get(o.table_id) : undefined) ??
+					"",
+				customer_name:
+					o.account?.name ??
+					(o.account_id ? customerMap.get(o.account_id) : undefined) ??
+					"",
+			}));
 
 		const merged = new Map<string, Order>();
 		for (const o of apiMapped) merged.set(o.id, o);
@@ -148,24 +156,32 @@ export default function OrdersPanel({
 		return [...merged.values()].filter((o) =>
 			o.items.some((i) => i.status === tabStatus),
 		);
-	}, [data, activeTab, localOrders, itemStatusOverrides, tableMap, customerMap]);
+	}, [
+		data,
+		activeTab,
+		localOrders,
+		itemStatusOverrides,
+		tableMap,
+		customerMap,
+	]);
 
 	useEffect(() => {
 		const overrides = useOrderStore.getState().itemStatusOverrides;
 		const ids = Object.keys(overrides);
 		if (ids.length === 0) return;
-		const apiItems: ApiOrderItem[] =
-			(data?.pages ?? []).flatMap((p) => {
-				const list = extractList<ApiOrder>(p.data);
-				return (list ?? []).flatMap((o: ApiOrder) => o.items ?? []);
-			});
+		const apiItems: ApiOrderItem[] = (data?.pages ?? []).flatMap((p) => {
+			const list = extractList<ApiOrder>(p.data);
+			return (list ?? []).flatMap((o: ApiOrder) => o.items ?? []);
+		});
 		const confirmed = ids.filter((id) => {
 			const it = apiItems.find((x) => x.id === id);
 			return !!it && it.status === overrides[id];
 		});
 		if (confirmed.length > 0) {
 			const store = useOrderStore.getState();
-			confirmed.forEach((id) => { store.clearItemStatusOverride(id); });
+			confirmed.forEach((id) => {
+				store.clearItemStatusOverride(id);
+			});
 		}
 	}, [data]);
 
@@ -189,14 +205,14 @@ export default function OrdersPanel({
 							onPress={() => setActiveTab(tab)}
 							activeOpacity={0.8}
 						>
-						<MaterialCommunityIcons
-							name={meta.icon}
-							size={14}
-							color={isActive ? meta.color : theme.colors.textMuted}
-						/>
-						<Text style={[styles.tabText, isActive && { color: meta.color }]}>
-							{tab}
-						</Text>
+							<MaterialCommunityIcons
+								name={meta.icon}
+								size={14}
+								color={isActive ? meta.color : theme.colors.textMuted}
+							/>
+							<Text style={[styles.tabText, isActive && { color: meta.color }]}>
+								{tab}
+							</Text>
 						</TouchableOpacity>
 					);
 				})}
