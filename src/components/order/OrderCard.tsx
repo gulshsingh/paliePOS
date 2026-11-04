@@ -85,9 +85,6 @@ export default memo(function OrderCard({
 		firedRef.current = {};
 	}
 
-	const allServed = order.items.every((i) => i.status === "served");
-	const isPaid = order.paymentStatus === "PAID";
-	const isInvoiced = order.invoice === true;
 	const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
 
 	return (
@@ -214,45 +211,36 @@ export default memo(function OrderCard({
 							</View>
 						);
 					})}
+				</View>
+			)}
 
-					{/* Add Items + Bill buttons */}
-					{!readOnly && !isInvoiced && (
-						<View style={styles.actionsRow}>
-							{!isPaid && (
-								<TouchableOpacity
-									style={styles.addBtn}
-									onPress={() => onAddItems?.(order)}
-									activeOpacity={0.85}
-								>
-									<MaterialCommunityIcons
-										name="plus"
-										size={16}
-										color={theme.colors.primary}
-									/>
-									<Text style={styles.addBtnText}>Add Items</Text>
-								</TouchableOpacity>
-							)}
-							<TouchableOpacity
-								style={[styles.billBtn, !allServed && styles.billBtnAlt]}
-								onPress={() => onBillOrder?.(order)}
-								activeOpacity={0.85}
-							>
-								<MaterialCommunityIcons
-									name="cash-register"
-									size={16}
-									color={allServed ? "#fff" : theme.colors.primary}
-								/>
-								<Text
-									style={[
-										styles.billBtnText,
-										!allServed && styles.billBtnTextAlt,
-									]}
-								>
-									{allServed ? "Generate Bill" : "Bill This Order"}
-								</Text>
-							</TouchableOpacity>
-						</View>
-					)}
+			{/* Add Items + Generate Bill buttons */}
+			{!readOnly && (
+				<View style={styles.actionsRow}>
+					<TouchableOpacity
+						style={styles.addBtn}
+						onPress={() => onAddItems?.(order)}
+						activeOpacity={0.85}
+					>
+						<MaterialCommunityIcons
+							name="plus"
+							size={16}
+							color={theme.colors.primary}
+						/>
+						<Text style={styles.addBtnText}>Add Items</Text>
+					</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.billBtn}
+						onPress={() => onBillOrder?.(order)}
+						activeOpacity={0.85}
+					>
+						<MaterialCommunityIcons
+							name="cash-register"
+							size={16}
+							color="#fff"
+						/>
+						<Text style={styles.billBtnText}>Generate Bill</Text>
+					</TouchableOpacity>
 				</View>
 			)}
 		</TouchableOpacity>
@@ -416,7 +404,9 @@ const styles = StyleSheet.create({
 	actionsRow: {
 		flexDirection: "row",
 		gap: 8,
-		marginTop: 12,
+		paddingHorizontal: 14,
+		paddingBottom: 14,
+		paddingTop: 6,
 	},
 	addBtn: {
 		flex: 1,
