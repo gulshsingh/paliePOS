@@ -6,6 +6,7 @@ import {
 	Text,
 	TextInput,
 	TouchableOpacity,
+	TouchableWithoutFeedback,
 	View,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -53,12 +54,11 @@ export default function CustomerModal({
 			transparent
 			onRequestClose={onClose}
 		>
-			<TouchableOpacity
-				style={styles.overlay}
-				activeOpacity={1}
-				onPress={onClose}
-			>
-				<TouchableOpacity style={styles.sheet} activeOpacity={1}>
+			<View style={styles.overlay}>
+				<TouchableWithoutFeedback onPress={onClose}>
+					<View style={styles.backdrop} />
+				</TouchableWithoutFeedback>
+				<View style={styles.sheet}>
 					{/* Handle bar */}
 					<View style={styles.handle} />
 
@@ -158,8 +158,8 @@ export default function CustomerModal({
 							}}
 						/>
 					)}
-				</TouchableOpacity>
-			</TouchableOpacity>
+				</View>
+			</View>
 		</Modal>
 	);
 }
@@ -169,6 +169,9 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: "rgba(0,0,0,0.5)",
 		justifyContent: "flex-end",
+	},
+	backdrop: {
+		...StyleSheet.absoluteFill,
 	},
 	sheet: {
 		backgroundColor: "#fff",

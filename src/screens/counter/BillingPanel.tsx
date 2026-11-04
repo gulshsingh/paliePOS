@@ -166,14 +166,28 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		[cart, additions, isBillingExisting, existingOrder],
 	);
 
-	const handleClearAll = useCallback(() => {
+	const resetBillingState = useCallback(() => {
 		clearCart();
 		setActiveOrder(null);
 		setSelectedCustomer(null);
 		setSelectedTable(null);
 		setAutofilledFor(null);
 		setLoadedForOrder(null);
-	}, [clearCart, setActiveOrder, setSelectedCustomer, setSelectedTable]);
+		if (activeDraftId) removeDraft(activeDraftId);
+		setActiveDraftId(null);
+		onRequestClose?.();
+	}, [
+		clearCart,
+		setActiveOrder,
+		setSelectedCustomer,
+		setSelectedTable,
+		activeDraftId,
+		removeDraft,
+		setActiveDraftId,
+		onRequestClose,
+	]);
+
+	const handleClearAll = resetBillingState;
 
 	const handleSendToKitchen = async () => {
 		if (cart.length === 0 || submittingRef.current) return;
@@ -235,13 +249,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				);
 			}
 
-			clearCart();
-			setActiveOrder(null);
-			setSelectedTable(null);
-			setSelectedCustomer(null);
-			if (activeDraftId) removeDraft(activeDraftId);
-			setActiveDraftId(null);
-			onRequestClose?.();
+			resetBillingState();
 		} catch (e) {
 			console.error("Failed to create order", e);
 		} finally {
@@ -371,13 +379,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 		}
 
 		// Close panel only after real IDs are in place
-		clearCart();
-		setActiveOrder(null);
-		setSelectedTable(null);
-		setSelectedCustomer(null);
-		if (activeDraftId) removeDraft(activeDraftId);
-		setActiveDraftId(null);
-		onRequestClose?.();
+		resetBillingState();
 		Alert.alert(
 			"Sent to Kitchen",
 			`KOT #${kotNo} — ${additions.length} item${additions.length === 1 ? "" : "s"} added to Order #${order.order_number}`,

@@ -4,6 +4,7 @@ import {
 	StyleSheet,
 	Text,
 	TouchableOpacity,
+	TouchableWithoutFeedback,
 	View,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -102,12 +103,12 @@ export default function TableModal({
 			transparent
 			onRequestClose={onClose}
 		>
-			<TouchableOpacity
-				style={styles.overlay}
-				activeOpacity={1}
-				onPress={onClose}
-			>
-				<TouchableOpacity style={styles.sheet} activeOpacity={1}>
+			<View style={styles.overlay}>
+				<TouchableWithoutFeedback onPress={onClose}>
+					<View style={styles.backdrop} />
+				</TouchableWithoutFeedback>
+
+				<View style={styles.sheet}>
 					{/* Handle */}
 					<View style={styles.handle} />
 
@@ -144,12 +145,15 @@ export default function TableModal({
 							keyExtractor={(item) => item.id}
 							numColumns={3}
 							columnWrapperStyle={styles.grid}
+							contentContainerStyle={styles.listContent}
 							showsVerticalScrollIndicator={false}
+							keyboardShouldPersistTaps="handled"
+							bounces={true}
 							renderItem={renderTable}
 						/>
 					)}
-				</TouchableOpacity>
-			</TouchableOpacity>
+				</View>
+			</View>
 		</Modal>
 	);
 }
@@ -160,13 +164,19 @@ const styles = StyleSheet.create({
 		backgroundColor: "rgba(0,0,0,0.5)",
 		justifyContent: "flex-end",
 	},
+	backdrop: {
+		...StyleSheet.absoluteFill,
+	},
 	sheet: {
 		backgroundColor: "#fff",
 		borderTopLeftRadius: 24,
 		borderTopRightRadius: 24,
 		paddingHorizontal: 14,
-		paddingBottom: 32,
-		maxHeight: "75%",
+		paddingBottom: 24,
+		maxHeight: "80%",
+	},
+	listContent: {
+		paddingBottom: 20,
 	},
 	handle: {
 		width: 40,
