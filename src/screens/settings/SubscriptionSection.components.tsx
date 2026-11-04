@@ -8,10 +8,15 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../../theme';
+import type { Subscription, SubscriptionPlan } from '../../types/subscription';
+import { getErrorMessage } from '../../utils/apiHelpers';
 import { styles } from './SubscriptionSection.styles';
 
-export const errMsg = (e: any, fallback: string) =>
-  e?.response?.data?.message || e?.response?.data?.error?.message || fallback;
+export const errMsg = (
+  e: Error | string | null | { message?: string },
+  fallback: string,
+) =>
+  getErrorMessage(e, fallback);
 
 export const fmtDate = (d?: string) => {
   if (!d) return '—';
@@ -26,12 +31,16 @@ export const fmtDate = (d?: string) => {
   }
 };
 
-export const findArray = (o: any): any[] => {
+export const findArray = <T,>(
+  o: { data?: T[] | { data?: T[] }; plans?: T[] } | T[] | null | undefined,
+): T[] => {
   if (!o) return [];
-  if (Array.isArray(o)) return o;
-  if (Array.isArray(o?.data)) return o.data;
-  if (Array.isArray(o?.data?.data)) return o.data.data;
-  if (Array.isArray(o?.plans)) return o.plans;
+  if (Array.isArray(o)) return o as T[];
+  const obj = o as Record<string, unknown>;
+  if (Array.isArray(obj.data)) return obj.data as T[];
+  const d = obj.data as Record<string, unknown> | undefined;
+  if (Array.isArray(d?.data)) return d.data as T[];
+  if (Array.isArray(obj.plans)) return obj.plans as T[];
   return [];
 };
 
@@ -45,7 +54,7 @@ export function CurrentPlanCard({
   isExtending,
   isCancelling,
 }: {
-  current: any;
+  current: Subscription | null | undefined;
   isActive: boolean;
   isLoading: boolean;
   onOpenHistory: () => void;
@@ -108,7 +117,7 @@ export function CurrentPlanCard({
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Price</Text>
             <Text style={styles.infoValue}>
-              {current?.plan?.price > 0
+              {current?.plan?.price != null && current.plan.price > 0
                 ? `₹${current.plan.price} / ${
                     current.plan.billing_interval ?? 'month'
                   }`
@@ -190,7 +199,7 @@ export function PlanItemCard({
   onSubscribe,
   isSubscribing,
 }: {
-  plan: any;
+  plan: SubscriptionPlan;
   isCurrentPlan: boolean;
   onSubscribe: (planId: string, name?: string) => void;
   isSubscribing: boolean;
@@ -230,11 +239,13 @@ export function PlanItemCard({
       {/* Features */}
       {Array.isArray(plan.features) && plan.features.length > 0 && (
         <View style={styles.featureList}>
-          {plan.features.slice(0, 4).map((f: any, i: number) => {
+          {plan.features.slice(0, 4).map((f: string, i: number) => {
             const label =
               typeof f === 'string'
                 ? f
-                : f?.name ?? f?.feature?.name ?? String(f);
+                : (f as { name?: string; feature?: { name?: string } })?.name ??
+                  (f as { feature?: { name?: string } })?.feature?.name ??
+                  String(f);
             return (
               <View key={label || `feat-${i}`} style={styles.featureRow}>
                 <MaterialCommunityIcons
@@ -301,7 +312,7 @@ export function SubscriptionHistoryModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  history: any[];
+  history: Subscription[];
   isLoading: boolean;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
@@ -356,7 +367,7 @@ export function SubscriptionHistoryModal({
                 <Text style={styles.muted}>No past subscriptions</Text>
               </View>
             ) : (
-              history.map((s: any, idx: number) => {
+              history.map((s: Subscription, idx: number) => {
                 const st = String(s?.status ?? '').toLowerCase();
                 const statusColor =
                   st === 'active'
@@ -404,7 +415,9 @@ export function SubscriptionHistoryModal({
                       ) : null}
                     </View>
                     <Text style={styles.histPrice}>
-                      {s?.plan?.price > 0 ? `₹${s.plan.price}` : 'Free'}
+                      {s?.plan?.price != null && s.plan.price > 0
+                        ? `₹${s.plan.price}`
+                        : 'Free'}
                     </Text>
                   </View>
                 );

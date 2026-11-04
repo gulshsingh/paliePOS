@@ -1,13 +1,14 @@
-import type { ApiResponse } from "../../types/api";
+import type { ApiResponse, PaginatedResponse } from "../../types/api";
 import type { Category } from "../../types/category";
 import { api } from "../client";
 
-export const getCategories = async (cursor?: string | null) => {
-	const res = await api.get<ApiResponse<Category[]>>("/product/categories/", {
-		params: cursor ? { cursor } : {},
+export const getCategories = (cursor?: string | null, limit = 50) =>
+	api.get<ApiResponse<PaginatedResponse<Category>>>("/product/categories/", {
+		params: {
+			limit,
+			...(cursor ? { cursor } : {}),
+		},
 	});
-	return res.data.data;
-};
 
 export const createCategory = (data: { name: string; type?: string }) =>
 	api.post<ApiResponse<Category>>("/product/categories/", {

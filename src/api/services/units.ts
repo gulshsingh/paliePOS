@@ -1,12 +1,11 @@
-import type { ApiResponse } from "../../types/api";
+import type { ApiResponse, PaginationMeta } from "../../types/api";
 import type { Unit, UnitPayload } from "../../types/unit";
 import { api } from "../client";
 
 export const getUnits = async (cursor?: string | null) => {
-	const res = await api.get<ApiResponse<{ data: Unit[]; pagination: any }>>(
-		"/product/unit",
-		{ params: cursor ? { cursor } : {} },
-	);
+	const res = await api.get<
+		ApiResponse<{ data: Unit[]; pagination: PaginationMeta }>
+	>("/product/unit", { params: cursor ? { cursor } : {} });
 	return res.data.data;
 };
 

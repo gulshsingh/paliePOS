@@ -1,6 +1,7 @@
 // import { useNavigation } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
+	ActivityIndicator,
 	FlatList,
 	StatusBar,
 	StyleSheet,
@@ -15,6 +16,7 @@ import Skeleton from "../../components/common/Skeleton";
 import { useProducts } from "../../hooks/useProducts";
 import { theme } from "../../theme";
 import type { Product } from "../../types/product";
+import { extractList } from "../../utils/apiHelpers";
 
 const EMOJIS = [
 	"🍕",
@@ -49,15 +51,12 @@ const TILE_COLORS = [
 
 export default function ProductsScreen() {
 	const insets = useSafeAreaInsets();
-	// const navigation = useNavigation<any>();
 	const [search, setSearch] = useState("");
-	const { data, isLoading } = useProducts();
+	const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+		useProducts();
 
 	const allProducts =
-		data?.pages.flatMap((p) => {
-			const d = p.data as any;
-			return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-		}) ?? [];
+		data?.pages.flatMap((p) => extractList<Product>(p.data)) ?? [];
 
 	const filtered = search
 		? allProducts.filter((p: Product) =>
@@ -171,6 +170,17 @@ export default function ProductsScreen() {
 					contentContainerStyle={styles.list}
 					showsVerticalScrollIndicator={false}
 					renderItem={renderItem}
+					onEndReached={() => {
+						if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+					}}
+					onEndReachedThreshold={0.4}
+					ListFooterComponent={
+						isFetchingNextPage ? (
+							<View style={{ paddingVertical: 12, alignItems: "center" }}>
+								<ActivityIndicator size="small" color={theme.colors.primary} />
+							</View>
+						) : null
+					}
 					ListEmptyComponent={
 						<View style={styles.empty}>
 							<MaterialCommunityIcons

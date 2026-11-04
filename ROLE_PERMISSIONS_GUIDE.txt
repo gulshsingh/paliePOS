@@ -1,0 +1,464 @@
+================================================================================
+PALIE POS - BACKEND ROLES & PERMISSIONS SPECIFICATION
+Exact Schema Sync for Backend Team
+Roles: 'admin' | 'manager' | 'cashier' | 'waiter'
+================================================================================
+
+Yeh document backend team ke liye 2 clear parts me divided hai:
+PART 1: Jo permissions backend me ALREADY BANI HUI HAIN (Exact same keys).
+        Isme naya kuch create nahi karna hai, sirf Manager, Cashier aur Waiter
+        ke liye true / false values set karni hain.
+PART 2: Jo permissions backend me ABHI NAHI BANI HAIN (New permissions).
+        Sirf ye 3 permissions backend database me nayi create karni padengi.
+
+
+================================================================================
+PART 1: JO PERMISSIONS ALREADY BANI HUI HAIN (NO NEW CREATION NEEDED)
+================================================================================
+
+Neeche aapke backend ke existing 19 modules aur unki permissions ka charo roles
+('admin', 'manager', 'cashier', 'waiter') ke hisab se exact setup hai:
+
+--------------------------------------------------------------------------------
+1. ORDERS MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   |  true  | Running orders dekhna
+create            |  true   |  true   |  true   |  true  | New KOT/Order punch
+add_items         |  true   |  true   |  true   |  true  | Table me item jodna
+change_status     |  true   |  true   |  true   |  true  | Kitchen/Serving status
+update_item       |  true   |  true   |  true   | false  | Placed item qty badalna
+update            |  true   |  true   |  true   | false  | Order edit karna
+delete            |  true   |  true   | false   | false  | Order delete karna
+view_ledger       |  true   |  true   | false   | false  | Account ledger dekhna
+
+--------------------------------------------------------------------------------
+2. INVOICES MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   | false  | Invoices list dekhna
+create            |  true   |  true   |  true   | false  | Final bill banana
+update            |  true   |  true   | false   | false  | Invoice edit karna
+delete            |  true   | false   | false   | false  | Invoice delete karna
+
+--------------------------------------------------------------------------------
+3. PAYMENTS MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   | false  | Payment details dekhna
+create            |  true   |  true   |  true   | false  | Cash/UPI payment lena
+view_by_invoice   |  true   |  true   |  true   | false  | Bill ki payment dekhna
+view_account_summ |  true   |  true   | false   | false  | Khata payment summary
+update            |  true   |  true   | false   | false  | Payment record update
+delete            |  true   | false   | false   | false  | Payment record delete
+
+--------------------------------------------------------------------------------
+4. PAYMENT_MODES MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   | false  | Cash/UPI/Card modes
+create            |  true   | false   | false   | false  | Naya payment mode add
+update            |  true   | false   | false   | false  | Payment mode edit
+delete            |  true   | false   | false   | false  | Payment mode delete
+
+--------------------------------------------------------------------------------
+5. PRODUCTS MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   |  true  | Menu items dekhna
+create            |  true   |  true   | false   | false  | Naya dish add karna
+update            |  true   |  true   | false   | false  | Price/Name edit karna
+delete            |  true   | false   | false   | false  | Dish delete karna
+
+--------------------------------------------------------------------------------
+6. PRODUCT_CATEGORIES MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   |  true  | Categories dekhna
+create            |  true   |  true   | false   | false  | Category create karna
+update            |  true   |  true   | false   | false  | Category edit karna
+delete            |  true   | false   | false   | false  | Category delete karna
+
+--------------------------------------------------------------------------------
+7. TABLES MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   |  true  | Table/Floor dekhna
+create            |  true   |  true   | false   | false  | Naya table add karna
+update            |  true   |  true   | false   | false  | Table capacity edit
+delete            |  true   | false   | false   | false  | Table delete karna
+
+--------------------------------------------------------------------------------
+8. ACCOUNTS (CUSTOMERS) MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   |  true   |  true  | Customers list dekhna
+create            |  true   |  true   |  true   |  true  | Walk-in mobile number
+update            |  true   |  true   | false   | false  | Customer info edit
+delete            |  true   | false   | false   | false  | Customer delete karna
+
+--------------------------------------------------------------------------------
+9. INVENTORY MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view_dashboard    |  true   |  true   | false   | false  | Orders & Revenue Today
+view_low_stock    |  true   |  true   | false   | false  | Low stock alert list
+view_stock_summ   |  true   |  true   | false   | false  | Stock value dekhna
+
+--------------------------------------------------------------------------------
+10. REPORTS MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view_low_stock    |  true   |  true   | false   | false  | Low stock report
+view_food_costing |  true   |  true   | false   | false  | Food costing / profit
+view_stock_summ   |  true   |  true   | false   | false  | Stock report
+
+--------------------------------------------------------------------------------
+11. COMPANIES MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view              |  true   |  true   | false   | false  | Company info dekhna
+update            |  true   | false   | false   | false  | Restaurant info edit
+
+--------------------------------------------------------------------------------
+12. SUBSCRIPTIONS MODULE (Existing in backend)
+--------------------------------------------------------------------------------
+Action            |  admin  | manager | cashier | waiter | Description
+------------------+---------+---------+---------+--------+----------------------
+view_current      |  true   |  true   | false   | false  | Active plan dekhna
+view_history      |  true   |  true   | false   | false  | Invoices/History
+subscribe         |  true   | false   | false   | false  | Naya plan kharidna
+extend            |  true   | false   | false   | false  | Plan renew karna
+cancel            |  true   | false   | false   | false  | Plan cancel karna
+
+--------------------------------------------------------------------------------
+13. WEB-ONLY MODULES (Units, Plans, BOM, Productions, Purchase, Stock Adjustments)
+--------------------------------------------------------------------------------
+Yeh modules Mobile POS me use nahi hote, isliye Cashier aur Waiter ke liye
+inhe FALSE rakhna hai. Admin aur Manager ke pass web panel access rahega:
+
+Module              | admin | manager | cashier | waiter
+--------------------+-------+---------+---------+--------
+units               | true  |  true   |  false  | false
+plans               | true  |  false  |  false  | false
+bom                 | true  |  true   |  false  | false
+productions         | true  |  true   |  false  | false
+purchase_orders     | true  |  true   |  false  | false
+purchase_invoices   | true  |  true   |  false  | false
+stock_adjustments   | true  |  true   |  false  | false
+
+
+================================================================================
+PART 2: JO PERMISSIONS ABHI NAHI BANI HAIN (NEW CREATION REQUIRED)
+================================================================================
+
+Aapke backend schema me Restaurant POS ke yeh 3 important actions MISSING hain.
+Backend team ko yeh 3 nayi permission keys create karni padengi:
+
+1. 'orders.apply_discount' (Boolean)
+   * Kahan lagega: POS Billing screen par discount dena (% ya flat amount).
+   * Kyun chahiye: Waiter aur Cashier bina manager ki permission ke discount na de sake.
+   * Role assignment:
+     - admin: true
+     - manager: true
+     - cashier: false (ya limited)
+     - waiter: false
+
+2. 'orders.cancel' (Boolean)
+   * Kahan lagega: Kitchen me KOT jane ke baad order cancel/void karna.
+   * Kyun chahiye: Chori rokne ke liye. Waiter bina manager ke order cancel na kar sake.
+   * Role assignment:
+     - admin: true
+     - manager: true
+     - cashier: false
+     - waiter: false
+
+3. 'payments.refund' (Boolean)
+   * Kahan lagega: Paid bill ka paisa wapas karna (Refund / Reversal).
+   * Kyun chahiye: Cashier bina manager/admin ke cash drawer se refund na nikal sake.
+   * Role assignment:
+     - admin: true
+     - manager: true
+     - cashier: false
+     - waiter: false
+
+
+================================================================================
+PART 3: READY-TO-COPY JSON BLOCKS (FOR BACKEND DATABASE)
+================================================================================
+
+-------------------------------------------------
+A. 'waiter' ROLE COMPLETE PERMISSIONS JSON
+-------------------------------------------------
+{
+  "orders": {
+    "view": true,
+    "create": true,
+    "add_items": true,
+    "change_status": true,
+    "update_item": false,
+    "update": false,
+    "delete": false,
+    "view_ledger": false
+  },
+  "invoices": {
+    "view": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "payments": {
+    "view": false,
+    "create": false,
+    "update": false,
+    "delete": false,
+    "view_by_invoice": false,
+    "view_account_summary": false
+  },
+  "payment_modes": {
+    "view": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "products": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "product_categories": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "tables": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "accounts": {
+    "view": true,
+    "create": true,
+    "update": false,
+    "delete": false
+  },
+  "inventory": {
+    "view_dashboard": false,
+    "view_low_stock": false,
+    "view_stock_summary": false
+  },
+  "reports": {
+    "view_low_stock": false,
+    "view_food_costing": false,
+    "view_stock_summary": false
+  },
+  "companies": {
+    "view": false,
+    "update": false
+  },
+  "subscriptions": {
+    "view_current": false,
+    "view_history": false,
+    "subscribe": false,
+    "extend": false,
+    "cancel": false
+  },
+  "units": { "view": false, "create": false, "update": false, "delete": false },
+  "plans": { "view": false, "create": false, "update": false, "delete": false },
+  "bom": { "view": false, "create": false, "update": false, "delete": false, "view_by_product": false },
+  "productions": { "view": false, "create": false, "delete": false, "view_lines": false },
+  "purchase_orders": { "view": false, "create": false, "update": false, "delete": false, "add_items": false, "update_item": false, "change_status": false },
+  "purchase_invoices": { "view": false, "create": false, "update": false, "delete": false, "add_items": false, "update_item": false, "change_status": false },
+  "stock_adjustments": { "view": false, "create": false, "update": false, "delete": false }
+}
+
+-------------------------------------------------
+B. 'cashier' ROLE COMPLETE PERMISSIONS JSON
+-------------------------------------------------
+{
+  "orders": {
+    "view": true,
+    "create": true,
+    "add_items": true,
+    "change_status": true,
+    "update_item": true,
+    "update": true,
+    "delete": false,
+    "view_ledger": false
+  },
+  "invoices": {
+    "view": true,
+    "create": true,
+    "update": false,
+    "delete": false
+  },
+  "payments": {
+    "view": true,
+    "create": true,
+    "update": false,
+    "delete": false,
+    "view_by_invoice": true,
+    "view_account_summary": false
+  },
+  "payment_modes": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "products": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "product_categories": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "tables": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "accounts": {
+    "view": true,
+    "create": true,
+    "update": false,
+    "delete": false
+  },
+  "inventory": {
+    "view_dashboard": false,
+    "view_low_stock": false,
+    "view_stock_summary": false
+  },
+  "reports": {
+    "view_low_stock": false,
+    "view_food_costing": false,
+    "view_stock_summary": false
+  },
+  "companies": {
+    "view": false,
+    "update": false
+  },
+  "subscriptions": {
+    "view_current": false,
+    "view_history": false,
+    "subscribe": false,
+    "extend": false,
+    "cancel": false
+  },
+  "units": { "view": true, "create": false, "update": false, "delete": false },
+  "plans": { "view": false, "create": false, "update": false, "delete": false },
+  "bom": { "view": false, "create": false, "update": false, "delete": false, "view_by_product": false },
+  "productions": { "view": false, "create": false, "delete": false, "view_lines": false },
+  "purchase_orders": { "view": false, "create": false, "update": false, "delete": false, "add_items": false, "update_item": false, "change_status": false },
+  "purchase_invoices": { "view": false, "create": false, "update": false, "delete": false, "add_items": false, "update_item": false, "change_status": false },
+  "stock_adjustments": { "view": false, "create": false, "update": false, "delete": false }
+}
+
+-------------------------------------------------
+C. 'manager' ROLE COMPLETE PERMISSIONS JSON
+-------------------------------------------------
+{
+  "orders": {
+    "view": true,
+    "create": true,
+    "add_items": true,
+    "change_status": true,
+    "update_item": true,
+    "update": true,
+    "delete": true,
+    "view_ledger": true
+  },
+  "invoices": {
+    "view": true,
+    "create": true,
+    "update": true,
+    "delete": false
+  },
+  "payments": {
+    "view": true,
+    "create": true,
+    "update": true,
+    "delete": false,
+    "view_by_invoice": true,
+    "view_account_summary": true
+  },
+  "payment_modes": {
+    "view": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "products": {
+    "view": true,
+    "create": true,
+    "update": true,
+    "delete": false
+  },
+  "product_categories": {
+    "view": true,
+    "create": true,
+    "update": true,
+    "delete": false
+  },
+  "tables": {
+    "view": true,
+    "create": true,
+    "update": true,
+    "delete": false
+  },
+  "accounts": {
+    "view": true,
+    "create": true,
+    "update": true,
+    "delete": false
+  },
+  "inventory": {
+    "view_dashboard": true,
+    "view_low_stock": true,
+    "view_stock_summary": true
+  },
+  "reports": {
+    "view_low_stock": true,
+    "view_food_costing": true,
+    "view_stock_summary": true
+  },
+  "companies": {
+    "view": true,
+    "update": false
+  },
+  "subscriptions": {
+    "view_current": true,
+    "view_history": true,
+    "subscribe": false,
+    "extend": false,
+    "cancel": false
+  },
+  "units": { "view": true, "create": true, "update": true, "delete": false },
+  "plans": { "view": true, "create": false, "update": false, "delete": false },
+  "bom": { "view": true, "create": true, "update": true, "delete": false, "view_by_product": true },
+  "productions": { "view": true, "create": true, "delete": false, "view_lines": true },
+  "purchase_orders": { "view": true, "create": true, "update": true, "delete": false, "add_items": true, "update_item": true, "change_status": true },
+  "purchase_invoices": { "view": true, "create": true, "update": true, "delete": false, "add_items": true, "update_item": true, "change_status": true },
+  "stock_adjustments": { "view": true, "create": true, "update": true, "delete": false }
+}
+================================================================================

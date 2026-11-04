@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+	ActivityIndicator,
 	FlatList,
 	Modal,
 	StyleSheet,
@@ -18,9 +19,14 @@ import { useFlowStore } from "../../store/flowStore";
 import { useTableStore } from "../../store/tableStore";
 import { theme } from "../../theme";
 import type { Product } from "../../types/product";
+import { extractList } from "../../utils/apiHelpers";
 import BillingPanel from "../counter/BillingPanel";
 
-export default function ProductsPanel({ openCartSignal }: { openCartSignal?: number }) {
+export default function ProductsPanel({
+	openCartSignal,
+}: {
+	openCartSignal?: number;
+}) {
 	const [search, setSearch] = useState("");
 	const [cartOpen, setCartOpen] = useState(false);
 
@@ -28,7 +34,8 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 	useEffect(() => {
 		if (openCartSignal && openCartSignal > 0) setCartOpen(true);
 	}, [openCartSignal]);
-	const { data, isLoading } = useProducts();
+	const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+		useProducts();
 	const addToCart = useCartStore((s) => s.addToCart);
 	const cart = useCartStore((s) => s.cart);
 	const clearCart = useCartStore((s) => s.clearCart);
@@ -65,11 +72,7 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 	);
 
 	const allProducts = useMemo(
-		() =>
-			data?.pages.flatMap((p) => {
-				const d = p.data as any;
-				return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-			}) ?? [],
+		() => data?.pages.flatMap((p) => extractList<Product>(p.data)) ?? [],
 		[data],
 	);
 
@@ -177,7 +180,7 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 				</View>
 			</View>
 
-						{/* Results count — New Order tabhi jab cart me item ho */}
+			{/* Results count — New Order tabhi jab cart me item ho */}
 			{!isLoading && (
 				<View style={styles.resultsRow}>
 					<Text style={styles.resultsText}>
@@ -229,6 +232,17 @@ export default function ProductsPanel({ openCartSignal }: { openCartSignal?: num
 						cartCount > 0 && styles.listWithCartPadding,
 					]}
 					showsVerticalScrollIndicator={false}
+					onEndReached={() => {
+						if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+					}}
+					onEndReachedThreshold={0.4}
+					ListFooterComponent={
+						isFetchingNextPage ? (
+							<View style={{ paddingVertical: 12, alignItems: "center" }}>
+								<ActivityIndicator size="small" color={theme.colors.primary} />
+							</View>
+						) : null
+					}
 					keyboardShouldPersistTaps="handled"
 					ListEmptyComponent={
 						<View style={styles.empty}>

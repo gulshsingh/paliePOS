@@ -11,8 +11,11 @@ import { useFlowStore } from '../../store/flowStore';
 import { useOrderStore } from '../../store/orderStore';
 import { useTableStore } from '../../store/tableStore';
 import { theme } from '../../theme';
+import type { Customer } from '../../types/customer';
 import type { FlowDraft } from '../../types/flow';
-import type { Order } from '../../types/order';
+import type { ApiOrder, Order } from '../../types/order';
+import type { RestaurantTable } from '../../types/table';
+
 import { extractList } from '../../utils/apiHelpers';
 import { mapApiItemsToCart } from '../../utils/orderMappers';
 import {
@@ -44,23 +47,23 @@ export default function FlowPanel({ onResume, onPayOrder }: Props) {
   const customersData = useCustomers();
 
   const tableMap = useMemo(() => {
-    const list = extractList(tablesData.data);
+    const list = extractList<RestaurantTable>(tablesData.data);
     return new Map<string, string>(
-      (list ?? []).map((t: any) => [t.id, t.name]),
+      (list ?? []).map((t: RestaurantTable) => [t.id, t.name]),
     );
   }, [tablesData.data]);
 
   const customerMap = useMemo(() => {
     const list =
-      customersData.data?.pages.flatMap((p: any) => extractList(p.data)) ?? [];
-    return new Map<string, string>(list.map((c: any) => [c.id, c.name]));
+      customersData.data?.pages.flatMap((p) => extractList<Customer>(p.data)) ?? [];
+    return new Map<string, string>(list.map((c: Customer) => [c.id, c.name]));
   }, [customersData.data]);
 
   const apiOrders = useMemo(() => {
-    const all = data?.pages.flatMap(p => extractList(p.data)) ?? [];
+    const all = data?.pages.flatMap((p) => extractList<ApiOrder>(p.data)) ?? [];
     return all
-      .filter((o: any) => isToday(o.created_at))
-      .map((o: any) => ({
+      .filter((o) => (o.created_at ? isToday(o.created_at) : false))
+      .map((o) => ({
         id: o.id,
         order_number: o.order_number,
         items: mapApiItemsToCart(o.items ?? [], {}).map(item => ({
@@ -74,8 +77,8 @@ export default function FlowPanel({ onResume, onPayOrder }: Props) {
         paymentStatus: o.payment_status ?? 'UNPAID',
         table_id: o.table_id,
         account_id: o.account_id,
-        table_name: o.table?.name ?? tableMap.get(o.table_id) ?? '',
-        customer_name: o.account?.name ?? customerMap.get(o.account_id) ?? '',
+        table_name: o.table?.name ?? (o.table_id ? tableMap.get(o.table_id) : undefined) ?? '',
+        customer_name: o.account?.name ?? (o.account_id ? customerMap.get(o.account_id) : undefined) ?? '',
       }));
   }, [data, itemStatusOverrides, tableMap, customerMap]);
 

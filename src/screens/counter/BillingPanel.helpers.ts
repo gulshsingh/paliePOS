@@ -1,5 +1,6 @@
 import type { CartItem } from "../../types/cart";
-import type { Order } from "../../types/order";
+import type { Customer } from "../../types/customer";
+import type { ApiOrder, Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 
@@ -29,7 +30,7 @@ export function buildCartSections(
 	if (newItems.length > 0) {
 		sections.push({
 			key: "new",
-			title: "New Items",
+			title: "New Items (Unsent)",
 			locked: false,
 			data: newItems,
 		});
@@ -63,12 +64,12 @@ export function buildNewOrderObject({
 	selectedTable,
 	selectedCustomer,
 }: {
-	serverOrder: any;
+	serverOrder: ApiOrder;
 	cart: CartItem[];
 	grandTotal: number;
 	taxTotal: number;
 	selectedTable: RestaurantTable | null;
-	selectedCustomer: any;
+	selectedCustomer: Customer | null;
 }): Order {
 	return {
 		id: serverOrder?.id,

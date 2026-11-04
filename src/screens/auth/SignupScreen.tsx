@@ -17,8 +17,13 @@ import { theme } from "../../theme";
 import { signup } from "../../api/services/auth";
 import { useAuth } from "../../navigation/AppNavigator";
 import { startGoogleSignIn } from "../../utils/googleAuth";
+import type { AuthNavigationProp } from "../../types/navigation";
 
-export default function SignupScreen({ navigation }: any) {
+export default function SignupScreen({
+	navigation,
+}: {
+	navigation: AuthNavigationProp;
+}) {
 	const { signIn } = useAuth();
 	const [email, setEmail] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -52,7 +57,15 @@ export default function SignupScreen({ navigation }: any) {
 		setSuccessMsg(null);
 		try {
 			const res = await signup({ email });
-			const d = res.data as any;
+			type SignupDataShape = {
+				success?: boolean;
+				message?: string;
+				data?: {
+					error?: { message?: string };
+					data?: { message?: string; user?: { email?: string } };
+				};
+			};
+			const d = res.data as SignupDataShape;
 
 			// Success: false wala case
 			if (d?.success === false) {
@@ -80,13 +93,24 @@ export default function SignupScreen({ navigation }: any) {
 
 			// Verify Email (OTP) screen pe le jao
 			navigation.navigate("VerifyEmail", { email: userEmail });
-		} catch (e: any) {
-			const status = e.response?.status;
-			const code = e.response?.data?.error_code;
+		} catch (e) {
+			const err = e as {
+				response?: {
+					status?: number;
+					data?: {
+						error_code?: string;
+						message?: string;
+						error?: { message?: string };
+					};
+				};
+				message?: string;
+			};
+			const status = err.response?.status;
+			const code = err.response?.data?.error_code;
 			const msg =
-				e.response?.data?.message ||
-				e.response?.data?.error?.message ||
-				e.message;
+				err.response?.data?.message ||
+				err.response?.data?.error?.message ||
+				err.message;
 
 			if (
 				status === 409 ||
@@ -98,7 +122,7 @@ export default function SignupScreen({ navigation }: any) {
 				setErrors({ email: "This email is already registered" });
 			} else if (status === 400 || status === 422) {
 				setErrors({ email: msg || "Enter a valid email address" });
-			} else if (!e.response) {
+			} else if (!err.response) {
 				setErrors({ general: "Network error — check your connection" });
 			} else {
 				setErrors({ general: msg || "Signup failed — please try again" });
@@ -123,8 +147,8 @@ export default function SignupScreen({ navigation }: any) {
 			} else if (res.error) {
 				setErrors({ general: res.error });
 			}
-		} catch (error: any) {
-			console.log("[google] error:", error?.message ?? error);
+		} catch (error) {
+			console.log("[google] error:", error instanceof Error ? error.message : String(error));
 			setErrors({
 				general: "Google sign-in open nahi ho paya. Please try again.",
 			});

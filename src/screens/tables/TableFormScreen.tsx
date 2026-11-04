@@ -23,6 +23,7 @@ import {
 	tableSchema,
 } from "../../schemas/tables/tableSchema";
 import { theme } from "../../theme";
+import type { RootNavigationProp, RootRouteProp } from "../../types/navigation";
 import { styles } from "./TableFormScreen.styles";
 
 const STATUS_OPTIONS = [
@@ -46,8 +47,8 @@ type FieldErrors = Partial<Record<keyof TableFormData, string>>;
 
 export default function TableFormScreen() {
 	const insets = useSafeAreaInsets();
-	const route = useRoute<any>();
-	const navigation = useNavigation<any>();
+	const route = useRoute<RootRouteProp<"TableForm">>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const table = route.params?.table;
 	const isEdit = !!table;
 

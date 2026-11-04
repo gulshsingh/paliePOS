@@ -4,7 +4,10 @@ import { api } from "../client";
 
 export const getProducts = (cursor?: string | null) =>
 	api.get<ApiResponse<PaginatedResponse<Product>>>("/products", {
-		params: { cursor, limit: 20 },
+		params: {
+			limit: 20,
+			...(cursor ? { cursor } : {}),
+		},
 	});
 
 export const getProduct = (id: string) =>

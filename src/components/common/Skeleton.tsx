@@ -1,5 +1,13 @@
 import { useEffect } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import {
+	Animated,
+	type DimensionValue,
+	Easing,
+	type StyleProp,
+	StyleSheet,
+	View,
+	type ViewStyle,
+} from "react-native";
 
 // ── Shared shimmer driver ────────────────────────────────────
 // One Animated.Value drives every Skeleton on screen, so all
@@ -21,10 +29,10 @@ function startShimmer() {
 }
 
 interface Props {
-	width?: number | string;
+	width?: DimensionValue;
 	height?: number;
 	borderRadius?: number;
-	style?: any;
+	style?: StyleProp<ViewStyle>;
 }
 
 export default function Skeleton({

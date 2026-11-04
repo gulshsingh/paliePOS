@@ -15,6 +15,11 @@ import {
 	useStockSummary,
 } from "../../hooks/useInventory";
 import { theme } from "../../theme";
+import type {
+	InventoryDashboardData,
+	LowStockItem,
+	StockSummary,
+} from "../../types/inventory";
 import { emptyStyles, kpiStyles, styles } from "./ReportsScreen.styles";
 
 type ReportTab = "dashboard" | "stock" | "lowstock";
@@ -36,9 +41,10 @@ export default function ReportsScreen({
 	const { data: stockData, isLoading: stockLoading } = useStockSummary();
 	const { data: lowStockData, isLoading: lowStockLoading } = useLowStock();
 
-	const dashboard = (dashboardData as any)?.data?.data?.data;
-	const stock = (stockData as any)?.data?.data?.data;
-	const lowStock = (lowStockData as any)?.data?.data?.data ?? [];
+	const dashboard: InventoryDashboardData | undefined =
+		dashboardData?.data?.data?.data;
+	const stock: StockSummary | undefined = stockData?.data?.data?.data;
+	const lowStock: LowStockItem[] = lowStockData?.data?.data?.data ?? [];
 
 	return (
 		<View style={[styles.container, !embedded && { paddingTop: insets.top }]}>
@@ -208,7 +214,7 @@ export default function ReportsScreen({
 						</View>
 					</View>
 				)}
-				{tab === "stock" && stock && (
+				{tab === "stock" && (stock || dashboard) && (
 					<View style={styles.section}>
 						<Text style={styles.sectionTitle}>Inventory Overview</Text>
 						<View style={styles.kpiRow}>
@@ -216,14 +222,16 @@ export default function ReportsScreen({
 								icon="package-variant-closed"
 								iconBg={theme.colors.primaryLight}
 								iconColor={theme.colors.primary}
-								value={String(stock.total_products ?? 0)}
+								value={String(
+									stock?.total_products ?? dashboard?.total_products ?? 0,
+								)}
 								label="Total Products"
 							/>
 							<KPICard
 								icon="currency-inr"
 								iconBg={theme.colors.successLight}
 								iconColor={theme.colors.success}
-								value={`₹${(stock.total_stock_value ?? 0).toLocaleString("en-IN")}`}
+								value={`₹${(stock?.total_stock_value ?? dashboard?.inventory_value ?? 0).toLocaleString("en-IN")}`}
 								label="Stock Value"
 							/>
 						</View>
@@ -232,20 +240,24 @@ export default function ReportsScreen({
 								icon="alert-outline"
 								iconBg={theme.colors.warningLight}
 								iconColor={theme.colors.warning}
-								value={String(stock.low_stock_count ?? 0)}
+								value={String(
+									stock?.low_stock_count ?? dashboard?.low_stock ?? 0,
+								)}
 								label="Low Stock"
 							/>
 							<KPICard
 								icon="close-circle-outline"
 								iconBg={theme.colors.dangerLight}
 								iconColor={theme.colors.danger}
-								value={String(stock.out_of_stock_count ?? 0)}
+								value={String(
+									stock?.out_of_stock_count ?? dashboard?.out_of_stock ?? 0,
+								)}
 								label="Out of Stock"
 							/>
 						</View>
 					</View>
 				)}
-				{tab === "stock" && !stock && (
+				{tab === "stock" && !stock && !dashboard && (
 					<EmptyState
 						icon="package-variant-closed"
 						title="No stock data"
@@ -294,7 +306,7 @@ export default function ReportsScreen({
 								sub="No items are running low right now."
 							/>
 						) : (
-							lowStock.map((item: any) => (
+							lowStock.map((item: LowStockItem) => (
 								<View key={item.id} style={styles.lowStockRow}>
 									<View style={styles.lowStockLeft}>
 										<View style={styles.lowStockDot} />

@@ -1,21 +1,23 @@
+import type { ApiOrder } from "./order";
+
+export interface PaginationMeta {
+	next_cursor?: string | null;
+	prev_cursor?: string | null;
+	has_more?: boolean;
+	total?: number;
+	limit?: number;
+}
+
 export interface ApiResponse<T> {
 	data: T;
 	message?: string;
 	success: boolean;
-	pagination?: {
-		next_cursor: string | null;
-		has_more: boolean;
-		total?: number;
-	};
+	pagination?: PaginationMeta;
 }
 
 export interface PaginatedResponse<T> {
 	data: T[];
-	pagination: {
-		next_cursor: string | null;
-		has_more: boolean;
-		total?: number;
-	};
+	pagination: PaginationMeta;
 }
 
 export interface LoginPayload {
@@ -67,9 +69,8 @@ export interface DashboardData {
 	total_customers: number;
 	total_products: number;
 	orders_by_status: { status: string; count: number }[];
-	recent_orders: any[];
+	recent_orders: ApiOrder[];
 }
-
 
 export interface SignupPayload {
 	email: string;
@@ -143,7 +144,6 @@ export interface VerifyEmailResponse {
 		email_verified?: boolean;
 	};
 }
-
 
 export interface GoogleAuthResponse {
 	url?: string;

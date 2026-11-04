@@ -18,7 +18,10 @@ import { useOrderStore } from "../../store/orderStore";
 import { useTableStore } from "../../store/tableStore";
 import { theme } from "../../theme";
 import type { CartItem } from "../../types/cart";
-import type { Order } from "../../types/order";
+import type { Customer } from "../../types/customer";
+import type { RootNavigationProp } from "../../types/navigation";
+import type { ApiOrder, ApiOrderItem, Order } from "../../types/order";
+import type { RestaurantTable } from "../../types/table";
 import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import CustomerModal from "../customer/CustomerModal";
@@ -35,7 +38,7 @@ interface Props {
 }
 
 export default function CartModal({ visible, cart, onClose }: Props) {
-	const navigation = useNavigation<any>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const increaseQty = useCartStore((s) => s.increaseQty);
 	const decreaseQty = useCartStore((s) => s.decreaseQty);
 	const clearCart = useCartStore((s) => s.clearCart);
@@ -57,13 +60,13 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 	const createOrder = useCreateOrder();
 	const updateItemStatusRemote = useUpdateItemStatus();
 
-	const customers = useMemo(
-		() => customersData?.pages?.flatMap((p) => extractList(p.data)) ?? [],
+	const customers: Customer[] = useMemo(
+		() => extractList<Customer>(customersData),
 		[customersData],
 	);
 
-	const tables: any[] = useMemo(
-		() => extractList(tablesData?.data),
+	const tables: RestaurantTable[] = useMemo(
+		() => extractList<RestaurantTable>(tablesData),
 		[tablesData],
 	);
 
@@ -114,15 +117,17 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 				})),
 			});
 
-			const created = (res.data as any)?.data;
-			const o = created?.data ?? created;
+			const created = res.data?.data as
+				| ({ data?: ApiOrder } & ApiOrder)
+				| undefined;
+			const o: ApiOrder | undefined = created?.data ?? created;
 
 			const newOrder: Order = {
-				id: o?.id,
-				order_number: o?.order_number,
+				id: o?.id ?? String(Date.now()),
+				order_number: o?.order_number ?? "",
 				items:
 					(o?.items ?? []).length > 0
-						? mapApiItemsToCart(o.items, {
+						? mapApiItemsToCart(o?.items ?? [], {
 								status: "preparing",
 								sentToKitchen: true,
 								kotNo: 1,
@@ -159,7 +164,7 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 
 			addOrder(newOrder);
 
-			const serverItems: any[] = o?.items ?? [];
+			const serverItems: ApiOrderItem[] = o?.items ?? [];
 			if (serverItems.length > 0) {
 				const store = useOrderStore.getState();
 				for (const item of serverItems) {

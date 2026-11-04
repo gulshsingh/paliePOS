@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+	ActivityIndicator,
 	FlatList,
 	StatusBar,
 	StyleSheet,
@@ -15,6 +16,8 @@ import SkeletonCard from "../../components/common/SkeletonCard";
 import { useCustomers } from "../../hooks/useCustomers";
 import { theme } from "../../theme";
 import type { Customer } from "../../types/customer";
+import type { RootNavigationProp } from "../../types/navigation";
+import { extractList } from "../../utils/apiHelpers";
 
 // Generate consistent color per initial letter
 const AVATAR_COLORS = [
@@ -40,15 +43,34 @@ export default function CustomersScreen({
 	embedded?: boolean;
 }): React.JSX.Element {
 	const insets = useSafeAreaInsets();
-	const navigation = useNavigation<any>();
+	const navigation = useNavigation<RootNavigationProp>();
 	const [search, setSearch] = useState<string>("");
-	const { data, isLoading, isError } = useCustomers(search);
+	const {
+		data,
+		isLoading,
+		isError,
+		hasNextPage,
+		isFetchingNextPage,
+		fetchNextPage,
+		refetch,
+		isRefetching,
+	} = useCustomers(search);
 
-	const customers: Customer[] =
-		data?.pages.flatMap((p: any) => {
-			const d = p.data as any;
-			return d?.data?.data?.data ?? d?.data?.data ?? d?.data ?? [];
-		}) ?? [];
+	const customers: Customer[] = useMemo(() => {
+		const all = data?.pages.flatMap((p) => extractList<Customer>(p.data)) ?? [];
+		const seen = new Set<string>();
+		return all.filter((c) => {
+			if (!c?.id || seen.has(c.id)) return false;
+			seen.add(c.id);
+			return true;
+		});
+	}, [data]);
+
+	const onEndReached = useCallback(() => {
+		if (hasNextPage && !isFetchingNextPage) {
+			fetchNextPage();
+		}
+	}, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 	const renderCustomer = useCallback(
 		({ item }: { item: Customer }): React.JSX.Element => (
@@ -179,6 +201,17 @@ export default function CustomersScreen({
 						customers.length === 0 ? styles.listEmpty : styles.listContent
 					}
 					showsVerticalScrollIndicator={false}
+					onEndReached={onEndReached}
+					onEndReachedThreshold={0.4}
+					onRefresh={refetch}
+					refreshing={isRefetching}
+					ListFooterComponent={
+						isFetchingNextPage ? (
+							<View style={styles.footerLoader}>
+								<ActivityIndicator color={theme.colors.primary} size="small" />
+							</View>
+						) : null
+					}
 					ListEmptyComponent={
 						<View style={styles.center}>
 							<MaterialCommunityIcons
@@ -397,5 +430,10 @@ const styles = StyleSheet.create({
 		color: theme.colors.textMuted,
 		textAlign: "center",
 		paddingHorizontal: 32,
+	},
+	footerLoader: {
+		paddingVertical: 16,
+		alignItems: "center",
+		justifyContent: "center",
 	},
 });

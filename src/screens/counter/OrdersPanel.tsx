@@ -16,7 +16,9 @@ import { useTables } from "../../hooks/useTables";
 import { useUpdateOrderStatus } from "../../hooks/useUpdateOrderStatus";
 import { useOrderStore } from "../../store/orderStore";
 import { theme } from "../../theme";
-import type { Order } from "../../types/order";
+import type { Customer } from "../../types/customer";
+import type { ApiOrder, ApiOrderItem, Order } from "../../types/order";
+import type { RestaurantTable } from "../../types/table";
 import { ORDER_TABS, type OrderTab } from "../../types/order-status";
 import { extractList } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
@@ -80,16 +82,16 @@ export default function OrdersPanel({
 	const customersData = useCustomers();
 
 	const tableMap = useMemo(() => {
-		const list = extractList(tablesData.data);
+		const list = extractList<RestaurantTable>(tablesData.data);
 		return new Map<string, string>(
-			(list ?? []).map((t: any) => [t.id, t.name]),
+			(list ?? []).map((t: RestaurantTable) => [t.id, t.name]),
 		);
 	}, [tablesData.data]);
 
 	const customerMap = useMemo(() => {
 		const list =
-			customersData.data?.pages.flatMap((p: any) => extractList(p.data)) ?? [];
-		return new Map<string, string>(list.map((c: any) => [c.id, c.name]));
+			customersData.data?.pages.flatMap((p) => extractList<Customer>(p.data)) ?? [];
+		return new Map<string, string>(list.map((c: Customer) => [c.id, c.name]));
 	}, [customersData.data]);
 
 	const handleBillOrder = useCallback(
@@ -117,11 +119,11 @@ export default function OrdersPanel({
 	const orders = useMemo(() => {
 		const tabStatus = TAB_ITEM_STATUS[activeTab];
 		const apiOrders =
-			data?.pages.flatMap((p) => extractList(p.data)) ?? [];
+			data?.pages.flatMap((p) => extractList<ApiOrder>(p.data)) ?? [];
 
 		const apiMapped: Order[] = apiOrders
-			.filter((o: any) => isToday(o.created_at))
-			.map((o: any) => ({
+			.filter((o) => (o.created_at ? isToday(o.created_at) : false))
+			.map((o) => ({
 			id: o.id,
 			order_number: o.order_number,
 			items: mapApiItemsToCart(o.items ?? [], {}).map((item) => ({
@@ -135,8 +137,8 @@ export default function OrdersPanel({
 			paymentStatus: o.payment_status ?? "UNPAID",
 			table_id: o.table_id,
 			account_id: o.account_id,
-			table_name: o.table?.name ?? tableMap.get(o.table_id) ?? "",
-			customer_name: o.account?.name ?? customerMap.get(o.account_id) ?? "",
+			table_name: o.table?.name ?? (o.table_id ? tableMap.get(o.table_id) : undefined) ?? "",
+			customer_name: o.account?.name ?? (o.account_id ? customerMap.get(o.account_id) : undefined) ?? "",
 		}));
 
 		const merged = new Map<string, Order>();
@@ -152,10 +154,10 @@ export default function OrdersPanel({
 		const overrides = useOrderStore.getState().itemStatusOverrides;
 		const ids = Object.keys(overrides);
 		if (ids.length === 0) return;
-		const apiItems: any[] =
+		const apiItems: ApiOrderItem[] =
 			(data?.pages ?? []).flatMap((p) => {
-				const list = extractList(p.data);
-				return (list ?? []).flatMap((o: any) => o.items ?? []);
+				const list = extractList<ApiOrder>(p.data);
+				return (list ?? []).flatMap((o: ApiOrder) => o.items ?? []);
 			});
 		const confirmed = ids.filter((id) => {
 			const it = apiItems.find((x) => x.id === id);

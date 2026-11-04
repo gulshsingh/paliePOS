@@ -1,4 +1,4 @@
-import type { ApiResponse } from "../../types/api";
+import type { ApiResponse, PaginationMeta } from "../../types/api";
 import { api } from "../client";
 
 export interface Invoice {
@@ -19,9 +19,12 @@ export const getInvoices = (params?: {
 	cursor?: string | null;
 	limit?: number;
 }) =>
-	api.get<ApiResponse<{ data: Invoice[]; pagination: any }>>("/invoices", {
-		params: { ...params, limit: params?.limit ?? 20 },
-	});
+	api.get<ApiResponse<{ data: Invoice[]; pagination: PaginationMeta }>>(
+		"/invoices",
+		{
+			params: { ...params, limit: params?.limit ?? 20 },
+		},
+	);
 
 export const getInvoice = (id: string) =>
 	api.get<ApiResponse<Invoice>>(`/invoices/${id}`);

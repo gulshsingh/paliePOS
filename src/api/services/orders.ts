@@ -1,6 +1,7 @@
 import type {
 	ApiResponse,
 	CreateOrderPayload,
+	PaginationMeta,
 	UpdateItemStatusPayload,
 } from "../../types/api";
 import type { ApiOrder } from "../../types/order";
@@ -12,13 +13,18 @@ export const getOrders = (params?: {
 	cursor?: string | null;
 	limit?: number;
 }) => {
-	const clean: Record<string, any> = { limit: params?.limit ?? 20 };
+	const clean: Record<string, string | number> = {
+		limit: params?.limit ?? 20,
+	};
 	if (params?.item_status) clean.item_status = params.item_status;
 	if (params?.status) clean.status = params.status;
 	if (params?.cursor) clean.cursor = params.cursor;
-	return api.get<ApiResponse<{ data: ApiOrder[]; pagination: any }>>("/orders", {
-		params: clean,
-	});
+	return api.get<ApiResponse<{ data: ApiOrder[]; pagination: PaginationMeta }>>(
+		"/orders",
+		{
+			params: clean,
+		},
+	);
 };
 
 export const getOrder = (id: string) =>

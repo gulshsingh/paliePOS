@@ -6,7 +6,9 @@ export const generateId = (): string => Math.random().toString(36).substr(2, 9);
 export const clamp = (value: number, min: number, max: number): number =>
 	Math.min(Math.max(value, min), max);
 
-export const isEmpty = (value: unknown): boolean => {
+export const isEmpty = (
+	value: string | number | boolean | object | null | undefined,
+): boolean => {
 	if (value === null || value === undefined) return true;
 	if (typeof value === "string") return value.trim().length === 0;
 	if (Array.isArray(value)) return value.length === 0;

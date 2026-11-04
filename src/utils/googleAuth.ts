@@ -11,12 +11,21 @@ GoogleSignin.configure({
 	webClientId: GOOGLE_WEB_CLIENT_ID,
 });
 
+export interface GoogleAuthUser {
+	id?: string;
+	name?: string | null;
+	email?: string;
+	photo?: string | null;
+	familyName?: string | null;
+	givenName?: string | null;
+}
+
 export interface GoogleAuthResult {
 	success: boolean;
 	token?: string;
 	error?: string;
 	canceled?: boolean;
-	user?: any;
+	user?: GoogleAuthUser | null;
 }
 
 export const startGoogleSignIn = async (): Promise<GoogleAuthResult> => {
@@ -43,20 +52,23 @@ export const startGoogleSignIn = async (): Promise<GoogleAuthResult> => {
 			success: true,
 			user: userInfo?.user,
 		};
-	} catch (googleError: any) {
+	} catch (googleError) {
+		const err = googleError as
+			| { code?: string | number; message?: string }
+			| undefined;
 		console.log(
 			"[Native Google Popup] Error:",
-			googleError?.code,
-			googleError?.message,
+			err?.code,
+			err?.message,
 		);
 
-		if (googleError.code === statusCodes.SIGN_IN_CANCELLED) {
+		if (err?.code === statusCodes.SIGN_IN_CANCELLED) {
 			return { success: false, canceled: true };
 		}
-		if (googleError.code === statusCodes.IN_PROGRESS) {
+		if (err?.code === statusCodes.IN_PROGRESS) {
 			return { success: false };
 		}
-		if (googleError.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+		if (err?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
 			return {
 				success: false,
 				error: "Google Play Services is not available.",
@@ -65,7 +77,7 @@ export const startGoogleSignIn = async (): Promise<GoogleAuthResult> => {
 
 		// Common Google error codes:
 		// 10 = DEVELOPER_ERROR (SHA-1 fingerprint missing in Google Cloud Console)
-		if (googleError.code === "10" || String(googleError.message).includes("10")) {
+		if (err?.code === "10" || String(err?.message).includes("10")) {
 			return {
 				success: false,
 				error:
@@ -75,7 +87,7 @@ export const startGoogleSignIn = async (): Promise<GoogleAuthResult> => {
 
 		return {
 			success: false,
-			error: googleError.message || "Google sign-in error.",
+			error: err?.message || "Google sign-in error.",
 		};
 	}
 };

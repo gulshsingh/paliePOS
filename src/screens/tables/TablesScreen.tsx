@@ -1,6 +1,7 @@
 // import { useNavigation } from "@react-navigation/native";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
+	ActivityIndicator,
 	Dimensions,
 	FlatList,
 	StatusBar,
@@ -15,6 +16,7 @@ import SkeletonCard from "../../components/common/SkeletonCard";
 import { useTables } from "../../hooks/useTables";
 import { theme } from "../../theme";
 import type { RestaurantTable } from "../../types/table";
+import { extractList } from "../../utils/apiHelpers";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 52) / 2;
@@ -41,9 +43,23 @@ const STATUS_MAP: Record<
 
 export default function TablesScreen() {
 	const insets = useSafeAreaInsets();
-	// const navigation = useNavigation<any>();
-	const { data, isLoading } = useTables();
-	const tables: RestaurantTable[] = (data as any)?.data?.data?.data ?? [];
+	const {
+		data,
+		isLoading,
+		isFetchingNextPage,
+		hasNextPage,
+		fetchNextPage,
+		refetch,
+		isRefetching,
+	} = useTables();
+	const tables: RestaurantTable[] = useMemo(() => {
+		const raw = extractList<RestaurantTable>(data);
+		const map = new Map<string, RestaurantTable>();
+		for (const t of raw) {
+			if (t?.id && !map.has(t.id)) map.set(t.id, t);
+		}
+		return Array.from(map.values());
+	}, [data]);
 	const total = tables.length;
 	const available = tables.filter((t) => t.status === "available").length;
 	const occupied = tables.filter((t) => t.status === "occupied").length;
@@ -186,6 +202,21 @@ export default function TablesScreen() {
 					maxToRenderPerBatch={10}
 					windowSize={5}
 					initialNumToRender={6}
+					refreshing={isRefetching}
+					onRefresh={refetch}
+					onEndReached={() => {
+						if (hasNextPage && !isFetchingNextPage) {
+							fetchNextPage();
+						}
+					}}
+					onEndReachedThreshold={0.4}
+					ListFooterComponent={
+						isFetchingNextPage ? (
+							<View style={{ paddingVertical: 16 }}>
+								<ActivityIndicator size="small" color={theme.colors.primary} />
+							</View>
+						) : null
+					}
 				/>
 			)}
 		</View>
