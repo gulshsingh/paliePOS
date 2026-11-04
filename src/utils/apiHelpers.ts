@@ -95,6 +95,19 @@ export function extractNextCursor(
 	return pagination?.next_cursor ?? undefined;
 }
 
+export function unwrapApiData<T>(resData: ResponsePayload): T | undefined {
+	if (!resData) return undefined;
+	const d = resData as { data?: { data?: T } | T } | T;
+	if (typeof d === "object" && d !== null && "data" in d) {
+		const inner = (d as { data?: { data?: T } | T }).data;
+		if (typeof inner === "object" && inner !== null && "data" in inner) {
+			return (inner as { data?: T }).data ?? (inner as T);
+		}
+		return (inner as T) ?? (d as T);
+	}
+	return d as T;
+}
+
 /**
  * Safely extracts human-readable error message from an API or network error.
  */

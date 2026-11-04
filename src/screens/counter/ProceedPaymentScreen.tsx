@@ -22,7 +22,7 @@ import { theme } from "../../theme";
 import type { CartItem } from "../../types/cart";
 import type { RootNavigationProp, RootRouteProp } from "../../types/navigation";
 import type { ApiOrder, ApiOrderItem, PaymentStatus } from "../../types/order";
-import { getErrorMessage } from "../../utils/apiHelpers";
+import { getErrorMessage, unwrapApiData } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import { styles } from "./ProceedPaymentScreen.styles";
 
@@ -104,7 +104,7 @@ export default function ProceedPaymentScreen() {
 						total: i.price_per_unit * i.qty,
 					})),
 				});
-				const o: ApiOrder = res.data.data;
+				const o = unwrapApiData<ApiOrder>(res.data);
 
 				orderId = o?.id ?? null;
 				orderNumber = o?.order_number ?? "N/A";
@@ -131,7 +131,7 @@ export default function ProceedPaymentScreen() {
 
 			// ④ Create invoice for the order
 			const invoiceRes = await generateInvoice(orderId);
-			const invoice: Invoice = invoiceRes.data.data;
+			const invoice = unwrapApiData<Invoice>(invoiceRes.data);
 
 			const invoiceId = invoice?.id;
 			const invoiceNumber = invoice?.invoice_number ?? orderNumber;
