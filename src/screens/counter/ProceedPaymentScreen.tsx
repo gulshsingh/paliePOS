@@ -1,6 +1,13 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
-import { Alert, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import {
+	Alert,
+	ScrollView,
+	StatusBar,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import {
@@ -314,123 +321,135 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.headerSpacer} />
 			</View>
 
-			{/* Top bar: Left: Customer & Table stacked; Right: Payment Mode */}
-			<ProceedContextChips
-				customerName={resolvedCustomerName}
-				hasCustomer={hasCustomer}
-				tableName={resolvedTableName}
-				hasTable={hasTable}
-				paymentModes={paymentModes}
-				selectedPaymentMode={selectedPaymentMode}
-				onSelectPaymentMode={setSelectedPaymentMode}
-				isLoadingModes={isLoadingModes}
-			/>
+			<ScrollView
+				style={styles.scrollArea}
+				contentContainerStyle={[
+					styles.scrollContent,
+					{ paddingBottom: insets.bottom + 16 },
+				]}
+				showsVerticalScrollIndicator={false}
+				keyboardShouldPersistTaps="handled"
+				bounces={true}
+			>
+				{/* Top bar: Left: Customer & Table stacked; Right: Payment Mode */}
+				<ProceedContextChips
+					customerName={resolvedCustomerName}
+					hasCustomer={hasCustomer}
+					tableName={resolvedTableName}
+					hasTable={hasTable}
+					paymentModes={paymentModes}
+					selectedPaymentMode={selectedPaymentMode}
+					onSelectPaymentMode={setSelectedPaymentMode}
+					isLoadingModes={isLoadingModes}
+				/>
 
-			{/* Bill summary card */}
-			<View style={styles.summaryCard}>
-				<View style={styles.summaryRow}>
-					<Text style={styles.summaryLabel}>Subtotal</Text>
-					<Text style={styles.summaryValue}>
-						₹{subtotal.toLocaleString("en-IN")}
-					</Text>
-				</View>
-				<View style={styles.summaryRow}>
-					<Text style={styles.summaryLabel}>Taxes & Charges</Text>
-					<Text style={styles.summaryValue}>
-						₹{taxTotal.toLocaleString("en-IN")}
-					</Text>
-				</View>
-				{Number(discount) > 0 && (
+				{/* Bill summary card */}
+				<View style={styles.summaryCard}>
 					<View style={styles.summaryRow}>
-						<Text style={styles.summaryLabel}>Discount</Text>
-						<Text
-							style={[styles.summaryValue, { color: theme.colors.success }]}
-						>
-							− ₹{Number(discount).toLocaleString("en-IN")}
+						<Text style={styles.summaryLabel}>Subtotal</Text>
+						<Text style={styles.summaryValue}>
+							₹{subtotal.toLocaleString("en-IN")}
 						</Text>
 					</View>
-				)}
-				<View style={styles.totalDivider} />
-				<View style={styles.summaryRow}>
-					<Text style={styles.totalLabel}>Total Payable</Text>
-					<Text style={styles.totalValue}>
-						₹{totalPayable.toLocaleString("en-IN")}
-					</Text>
+					<View style={styles.summaryRow}>
+						<Text style={styles.summaryLabel}>Taxes & Charges</Text>
+						<Text style={styles.summaryValue}>
+							₹{taxTotal.toLocaleString("en-IN")}
+						</Text>
+					</View>
+					{Number(discount) > 0 && (
+						<View style={styles.summaryRow}>
+							<Text style={styles.summaryLabel}>Discount</Text>
+							<Text
+								style={[styles.summaryValue, { color: theme.colors.success }]}
+							>
+								− ₹{Number(discount).toLocaleString("en-IN")}
+							</Text>
+						</View>
+					)}
+					<View style={styles.totalDivider} />
+					<View style={styles.summaryRow}>
+						<Text style={styles.totalLabel}>Total Payable</Text>
+						<Text style={styles.totalValue}>
+							₹{totalPayable.toLocaleString("en-IN")}
+						</Text>
+					</View>
 				</View>
-			</View>
 
-			{/* Entered amount display */}
-			<View style={styles.amountDisplay}>
-				<Text style={styles.amountLabel}>
-					{selectedPaymentMode?.name ?? "Cash"} Received
-				</Text>
-				<Text
-					style={[styles.amountValue, !paidAmount && styles.amountPlaceholder]}
-				>
-					₹ {paidAmount || "0"}
-				</Text>
-				{paidAmount.length > 0 && (
-					<View
+				{/* Entered amount display */}
+				<View style={styles.amountDisplay}>
+					<Text style={styles.amountLabel}>
+						{selectedPaymentMode?.name ?? "Cash"} Received
+					</Text>
+					<Text
 						style={[
-							styles.changeBadge,
-							{
-								backgroundColor:
-									change >= 0
-										? theme.colors.successLight
-										: theme.colors.dangerLight,
-							},
+							styles.amountValue,
+							!paidAmount && styles.amountPlaceholder,
 						]}
 					>
-						<Text
+						₹ {paidAmount || "0"}
+					</Text>
+					{paidAmount.length > 0 && (
+						<View
 							style={[
-								styles.changeText,
+								styles.changeBadge,
 								{
-									color:
-										change >= 0 ? theme.colors.success : theme.colors.danger,
+									backgroundColor:
+										change >= 0
+											? theme.colors.successLight
+											: theme.colors.dangerLight,
 								},
 							]}
 						>
-							{change >= 0
-								? `Change: ₹${change.toLocaleString("en-IN")}`
-								: `Short by ₹${Math.abs(change).toLocaleString("en-IN")}`}
-						</Text>
-					</View>
-				)}
-			</View>
+							<Text
+								style={[
+									styles.changeText,
+									{
+										color:
+											change >= 0 ? theme.colors.success : theme.colors.danger,
+									},
+								]}
+							>
+								{change >= 0
+									? `Change: ₹${change.toLocaleString("en-IN")}`
+									: `Short by ₹${Math.abs(change).toLocaleString("en-IN")}`}
+							</Text>
+						</View>
+					)}
+				</View>
 
-			{/* Keypad — flex:1 so it fills the remaining space on any screen */}
-			<BillingKeypad
-				onKeyPress={handleKeyPress}
-				onDelete={handleDelete}
-				onClear={handleClear}
-			/>
+				{/* Keypad */}
+				<View style={styles.keypadWrapper}>
+					<BillingKeypad
+						onKeyPress={handleKeyPress}
+						onDelete={handleDelete}
+						onClear={handleClear}
+					/>
+				</View>
 
-			{/* CTA */}
-			<TouchableOpacity
-				style={[
-					styles.completeBtn,
-					!canPay && styles.completeBtnDisabled,
-					{ marginBottom: 12 + insets.bottom },
-				]}
-				onPress={handleCompleteOrder}
-				disabled={!canPay || isSubmitting}
-				activeOpacity={0.85}
-			>
-				<MaterialCommunityIcons
-					name={canPay ? "check-circle-outline" : "cash"}
-					size={20}
-					color="#fff"
-				/>
-				<Text style={styles.completeBtnText}>
-					{isSubmitting
-						? "Processing..."
-						: !paidAmount
-							? "Enter amount to pay"
-							: !canPay
-								? `Need ₹${(totalPayable - amountPaid).toLocaleString("en-IN")} more`
-								: "Complete Payment"}
-				</Text>
-			</TouchableOpacity>
+				{/* CTA */}
+				<TouchableOpacity
+					style={[styles.completeBtn, !canPay && styles.completeBtnDisabled]}
+					onPress={handleCompleteOrder}
+					disabled={!canPay || isSubmitting}
+					activeOpacity={0.85}
+				>
+					<MaterialCommunityIcons
+						name={canPay ? "check-circle-outline" : "cash"}
+						size={20}
+						color="#fff"
+					/>
+					<Text style={styles.completeBtnText}>
+						{isSubmitting
+							? "Processing..."
+							: !paidAmount
+								? "Enter amount to pay"
+								: !canPay
+									? `Need ₹${(totalPayable - amountPaid).toLocaleString("en-IN")} more`
+									: "Complete Payment"}
+					</Text>
+				</TouchableOpacity>
+			</ScrollView>
 		</View>
 	);
 }

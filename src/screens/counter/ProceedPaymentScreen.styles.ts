@@ -80,11 +80,19 @@ export const styles = StyleSheet.create({
 		flex: 1,
 		justifyContent: "center",
 	},
+	scrollArea: {
+		flex: 1,
+	},
+	scrollContent: {
+		flexGrow: 1,
+		paddingBottom: 24,
+	},
 	summaryCard: {
 		backgroundColor: "#fff",
-		margin: 8,
-		borderRadius: theme.radius.lg,
-		padding: 12,
+		marginHorizontal: 12,
+		marginVertical: 6,
+		borderRadius: theme.radius.md,
+		padding: 10,
 		borderWidth: 1,
 		borderColor: theme.colors.borderLight,
 		...theme.shadow.sm,
@@ -93,7 +101,7 @@ export const styles = StyleSheet.create({
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "center",
-		marginBottom: 8,
+		marginBottom: 5,
 	},
 	summaryLabel: {
 		fontSize: 13,
@@ -107,7 +115,7 @@ export const styles = StyleSheet.create({
 	totalDivider: {
 		height: 1,
 		backgroundColor: theme.colors.borderLight,
-		marginVertical: 8,
+		marginVertical: 5,
 		borderStyle: "dashed",
 	},
 	totalLabel: {
@@ -122,7 +130,7 @@ export const styles = StyleSheet.create({
 	},
 	amountDisplay: {
 		alignItems: "center",
-		paddingVertical: 4,
+		paddingVertical: 2,
 		paddingHorizontal: 16,
 	},
 	amountLabel: {
@@ -134,7 +142,7 @@ export const styles = StyleSheet.create({
 		marginBottom: 4,
 	},
 	amountValue: {
-		fontSize: 36,
+		fontSize: 30,
 		fontWeight: "900",
 		color: theme.colors.textPrimary,
 		letterSpacing: 1,
@@ -152,15 +160,22 @@ export const styles = StyleSheet.create({
 		fontSize: 13,
 		fontWeight: "700",
 	},
+	keypadWrapper: {
+		marginHorizontal: 12,
+		marginTop: 4,
+		marginBottom: 6,
+	},
 	completeBtn: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
 		gap: 10,
 		backgroundColor: theme.colors.success,
+		borderRadius: theme.radius.md,
+		paddingVertical: 13,
 		marginHorizontal: 12,
-		paddingVertical: 12,
-		borderRadius: theme.radius.lg,
+		marginTop: 4,
+		marginBottom: 8,
 		...theme.shadow.md,
 	},
 	completeBtnDisabled: {
