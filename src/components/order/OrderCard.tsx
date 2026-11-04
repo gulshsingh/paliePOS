@@ -213,36 +213,36 @@ export default memo(function OrderCard({
 							</View>
 						);
 					})}
-				</View>
-			)}
 
-			{/* Add Items + Generate Bill buttons */}
-			{!readOnly && !hideBillActions && actionableStatus !== "pending" && (
-				<View style={styles.actionsRow}>
-					<TouchableOpacity
-						style={styles.addBtn}
-						onPress={() => onAddItems?.(order)}
-						activeOpacity={0.85}
-					>
-						<MaterialCommunityIcons
-							name="plus"
-							size={16}
-							color={theme.colors.primary}
-						/>
-						<Text style={styles.addBtnText}>Add Items</Text>
-					</TouchableOpacity>
-					<TouchableOpacity
-						style={styles.billBtn}
-						onPress={() => onBillOrder?.(order)}
-						activeOpacity={0.85}
-					>
-						<MaterialCommunityIcons
-							name="cash-register"
-							size={16}
-							color="#fff"
-						/>
-						<Text style={styles.billBtnText}>Generate Bill</Text>
-					</TouchableOpacity>
+					{/* Add Items + Generate Bill buttons — only shown when touched/expanded in non-pending tabs */}
+					{!readOnly && !hideBillActions && actionableStatus !== "pending" && (
+						<View style={styles.actionsRow}>
+							<TouchableOpacity
+								style={styles.addBtn}
+								onPress={() => onAddItems?.(order)}
+								activeOpacity={0.85}
+							>
+								<MaterialCommunityIcons
+									name="plus"
+									size={16}
+									color={theme.colors.primary}
+								/>
+								<Text style={styles.addBtnText}>Add Items</Text>
+							</TouchableOpacity>
+							<TouchableOpacity
+								style={styles.billBtn}
+								onPress={() => onBillOrder?.(order)}
+								activeOpacity={0.85}
+							>
+								<MaterialCommunityIcons
+									name="cash-register"
+									size={16}
+									color="#fff"
+								/>
+								<Text style={styles.billBtnText}>Generate Bill</Text>
+							</TouchableOpacity>
+						</View>
+					)}
 				</View>
 			)}
 		</TouchableOpacity>
@@ -406,9 +406,7 @@ const styles = StyleSheet.create({
 	actionsRow: {
 		flexDirection: "row",
 		gap: 8,
-		paddingHorizontal: 14,
-		paddingBottom: 14,
-		paddingTop: 6,
+		marginTop: 12,
 	},
 	addBtn: {
 		flex: 1,
