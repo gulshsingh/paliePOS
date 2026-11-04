@@ -2,10 +2,12 @@ import { useState } from "react";
 import {
 	ActivityIndicator,
 	Modal,
+	type StyleProp,
 	StyleSheet,
 	Text,
 	TouchableOpacity,
 	View,
+	type ViewStyle,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import type { PaymentMode } from "../../api/services/paymentModes";
@@ -16,6 +18,8 @@ interface Props {
 	selectedMode: PaymentMode | null;
 	onSelectMode: (mode: PaymentMode) => void;
 	isLoading?: boolean;
+	compact?: boolean;
+	containerStyle?: StyleProp<ViewStyle>;
 }
 
 function getModeIcon(name: string): string {
@@ -42,6 +46,8 @@ export default function PaymentModeDropdown({
 	selectedMode,
 	onSelectMode,
 	isLoading = false,
+	compact = false,
+	containerStyle,
 }: Props) {
 	const [modalVisible, setModalVisible] = useState(false);
 
@@ -49,32 +55,69 @@ export default function PaymentModeDropdown({
 	const currentIcon = getModeIcon(currentName);
 
 	return (
-		<View style={styles.container}>
-			<Text style={styles.label}>Payment Mode</Text>
+		<View
+			style={[
+				styles.container,
+				compact && styles.compactContainer,
+				containerStyle,
+			]}
+		>
+			{!compact && <Text style={styles.label}>Payment Mode</Text>}
 			<TouchableOpacity
-				style={styles.dropdownBtn}
+				style={[styles.dropdownBtn, compact && styles.compactBtn]}
 				onPress={() => setModalVisible(true)}
 				activeOpacity={0.8}
 				disabled={isLoading && modes.length === 0}
 			>
-				<View style={styles.btnLeft}>
-					<View style={styles.iconCircle}>
-						<MaterialCommunityIcons
-							name={currentIcon}
-							size={16}
-							color={theme.colors.primary}
-						/>
-					</View>
-					<Text style={styles.selectedText}>{currentName}</Text>
-				</View>
-				{isLoading ? (
-					<ActivityIndicator size="small" color={theme.colors.primary} />
+				{compact ? (
+					<>
+						<View style={styles.compactBtnLeft}>
+							<View style={styles.compactIconCircle}>
+								<MaterialCommunityIcons
+									name={currentIcon}
+									size={13}
+									color={theme.colors.primary}
+								/>
+							</View>
+							<View style={styles.compactTextWrap}>
+								<Text style={styles.compactLabel}>Payment Mode</Text>
+								<Text style={styles.compactSelectedText} numberOfLines={1}>
+									{currentName}
+								</Text>
+							</View>
+						</View>
+						{isLoading ? (
+							<ActivityIndicator size="small" color={theme.colors.primary} />
+						) : (
+							<MaterialCommunityIcons
+								name="chevron-down"
+								size={15}
+								color={theme.colors.primary}
+							/>
+						)}
+					</>
 				) : (
-					<MaterialCommunityIcons
-						name="chevron-down"
-						size={18}
-						color={theme.colors.textMuted}
-					/>
+					<>
+						<View style={styles.btnLeft}>
+							<View style={styles.iconCircle}>
+								<MaterialCommunityIcons
+									name={currentIcon}
+									size={16}
+									color={theme.colors.primary}
+								/>
+							</View>
+							<Text style={styles.selectedText}>{currentName}</Text>
+						</View>
+						{isLoading ? (
+							<ActivityIndicator size="small" color={theme.colors.primary} />
+						) : (
+							<MaterialCommunityIcons
+								name="chevron-down"
+								size={18}
+								color={theme.colors.textMuted}
+							/>
+						)}
+					</>
 				)}
 			</TouchableOpacity>
 
@@ -289,5 +332,52 @@ const styles = StyleSheet.create({
 		fontSize: 11,
 		color: theme.colors.textMuted,
 		marginTop: 2,
+	},
+	compactContainer: {
+		flex: 1,
+		marginHorizontal: 0,
+		marginBottom: 0,
+		justifyContent: "center",
+	},
+	compactBtn: {
+		flex: 1,
+		backgroundColor: theme.colors.primaryLight,
+		borderColor: theme.colors.primary,
+		borderWidth: 1,
+		borderRadius: theme.radius.sm,
+		paddingHorizontal: 8,
+		paddingVertical: 4,
+		minHeight: 56,
+	},
+	compactBtnLeft: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+		flex: 1,
+	},
+	compactIconCircle: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		backgroundColor: "#fff",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	compactTextWrap: {
+		flex: 1,
+		justifyContent: "center",
+	},
+	compactLabel: {
+		fontSize: 8,
+		fontWeight: "800",
+		color: theme.colors.primary,
+		textTransform: "uppercase",
+		letterSpacing: 0.5,
+		marginBottom: 1,
+	},
+	compactSelectedText: {
+		fontSize: 12,
+		fontWeight: "700",
+		color: theme.colors.textPrimary,
 	},
 });

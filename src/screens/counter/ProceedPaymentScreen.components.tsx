@@ -6,6 +6,8 @@ import {
 	View,
 } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import type { PaymentMode } from "../../api/services/paymentModes";
+import PaymentModeDropdown from "../../components/billing/PaymentModeDropdown";
 import Receipt from "../../components/billing/Receipt";
 import { theme } from "../../theme";
 import type { CartItem } from "../../types/cart";
@@ -73,66 +75,92 @@ export function ProceedContextChips({
 	hasCustomer,
 	tableName,
 	hasTable,
+	paymentModes,
+	selectedPaymentMode,
+	onSelectPaymentMode,
+	isLoadingModes,
 }: {
 	customerName?: string;
 	hasCustomer: boolean;
 	tableName?: string;
 	hasTable: boolean;
+	paymentModes: PaymentMode[];
+	selectedPaymentMode: PaymentMode | null;
+	onSelectPaymentMode: (mode: PaymentMode) => void;
+	isLoadingModes?: boolean;
 }) {
 	return (
 		<View style={styles.contextRow}>
-			<View
-				style={[styles.contextChip, hasCustomer && styles.contextChipActive]}
-			>
-				<View style={styles.contextChipLeft}>
-					<MaterialCommunityIcons
-						name="account-outline"
-						size={15}
-						color={hasCustomer ? theme.colors.primary : theme.colors.textMuted}
-					/>
-					<Text
-						style={[
-							styles.contextChipText,
-							hasCustomer && styles.contextChipTextActive,
-						]}
-						numberOfLines={1}
-					>
-						{customerName ?? "Walk-in Customer"}
-					</Text>
+			{/* Left Column: Customer & Table stacked vertically (ek ke niche ek) */}
+			<View style={styles.stackedChipsCol}>
+				<View
+					style={[styles.contextChip, hasCustomer && styles.contextChipActive]}
+				>
+					<View style={styles.contextChipLeft}>
+						<MaterialCommunityIcons
+							name="account-outline"
+							size={12}
+							color={
+								hasCustomer ? theme.colors.primary : theme.colors.textMuted
+							}
+						/>
+						<Text
+							style={[
+								styles.contextChipText,
+								hasCustomer && styles.contextChipTextActive,
+							]}
+							numberOfLines={1}
+						>
+							{customerName ?? "Walk-in Customer"}
+						</Text>
+					</View>
+					{hasCustomer && (
+						<MaterialCommunityIcons
+							name="check-circle"
+							size={11}
+							color={theme.colors.primary}
+						/>
+					)}
 				</View>
-				{hasCustomer && (
-					<MaterialCommunityIcons
-						name="check-circle"
-						size={14}
-						color={theme.colors.primary}
-					/>
-				)}
+
+				<View
+					style={[styles.contextChip, hasTable && styles.contextChipActive]}
+				>
+					<View style={styles.contextChipLeft}>
+						<MaterialCommunityIcons
+							name="table-furniture"
+							size={12}
+							color={hasTable ? theme.colors.primary : theme.colors.textMuted}
+						/>
+						<Text
+							style={[
+								styles.contextChipText,
+								hasTable && styles.contextChipTextActive,
+							]}
+							numberOfLines={1}
+						>
+							{tableName ?? "No Table"}
+						</Text>
+					</View>
+					{hasTable && (
+						<MaterialCommunityIcons
+							name="check-circle"
+							size={11}
+							color={theme.colors.primary}
+						/>
+					)}
+				</View>
 			</View>
 
-			<View style={[styles.contextChip, hasTable && styles.contextChipActive]}>
-				<View style={styles.contextChipLeft}>
-					<MaterialCommunityIcons
-						name="table-furniture"
-						size={15}
-						color={hasTable ? theme.colors.primary : theme.colors.textMuted}
-					/>
-					<Text
-						style={[
-							styles.contextChipText,
-							hasTable && styles.contextChipTextActive,
-						]}
-						numberOfLines={1}
-					>
-						{tableName ?? "No Table"}
-					</Text>
-				</View>
-				{hasTable && (
-					<MaterialCommunityIcons
-						name="check-circle"
-						size={14}
-						color={theme.colors.primary}
-					/>
-				)}
+			{/* Right Column: Payment Mode (where table used to be) */}
+			<View style={styles.paymentModeCol}>
+				<PaymentModeDropdown
+					modes={paymentModes}
+					selectedMode={selectedPaymentMode}
+					onSelectMode={onSelectPaymentMode}
+					isLoading={isLoadingModes}
+					compact
+				/>
 			</View>
 		</View>
 	);

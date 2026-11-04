@@ -12,7 +12,6 @@ import type { PaymentMode } from "../../api/services/paymentModes";
 import { createPayment } from "../../api/services/payments";
 import { updateTable } from "../../api/services/tables";
 import BillingKeypad from "../../components/billing/BillingKeypad";
-import PaymentModeDropdown from "../../components/billing/PaymentModeDropdown";
 import { useCreateOrder } from "../../hooks/useOrders";
 import { usePaymentModes } from "../../hooks/usePaymentModes";
 import { useCartStore } from "../../store/cartStore";
@@ -315,20 +314,16 @@ export default function ProceedPaymentScreen() {
 				<View style={styles.headerSpacer} />
 			</View>
 
-			{/* Context chips (Left: Customer, Right: Table matching POS UI) */}
+			{/* Top bar: Left: Customer & Table stacked; Right: Payment Mode */}
 			<ProceedContextChips
 				customerName={resolvedCustomerName}
 				hasCustomer={hasCustomer}
 				tableName={resolvedTableName}
 				hasTable={hasTable}
-			/>
-
-			{/* Payment Mode Dropdown */}
-			<PaymentModeDropdown
-				modes={paymentModes}
-				selectedMode={selectedPaymentMode}
-				onSelectMode={setSelectedPaymentMode}
-				isLoading={isLoadingModes}
+				paymentModes={paymentModes}
+				selectedPaymentMode={selectedPaymentMode}
+				onSelectPaymentMode={setSelectedPaymentMode}
+				isLoadingModes={isLoadingModes}
 			/>
 
 			{/* Bill summary card */}
