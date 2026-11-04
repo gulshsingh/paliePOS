@@ -61,6 +61,7 @@ export interface CreatePaymentPayload {
 	paid_amount: number;
 	change_amount: number;
 	payment_method: string;
+	payment_mode_id?: string;
 }
 
 export interface DashboardData {
