@@ -21,7 +21,11 @@ import type { Customer } from "../../types/customer";
 import type { RootNavigationProp } from "../../types/navigation";
 import type { ApiOrder, ApiOrderItem, Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
-import { extractList, getErrorMessage } from "../../utils/apiHelpers";
+import {
+	extractList,
+	getErrorMessage,
+	unwrapApiData,
+} from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import {
 	BillingActions,
@@ -199,13 +203,13 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				})),
 			});
 
-			const o: ApiOrder = res.data.data;
+			const o = unwrapApiData<ApiOrder>(res.data);
 
 			// Use server-returned item IDs (real order-item UUIDs). If the
 			// response includes items, map them directly so we never store
 			// a product_id where an order-item UUID is required.
 			const newOrder = buildNewOrderObject({
-				serverOrder: o,
+				serverOrder: o ?? ({} as ApiOrder),
 				cart,
 				grandTotal,
 				taxTotal,
@@ -220,11 +224,15 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				const store = useOrderStore.getState();
 				for (const item of serverItems) {
 					store.setItemStatusOverride(item.id, "preparing");
-					updateItemStatusRemote.mutate(
-						{ item_id: item.id, status: "preparing" },
-						{ onError: () => {} },
-					);
 				}
+				await Promise.allSettled(
+					serverItems.map((item) =>
+						updateItemStatusRemote.mutateAsync({
+							item_id: item.id,
+							status: "preparing",
+						}),
+					),
+				);
 			}
 
 			clearCart();
@@ -313,7 +321,7 @@ export default function BillingPanel({ onRequestClose }: Props) {
 			// Replace the entire order's item list with the server's canonical
 			// items (real order-item UUIDs). This is the single source of truth —
 			// no fragile local ID-swap logic needed.
-			const updatedOrder: ApiOrder = res.data.data;
+			const updatedOrder = unwrapApiData<ApiOrder>(res.data);
 			const serverItems: ApiOrderItem[] = updatedOrder?.items ?? [];
 
 			if (serverItems.length > 0) {
@@ -332,13 +340,18 @@ export default function BillingPanel({ onRequestClose }: Props) {
 				const newItems = serverItems.filter((si: ApiOrderItem) =>
 					additionProductIds.has(si.product_id),
 				);
+				const store = useOrderStore.getState();
 				for (const item of newItems) {
-					useOrderStore.getState().setItemStatusOverride(item.id, "preparing");
-					updateItemStatusRemote.mutate(
-						{ item_id: item.id, status: "preparing" },
-						{ onError: () => {} },
-					);
+					store.setItemStatusOverride(item.id, "preparing");
 				}
+				await Promise.allSettled(
+					newItems.map((item) =>
+						updateItemStatusRemote.mutateAsync({
+							item_id: item.id,
+							status: "preparing",
+						}),
+					),
+				);
 			}
 		} catch (e) {
 			// Roll back the optimistic local update

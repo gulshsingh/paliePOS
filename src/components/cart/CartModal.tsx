@@ -22,7 +22,7 @@ import type { Customer } from "../../types/customer";
 import type { RootNavigationProp } from "../../types/navigation";
 import type { ApiOrder, ApiOrderItem, Order } from "../../types/order";
 import type { RestaurantTable } from "../../types/table";
-import { extractList } from "../../utils/apiHelpers";
+import { extractList, unwrapApiData } from "../../utils/apiHelpers";
 import { mapApiItemsToCart } from "../../utils/orderMappers";
 import CustomerModal from "../customer/CustomerModal";
 import TableModal from "../table/TableModal";
@@ -117,10 +117,7 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 				})),
 			});
 
-			const created = res.data?.data as
-				| ({ data?: ApiOrder } & ApiOrder)
-				| undefined;
-			const o: ApiOrder | undefined = created?.data ?? created;
+			const o = unwrapApiData<ApiOrder>(res.data);
 
 			const newOrder: Order = {
 				id: o?.id ?? String(Date.now()),
@@ -169,11 +166,15 @@ export default function CartModal({ visible, cart, onClose }: Props) {
 				const store = useOrderStore.getState();
 				for (const item of serverItems) {
 					store.setItemStatusOverride(item.id, "preparing");
-					updateItemStatusRemote.mutate(
-						{ item_id: item.id, status: "preparing" },
-						{ onError: () => {} },
-					);
 				}
+				await Promise.allSettled(
+					serverItems.map((item) =>
+						updateItemStatusRemote.mutateAsync({
+							item_id: item.id,
+							status: "preparing",
+						}),
+					),
+				);
 			}
 
 			clearCart();
