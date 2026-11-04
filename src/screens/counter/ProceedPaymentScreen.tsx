@@ -184,13 +184,17 @@ export default function ProceedPaymentScreen() {
 			const totalPaid = amountPaid + Number(alreadyPaid || 0);
 			const payable = grandTotal - Number(discount || 0);
 			const balance = Math.max(payable - totalPaid, 0);
-			await createPayment({
+			const paymentRes = await createPayment({
 				invoice_id: invoiceId,
 				paid_amount: totalPaid,
 				change_amount: Math.max(change, 0),
 				payment_method: selectedPaymentMode?.name.toLowerCase() ?? "cash",
 				payment_mode_id: selectedPaymentMode?.id,
 			});
+
+			if (paymentRes.data && !paymentRes.data.success) {
+				throw new Error(paymentRes.data.message || "Payment creation failed");
+			}
 
 			// ③ Update local Zustand state immediately after payment succeeds —
 			// BEFORE updateTable so the UI reflects PAID even if table free fails.
